@@ -1,0 +1,626 @@
+---
+title: "career_plots"
+author: "Connor Whalen"
+date: "2024-08-26"
+output:
+  html_document:
+    theme: readable
+    highlight: textmate
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+##Background
+This code was taken from 'lots_sampled' script in the TUBRI repository for the purposes of creating a plot that shows sampled fish AND the extreme weather events that occurred in the area over the specific time-span of the project.
+- LA = 1963 to 2005
+- NM = 1931 to 2010
+
+### Message from the original code
+Creating a map and plot just like the one in the CAREER proposal, but updated to reflect the lat, long, and year of all the samples we ACTUALLY processed (not just the ones that are available at TUBRI).
+
+#### Install packages
+```{r install, echo=FALSE, eval=FALSE}
+install.packages("mapdata")
+install.packages("ggmap")
+install.packages("raster")
+install.packages("wesanderson")
+install.packages("pdftools")
+```
+
+#### Load packages
+```{r load, echo=FALSE}
+library(maps)
+library(mapdata)
+library(scales) #for transparency
+library(maps)
+library(ggmap)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(cowplot)
+library(sp)
+library(raster)
+library(pdftools)
+library(wesanderson)
+library(grid)
+```
+
+#### Load data about TUBRI lots
+```{r}
+psite_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_with_psite_life_history_info_2024.11.21.csv", header = TRUE, sep = ",") %>%
+  janitor::clean_names()
+```
+
+## Building the plots for the NOLA dataset
+### First you need to reduce the dataset to make each fish a row
+```{r}
+la_fish_sampled <- psite_data %>%
+  group_by(fish_sp_x, individual_fish_id, ci, latitude, longitude, year_collected) %>%
+  summarize(count = n())
+
+la_fish_sampled <- la_fish_sampled %>%
+  group_by(fish_sp_x, ci, year_collected) %>%
+  summarize(count = n())
+```
+
+### Make the map
+```{r}
+asd <- la_fish_sampled %>% 
+  group_by(fish_sp_x, year_collected) %>% 
+  summarize(count=n())
+
+## map function currently not working
+bounds <- c(left = -89.855, bottom = 30.69, right = -89.81, top = 30.79)
+la_map <- get_stadiamap(bounds, zoom = 12, maptype = "stamen_terrain_background") %>% 
+  ggmap() + 
+  geom_point(y = 30.76558198250576, x = -89.83398463056083, size = 4) + 
+  geom_point(data = la_fish_sampled, aes(x = longitude, y = latitude, fill = ci), shape = 21, size = 4) + 
+  scale_fill_manual(values = c("white","tan")) + 
+  xlab("Latitude") + 
+  ylab("Longitude") +
+  theme(
+    plot.margin = unit(c(0, 0, 0, 0), "cm"), 
+    axis.title.x = element_text(size = 20), 
+    axis.title.y = element_text(size = 20), 
+    axis.text.x = element_text(size = 8), 
+    axis.text.y = element_text(size = 8),
+    legend.position = "right"
+  )
+
+plot(la_map)
+```
+
+Building a standalone legend for the LA map
+```{r}
+legend_wsn_la_map <- grobTree(
+  pointsGrob(x = 0.28, y = 0.4, pch = 21, size = unit(25, "mm"), gp = gpar(col = "black", fill = "white")),
+  textGrob("Control (above mill)", x = 0.3, y = 0.4, just = "left", gp = gpar(fontsize = 36)),
+  pointsGrob(x = 0.28, y = 0.3, pch = 21, size = unit(25, "mm"), gp = gpar(col = "black", fill = "tan")),
+  textGrob("Impact (below mill)", x = 0.3, y = 0.3, just = "left", gp = gpar(fontsize = 36)),
+  pointsGrob(x = 0.28, y = 0.2, pch = 21, size = unit(25, "mm"), gp = gpar(col = "black", fill = "black")),
+  textGrob("Pulp Mill", x = 0.3, y = 0.2, just = "left", gp = gpar(fontsize = 36))
+)
+
+
+bordered_legend_wsn_la_map <- grobTree(
+  rectGrob(x = 0.41, y = 0.31, width = 0.5, height = 0.38, 
+           gp = gpar(col = "black", fill = NA, lwd = 2)), 
+  legend_wsn_la_map 
+)
+
+
+### make the legend alone
+legend_legend_wsn_la_map_final <- ggplot() + 
+  annotation_custom(bordered_legend_wsn_la_map, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) + 
+  theme_void() 
+
+print(legend_legend_wsn_la_map_final)
+
+```
+
+Create the palette for use in the plot
+```{r, echo=FALSE}
+wes_palette("Zissou1")
+pal<-wes_palette(name = "Zissou1", 6, type = "continuous")
+```
+
+
+Plot all the fish species as well as the extreme weather events in the same plot
+This is the one that Daki recommended:
+```{r}
+cc <- table(la_fish_sampled$ci)
+print(cc)
+
+# Create a summary dataframe for the annotations
+annotation_data <- data.frame(
+  ci = c("impact",
+         "control"),
+  count = c(742, 446),
+  year_collected = 1965  # X-coordinate for all annotations
+)
+
+la_fish_plot <- ggplot(data = final_la, 
+                       aes(x = year_collected, y = count)) + 
+annotate(geom = "rect", xmin = 1963, xmax = 1964, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1964, xmax = 1965, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1968, xmax = 1969, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1970, xmax = 1971, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1973, xmax = 1974, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1978, xmax = 1979, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1984.2, xmax = 1985.2, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1985.2, xmax = 1986.2, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1985.8, xmax = 1986.8, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1988.2, xmax = 1989.2, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1988.8, xmax = 1989.8, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1991, xmax = 1992, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1994, xmax = 1995, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1995.5, xmax = 1996.5, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1996, xmax = 1997, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1997, xmax = 1998, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1998, xmax = 1999, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 1998.5, xmax = 1999.5, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 2002, xmax = 2003, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 2002.5, xmax = 2003.5, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+annotate(geom = "rect", xmin = 2003, xmax = 2004, ymin = -Inf, ymax = Inf, 
+         fill = "lightgrey", colour = NA, alpha = 0.75) + # hurricane
+   annotate(geom = "rect", xmin = 1966.75, xmax = 1969.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+   annotate(geom = "rect", xmin = 1975.75, xmax = 1977.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+   annotate(geom = "rect", xmin = 1980.75, xmax = 1981.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+   annotate(geom = "rect", xmin = 1984.75, xmax = 1986.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+   annotate(geom = "rect", xmin = 1999.75, xmax = 2001.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+   annotate(geom = "rect", xmin = 1965.50, xmax = 1965.75, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+   annotate(geom = "rect", xmin = 1995.50, xmax = 1995.50, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+   annotate(geom = "rect", xmin = 1972.75, xmax = 1973.50, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+   annotate(geom = "rect", xmin = 1999.75, xmax = 2001.25, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+   geom_point(stat = "identity", aes(colour = fish_sp_x), size = 5, position = "dodge", show.legend = FALSE, stroke = 1.5) + 
+   facet_grid(ci ~ ., labeller = labeller(ci = facet_labels_wsn)) + # Facet by category
+   scale_color_manual(values = pal[1:7], name = '') +  # Use scale_color_manual for point colors
+   xlab("Year Collected") + 
+   ylab("Number of Fish Dissected") +
+   scale_x_continuous(limits = c(1962, 2006), breaks = c(1960, 1965, 1970, 1975, 1980, 1985, 1990, 1995, 2000, 2005), expand = expansion(mult = c(0, 0))) + 
+   theme_bw() + 
+   theme(strip.background = element_rect(fill = NA, color = "white"),
+         panel.background = element_rect(fill = NA, color = "darkgrey"),
+         axis.title = element_text(size = 28),
+         axis.text = element_text(size = 26),
+         strip.text = element_text(size = 22),
+         legend.text = element_text(size = 26)) +
+   # Add text annotations dynamically
+   geom_text(data = annotation_data, 
+             aes(x = year_collected, y = 30, label = paste("n =", count)),
+             size = 5, hjust = 1)
+
+plot(la_fish_plot)
+```
+
+
+
+Simpler plot for use in GRFP
+```{r, echo=FALSE}
+##### trying new methods for simpler GRFP plot
+custom_breaks <- c(0, 20, 40, 60, 80, 100, 120, 140)
+
+la_fish_plot_grfp <- ggplot(data = la_fish_sampled, 
+                    aes(x = year_collected)) +
+  annotate(geom = "rect", xmin = 1966.75, xmax = 1969.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1975.75, xmax = 1977.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1980.75, xmax = 1981.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1984.75, xmax = 1986.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1999.75, xmax = 2001.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1965.50, xmax = 1965.75, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+  annotate(geom = "rect", xmin = 1995.50, xmax = 1995.50, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+  annotate(geom = "rect", xmin = 1972.75, xmax = 1973.50, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+  annotate(geom = "rect", xmin = 1999.75, xmax = 2001.25, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+  geom_vline(xintercept = 1963, linetype = "dashed") + #collectionstart
+  geom_vline(xintercept = 1972.5, linetype="dotted") + #CWA
+  geom_vline(xintercept = 2005, linetype="dashed") + #collectionend
+  geom_vline(xintercept = 1964, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1965, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1969, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1971, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1974, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1979, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1985.1, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1985.4, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1985.6, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1988.1, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1988.6, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1992, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1995, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1996, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1997, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1998.1, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 1998.6, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 2002.1, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 2002.6, linetype="dotdash", colour = "orange") + #hurricane
+  geom_vline(xintercept = 2004, linetype="dotdash", colour = "orange") + #hurricane
+  xlim(1962, 2006) +
+  geom_histogram(data = la_fish_sampled, 
+             aes(x = year_collected), shape = 21, size = 3,
+             show.legend = FALSE, bins = 40) +
+  xlab("") +
+  ylab("") + 
+  scale_y_continuous(expand = c(0,0), breaks = custom_breaks, limits = c(0, 120)) + theme_classic()  +
+  scale_linetype_manual(name = "Events", 
+                        values = c("dashed" = "dashed", "dotted" = "dotted", "dotdash" = "dotdash"),
+                        labels = c("Collection Start", "CWA", "Hurricanes")) +
+  guides(linetype = guide_legend(override.aes = list(colour = c("black", "black", "brown")))) 
+
+plot(la_fish_plot_grfp)
+
+```
+
+## unedited past this point as of 11/6/2024
+## Add the ABQ data and plot
+- taken from the UNM repo map file. 
+
+#### load dataset
+```{r}
+lots<-read.csv("~/Desktop/UW/UNM/data/final_lots_CAREER.csv") %>%
+  janitor::clean_names()
+```
+
+create the shape for the city map  --- not currently working
+```{r}
+polygon<-readOGR("Albuquerque_City_Limits-polygon.shp")
+polygon_df<-fortify(polygon)
+
+water<-readOGR("NHDArea.shp")
+water_df<-fortify(water)
+```
+
+create city map
+```{r}
+bounds <- c(left = -106.89, bottom = 34.82, right = -106.45, top = 35.66)
+map <- get_stadiamap(bounds, zoom = 11, maptype = "stamen_terrain_background") %>% 
+  ggmap() +
+  geom_point() +
+  xlab("Longitude (°W)") +
+  ylab("Latitude (°N)") +
+  theme(axis.title.x = element_text(size = 20), axis.title.y = element_text(size = 20),
+        axis.text = element_text(size = 14), axis.title = element_text(size = 14)) +
+  geom_rect(xmin = -106.89, ymin = 34.8, xmax = -106.45, ymax = 35.2102673, fill = "grey", alpha = 0.2, linetype = "blank") +
+  geom_hline(yintercept = 35.2102673, linetype = "dashed") +
+  #geom_map(data=water_df,map=water_df,aes(x=long,y=lat,map_id=id),color="lightsteelblue3",fill="lightsteelblue3")+
+  #geom_map(data=polygon_df,map=polygon_df,aes(x=long,y=lat,map_id=id),color="black",fill=NA)+
+  annotate("text", x = -106.6, y = 35.0975, label = "City of Albuquerque", size = 4.5) +
+  annotate("text", x = -106.58, y = 35.33, label = "Rio Grande River", size = 5, angle = 55)
+plot(map)
+```
+
+make plot of lots
+```{r}
+nm_fish_plot <- ggplot(data = lots, aes(x = year_collected, y = ci)) +
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 35.2102673,
+           fill = "darkgrey", colour = NA, alpha = 0.5) + 
+  annotate(geom = "rect", xmin = 1952.75, xmax = 1956.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1937.25, xmax = 1938.25, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+   annotate(geom = "rect", xmin = 1941.25, xmax = 1942.25, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+  geom_point(data = lots, 
+             aes(x = jitter(year_collected, factor = 40), y = jitter(latitude, factor = 40), fill = scientific_name, size= number_requested), shape = 21,
+             show.legend = FALSE) +
+  scale_fill_manual(limits=c("Hybognathus amarus","Pimephales promelas","Gambusia affinis"), labels = c("HA", "PP", "GA"), values = c("#3B9AB2", "#E1AF00", "#F21A00"), name = "Host spp.") +
+  scale_size_continuous(limits = c(1, 15), name = "Number of host individuals") +
+  geom_hline(yintercept = 35.2102673, linetype = "dashed") + 
+  geom_vline(xintercept = 1931, linetype = "dashed") + #collectionstart
+  geom_vline(xintercept = 1972.5, linetype="dotted") + #CWA
+  geom_vline(xintercept = 2010, linetype="dashed") + #collectionend
+  geom_vline(xintercept = 1964, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1974, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1974.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1990, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993.45, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993.65, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1994, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1995, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1996, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000.75, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2001, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2001.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2002, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2002.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2002.75, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2003, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2003.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2004, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2005, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.1, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.2, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.3, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.4, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.6, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.7, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.8, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.9, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.15, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.35, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.45, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.55, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2008, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2008.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2009, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2009.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2010, linetype="dotdash", colour = "brown") + #wildfire
+  xlab("Year collected") +
+  ylab("Latitude") +
+  ylim(34.82, 35.66) +
+  xlim(1929, 2011) +
+  theme_bw() +
+ scale_linetype_manual(name = "Events", 
+                        values = c("dashed" = "dashed", "dotted" = "dotted", "dotdash" = "dotdash"),
+                        labels = c("Collection Start", "CWA", "Wildfire")) +
+  guides(linetype = guide_legend(override.aes = list(colour = c("black", "black", "brown")))) 
+
+#+
+ # theme(legend.position = "top",legend.title = element_text(size = 20, face = "bold")) +
+#  guides(fill = guide_legend(override.aes = list(size = 7))) +
+#  theme(plot.margin = unit(c(0, 0, 0, 0), "cm"), text = element_text(family = 'sans', size = 20),
+ # axis.text.y = element_text(size = 14), axis.text.x = element_text(size = 14), legend.text = element_text(size = 18))
+plot(nm_fish_plot)
+
+
+panels_cd <- plot_grid(map, plot, align = "h", axis = "bt", rel_widths = c(1, 3))
+
+
+nm_final_figure <- ggdraw(plot=NULL,xlim=c(0,20),ylim=c(0,10))+
+  #draw_image(panel_a,x=0,y=10,width=10,height=10)+
+  #draw_image(panel_b,x=10,y=10,width=10,height=10)+
+  draw_plot(panels_cd,x=0,y=0,width=20,height=10)+
+  draw_label("(a)",x=0.5,y=9.75,size=30)+
+  draw_label("(b)",x=5.5,y=9.75,size=30)
+plot(nm_final_figure)
+
+
+
+## modifying for GRFP
+
+custom_breaks_nm <- c(0, 20, 40, 60, 80, 100, 120, 140)
+custom_breaks_nm_x <- c(1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010)
+
+nm_fish_plot_grfp <- ggplot(data = lots, aes(x = year_collected)) + 
+  annotate(geom = "rect", xmin = 1952.75, xmax = 1956.25, ymin = -Inf, ymax = Inf,
+           fill = "pink", colour = NA, alpha = 0.75) + #drought
+  annotate(geom = "rect", xmin = 1937.25, xmax = 1938.25, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+   annotate(geom = "rect", xmin = 1941.25, xmax = 1942.25, ymin = -Inf, ymax = Inf,
+           fill = "lightblue", colour = NA, alpha = 0.75) + #flood
+  geom_vline(xintercept = 1931, linetype = "dashed") + #collectionstart
+  geom_vline(xintercept = 2010, linetype="dashed") + #collectionend
+  geom_vline(xintercept = 1964, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1974, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1974.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1990, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993.45, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993.65, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1993, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1994, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1995, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 1996, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2000.75, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2001, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2001.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2002, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2002.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2002.75, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2003, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2003.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2004, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2005, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.1, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.2, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.3, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.4, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.6, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.7, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.8, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.9, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.15, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.25, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.35, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.45, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2006.55, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2008, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2008.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2009, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2009.5, linetype="dotdash", colour = "brown") + #wildfire
+  geom_vline(xintercept = 2010, linetype="dotdash", colour = "brown") + #wildfire
+  geom_histogram(data = lots, 
+             aes(x = year_collected), bins = 25) +
+  scale_y_continuous(expand = c(0,0), breaks = custom_breaks_nm, limits = c(0, 140)) + 
+  xlab("") +
+  ylab("") +
+     xlim(1929, 2011) +
+  scale_x_continuous(expand = c(0,0), limits = c(1929, 2015), breaks = custom_breaks_nm_x,) +
+  theme_classic() + 
+ scale_linetype_manual(name = "Events", 
+                        values = c("dotdash" = "dotdash"),
+                        labels = c("Wildfire")) +
+  guides(linetype = guide_legend(override.aes = list(colour = c("brown")))) 
+
+plot(nm_fish_plot_grfp)
+
+
+```
+
+```{r}
+
+legend_grob <- grobTree(
+  textGrob("Legend", x = 0.3, y = 0.9, gp = gpar(fontsize = 16, fontface = "bold")),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.8, y1 = 0.8, gp = gpar(col = "grey", lwd = 3)),
+  textGrob("No Clean Water Act", x = 0.3, y = 0.8, just = "left", gp = gpar(fontsize = 14)),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.7, y1 = 0.7, gp = gpar(col = "pink", lwd = 3)),
+  textGrob("Drought", x = 0.3, y = 0.7, just = "left", gp = gpar(fontsize = 14)),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.6, y1 = 0.6, gp = gpar(col = "lightblue", lwd = 3)),
+  textGrob("Flood", x = 0.3, y = 0.6, just = "left", gp = gpar(fontsize = 14)),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.5, y1 = 0.5, gp = gpar(col = "orange", lwd = 3, lty = "dotdash")),
+  textGrob("Hurricane", x = 0.3, y = 0.5, just = "left", gp = gpar(fontsize = 14)),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.4, y1 = 0.4, gp = gpar(col = "brown", lwd = 3, lty = "dotdash")),
+  textGrob("Wildfire", x = 0.3, y = 0.4, just = "left", gp = gpar(fontsize = 14)),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.3, y1 = 0.3, gp = gpar(col = "darkgrey", lwd = 3)),
+  textGrob("South of Urbanization", x = 0.3, y = 0.3, just = "left", gp = gpar(fontsize = 14)),
+  segmentsGrob(x0 = 0.1, x1 = 0.2, y0 = 0.2, y1 = 0.2, gp = gpar(col = "black", lwd = 3, lty = "dotted")),
+  textGrob("Collection Start/End", x = 0.3, y = 0.2, just = "left", gp = gpar(fontsize = 14))
+)
+
+
+bordered_legend <- grobTree(
+  rectGrob(x = 0.5, y = 0.5, width = 0.9, height = 0.9, 
+           gp = gpar(col = "black", fill = NA, lwd = 2)), 
+  legend_grob 
+)
+
+
+final_figure <- ggdraw(plot = NULL, xlim = c(0, 6), ylim = c(0, 10)) + 
+  draw_plot(la_fish_plot + theme(legend.position = "none"), x = 0, y = 5, width = 5, height = 5) +
+  draw_plot(nm_fish_plot + theme(legend.position = "none"), x = 0, y = 0, width = 5, height = 5) + 
+  draw_label("(a)", x = 0.055, y = 9.75, size = 25) +
+  draw_label("(b)", x = 0.1, y = 4.75, size = 25) +
+  draw_grob(bordered_legend, x = 5, y = 4, width = 1, height = 2.5)
+
+
+plot(final_figure)
+
+#### grfp
+final_figure_grfp <- ggdraw(plot = NULL, xlim = c(0, 2 ), ylim = c(0, 1)) + 
+  draw_plot(la_fish_plot_grfp) +
+  draw_plot(nm_fish_plot_grfp) + 
+  draw_label("(a)", x = 0.055, y = 9.75, size = 25) +
+  draw_label("(b)", x = 0.1, y = 4.75, size = 25)
+
+plot(final_figure_grfp)
+
+grfp_final <- ggarrange(la_fish_plot_grfp, nm_fish_plot_grfp, common.legend = TRUE, legend = "bottom", labels = c("A", "B"))
+
+grfp_final <- annotate_figure(grfp_final,
+                                  left = text_grob("Number of Fish", rot = 90, vjust = 1, size = 14),
+                                  bottom = text_grob("Year Collected", vjust = -0.5, size = 14))
+plot(grfp_final)
+
+```
+assign category to parasites themselves
+```{r}
+full <- read_csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_with_psite_life_history_info_2024.08.16.csv") %>%
+  janitor::clean_names()
+```
+
+
+```{r}
+# List of hurricane years
+hurricane_years <- c(1964, 1965, 1969, 1971, 1974, 1979, 
+                     1985.1, 1985.4, 1985.6, 1988.1, 1988.6, 
+                     1992, 1995, 1996, 1997, 1998.1, 1998.6, 
+                     2002.1, 2002.6, 2004)
+drought_years <- c(1975, 1976, 1977, 1980, 1981, 1984, 1985, 1986, 1999, 2000, 2001)
+flood_years <- c(1965, 1966, 1995, 1996, 1972, 1973, 1974, 1999, 2000, 2001)
+
+
+# Add a column to mark hurricane events
+full <- full %>%
+  mutate(event = case_when(
+    year_collected %in% hurricane_years & year_collected %in% drought_years ~ "Hurricane + Drought",
+    year_collected %in% hurricane_years & year_collected %in% flood_years ~ "Hurricane + Flood",
+    year_collected %in% hurricane_years ~ "Hurricane",
+    year_collected %in% drought_years ~ "Drought",
+    year_collected %in% flood_years ~ "Flood",
+    TRUE ~ "No Event"
+  )) %>%
+  mutate(category = case_when(
+    ci == "impact" & event == "Hurricane + Drought" ~ "Hurricane + Drought + Impact",
+    ci == "control" & event == "Hurricane + Drought" ~ "Hurricane + Drought + Control",
+    ci == "impact" & event == "Hurricane + Flood" ~ "Hurricane + Flood + Impact",
+    ci == "control" & event == "Hurricane + Flood" ~ "Hurricane + Flood + Control",
+    ci == "impact" & event == "Hurricane" ~ "Hurricane + Impact",
+    ci == "control" & event == "Hurricane" ~ "Hurricane + Control",
+    ci == "impact" & event == "Drought" ~ "Drought + Impact",
+    ci == "control" & event == "Drought" ~ "Drought + Control",
+    ci == "impact" & event == "Flood" ~ "Flood + Impact",
+    ci == "control" & event == "Flood" ~ "Flood + Control",
+    ci == "impact" & event == "No Event" ~ "No Event + Impact",
+    ci == "control" & event == "No Event" ~ "No Event + Control"
+  ))
+
+# Prepare data for table plotting
+table_data <- full %>%
+  group_by(event, category) %>%
+  summarize(count = n(), .groups = 'drop')
+
+# Print the table
+print(table_data)
+
+
+#Hurricane + Control	4475			
+#Hurricane + Impact	5438			
+#No Hurricane + Control	7415			
+#No Hurricane + Impact	13850
+
+
+```
+
+
+
+
+
+
+
+
+

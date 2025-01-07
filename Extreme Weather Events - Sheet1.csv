@@ -1,0 +1,93 @@
+event_type,location,year_s,month_s,day_s,year_e,month_e,day_e,event_name,notes,notes_2,notes_3,source
+data collection,LA,1963,,,2005,,,,,,,career proposal 
+clean water act,LA,1972,,,2005,,,,,,,career proposal 
+drought,LA,1967,,,1969,,,,,,,career proposal 
+drought,LA,1976,,,1977,,,,,,,career proposal 
+drought,LA,1981,,,1981,,,,,,,career proposal 
+drought,LA,1985,,,1986,,,,,,,career proposal 
+drought,LA,2000,,,2000,,,,,,,career proposal 
+tropical storm,LA,2001,6,5,2001,,,allison,,,,
+tropical storm,LA,2002,8,5,2002,,,bertha,,,,
+tropical storm,LA,2002,9,14,2002,,,hanna,,,,
+hurricane,LA,2002,9,26,2002,,,isidore,,,,
+hurricane,LA,2002,10,3,2002,,,lili,,,,
+hurricane,LA,2004,9,2,2004,9,25,ivan,,,,https://doctorflood.rice.edu/SSPEED_2008/downloads/Day2/4A_Chambers.pdf
+hurricane,LA,1964,9,28,1964,10,5,hilda,"mutliple impact areas, tornadoes",,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1965,8,27,1965,9,13,betsy,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1969,,,1969,,,camille,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1995,,,1995,,,opal,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1992,,,1992,,,andrew,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1971,,,1971,,,edith,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1974,,,1974,,,carmen,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1979,,,1979,,,bob,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1985,,,1985,,,danny,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1985,,,1985,,,elena,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1985,,,1985,,,juan,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1988,,,1988,,,florence,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1988,,,1988,,,gilbert,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1996,,,1996,,,josephine,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1997,,,1997,,,danny,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1998,,,1998,,,frances ,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+hurricane,LA,1998,,,1998,,,georges,,,,https://64parishes.org/entry/hurricanes-in-louisiana
+flood,LA,1965,8,27,1965,9,12,,from hurricane betsy,,,https://www.weather.gov/safety/flood-states-la#
+flood,LA,1995,5,8,1995,5,10,,,,,https://www.weather.gov/safety/flood-states-la
+flood,MS,1979,4,,1979,4,,,"specifically pearl river, this flood was caused in part by the EWE of the 1979 red river valley tornado outbreak that happened north of the river --  the rain from that storm overwhelmed the pearl, leading to flooding in the river",,,https://en.wikipedia.org/wiki/1979_Easter_flood
+flood,MS,1972,12,,1973,6,,,along most of the lower misssissippi,,,https://en.wikipedia.org/wiki/Mississippi_flood_of_1973
+data collection,NM,1931,,,2010,,,,,,,career proposal 
+clean water act,NM,1972,,,2010,,,,,,,career proposal 
+drought,NM,1953,,,1956,,,,,,,career proposal 
+flood,NM,1941,,,1941,,,,61 days long ,,,https://e360.yale.edu/features/warming-and-drought-take-a-toll-on-the-once-mighty-rio-grande https://sourcenm.com/2021/09/18/memory-of-a-river/
+flood,NM,1937,,,1937,,,,no info?,,,"https://www.nmnaturalhistory.org/bosque-education-guide/human-chronology#:~:text=Flooding%20of%20the%20Rio%20Grande,1920%2C%201937%2C%20and%201941."
+wildfire,NM,1974,6,27,1974,7,2,,Gila NF,lightning,109.3,
+wildfire,NM,1974,,,1974,,,,,,58.7,
+wildfire,NM,1990,5,13,1990,6,8,,,,134.1,
+wildfire,NM,1991,6,27,1991,7,29,,near Jemez,,3.2,
+wildfire,NM,1993,6,1,1993,6,5,,,lightning,149.7,
+wildfire,NM,1993,7,14,1993,7,31,,,lightning,174,
+wildfire,NM,1993,5,18,1993,8,20,,,lightning,139.9,
+wildfire,NM,1993,,,1993,,,,,,21.7,
+wildfire,NM,1994,6,12,1994,6,16,,,lightning,138.6,
+wildfire,NM,1995,5,,1995,,,,Gila NF,lightning,109.3,
+wildfire,NM,1996,6,8,1996,,,,,,68.8,
+wildfire,NM,2000,5,11,2000,5,19,,near Las Vegas,,5.7,
+wildfire,NM,2000,2,12,2000,2,13,,near Tatum,,163.2,
+wildfire,NM,2000,5,11,2000,6,20,,near Cloudcroft,,83.8,
+wildfire,NM,2000,6,5,2000,6,11,,,lightning,133,
+wildfire,NM,2000,7,19,2000,11,7,,,lightning,95.2,
+wildfire,NM,2000,2,28,2000,,,,,,24.3,
+wildfire,NM,2001,5,5,2001,5,22,,,lightning,40.5,
+wildfire,NM,2001,6,27,2001,7,5,,Animas Mts,lightning,112.1,
+wildfire,NM,2001,6,2,2001,6,3,,near Ruidoso,,1.9,
+wildfire,NM,2001,6,23,2001,7,2,,,,29.3,
+wildfire,NM,2002,5,22,2002,6,6,,Santa Fe County,,52.6,
+wildfire,NM,2002,5,30,2002,6,28,,"Santa Fe NF, near Pecos",downed power line,41.4,
+wildfire,NM,2002,5,31,2002,6,10,,"Valles Caldera NPr, near Jemez Springs",downed power line,97,
+wildfire,NM,2002,6,2,2002,6,17,,near Colfax,lightning,373.1,
+wildfire,NM,2003,4,17,2003,7,24,,Gila NF,lightning,236.4,
+wildfire,NM,2003,3,31,2003,4,12,,,lightning,152.2,
+wildfire,NM,2004,5,15,2004,6,25,,,lightning,261,
+wildfire,NM,2005,5,28,2005,8,5,,,lightning,325.8,
+wildfire,NM,2006,3,11,2006,3,12,,,,32.4,
+wildfire,NM,2006,3,12,2006,3,16,,,,25.7,
+wildfire,NM,2006,4,15,2006,4,17,,,,32.4,
+wildfire,NM,2006,1,1,2006,1,1,,,downed power line,121.4,
+wildfire,NM,2006,1,1,2006,1,1,,near Tatum,downed power line,77.7,
+wildfire,NM,2006,1,2,2006,1,2,,near Tatum,downed power line,46.6,
+wildfire,NM,2006,6,2,2006,6,27,,,lightning,50.9,
+wildfire,NM,2006,6,6,2006,6,28,,,lightning,62.5,
+wildfire,NM,2006,6,15,2006,6,18,,Union County,lightning,105.2,
+wildfire,NM,2006,6,15,2006,6,19,,,lightning,44.5,
+wildfire,NM,2006,6,15,2006,6,25,,,lightning,72,
+wildfire,NM,2006,5,18,2006,6,1,,"Grant County, near Animas",lightning,103,
+wildfire,NM,2006,6,19,2006,7,4,,Catron County,lightning,207.6,
+wildfire,NM,2006,5,20,2006,5,23,,,lightning,37.4,
+wildfire,NM,2006,6,21,2006,6,22,,,lightning,24.2,
+wildfire,NM,2006,5,21,2006,5,23,,,lightning,80.9,
+wildfire,NM,2006,5,21,2006,5,23,,,lightning,44.5,
+wildfire,NM,2006,5,21,2006,5,23,,,lightning,36.4,
+wildfire,NM,2006,5,18,2006,5,25,,,lightning,32.4,
+wildfire,NM,2008,6,18,2008,6,26,,,lightning,198.8,
+wildfire,NM,2008,6,10,2008,6,13,,,lightning,102.6,
+wildfire,NM,2009,6,10,2009,6,23,,,lightning,222.9,
+wildfire,NM,2009,6,10,2009,6,27,,,lightning,376.5,
+wildfire,NM,2010,6,10,2010,6,27,,"Santa Fe NF, near Espanola",lightning,69.1,
