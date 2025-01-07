@@ -121,15 +121,6 @@ full_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_physical_2
   janitor::clean_names()
 ```
 
-Prep the data:
-```{r}
-full_data <- full_data %>%
-  mutate(date = as.Date(paste(year_collected, month_collected, day_collected, sep = "-"))) 
-
-full_data <- full_data %>% 
-  mutate(psite_prevalence = as.character(psite_prevalence))
-```
-
 Assign each parasite type a new column
 ```{r}
 full_data <- full_data %>%
@@ -177,6 +168,15 @@ full_data <- full_data %>%
   ))
 ```
 
+Prep the data:
+```{r}
+full_data <- full_data %>%
+  mutate(date = as.Date(paste(year_collected, month_collected, day_collected, sep = "-"))) 
+
+full_data <- full_data %>% 
+  mutate(psite_prevalence = as.character(psite_prevalence))
+```
+
 ### Add columns for extreme weather events to the full dataset
 -6 month buffer on either side of hurricane events
 - generate datasets for each type of weather event
@@ -195,7 +195,6 @@ drought_flood_df <- full_data %>%
     year_collected >= 1979 & month_collected == 4 ~ "flood",
     TRUE ~ "a_no event"
   ))
-
 
 df_table <- table(drought_flood_df$ewe_type)
 view(df_table)
@@ -287,53 +286,6 @@ ddf <- drought_flood_df %>%
 
 fdf <- drought_flood_df %>%
   filter(ewe_type != "drought")
-```
-
-find the average date of a hurricane:
-```{r}
-
-average_hurr <- hurricane_df6 %>%
-  filter(str_detect(ewe_type, "hurricane")) %>%
-  mutate(
-    month = month(date),
-    day = day(date)
-  ) %>%
-  summarise(
-    average_month = mean(month),
-    average_day = mean(day)
-  )
-
-# average hurricane happens on 9/18 each year
-
-# find average duration of hurricane event
-
-# Define date ranges for hurricane events
-hurricane_events <- data.frame(
-  start_date = as.Date(c("1969-08-14", "1971-09-05", "1988-09-08", 
-                         "1992-08-16", "2004-09-02", "1964-09-28", 
-                         "1965-08-27", "1974-08-29", "1995-09-27", 
-                         "1998-09-15", "2002-09-21", "1985-08-28", 
-                         "2004-09-14", "1979-07-09", "1985-08-12", 
-                         "1985-10-26", "1988-09-07", "1997-07-16")),
-  end_date = as.Date(c("1969-08-22", "1971-09-15", "1988-09-19", 
-                       "1992-08-19", "2004-09-25", "1964-10-05", 
-                       "1965-09-13", "1974-09-10", "1995-10-06", 
-                       "1998-10-01", "2002-10-04", "1985-09-04", 
-                       "2004-09-27", "1979-07-16", "1985-08-20", 
-                       "1985-11-03", "1988-09-11", "1997-07-27"))
-)
-
-# Calculate durations of each hurricane event
-hurricane_events$duration <- as.numeric(hurricane_events$end_date - hurricane_events$start_date)
-
-# Calculate the average duration
-average_duration <- mean(hurricane_events$duration)
-
-# Print result
-average_duration
-
-# average is 10 days
-
 ```
 
 Pick out years where there was no hurricane:
@@ -550,6 +502,52 @@ view(ewe_table6)
 
 ```
 
+find the average date of a hurricane:
+```{r}
+average_hurr <- hurricane_df6 %>%
+  filter(str_detect(ewe_type, "hurricane")) %>%
+  mutate(
+    month = month(date),
+    day = day(date)
+  ) %>%
+  summarise(
+    average_month = mean(month),
+    average_day = mean(day)
+  )
+
+# average hurricane happens on 9/18 each year
+
+# find average duration of hurricane event
+
+# Define date ranges for hurricane events
+hurricane_events <- data.frame(
+  start_date = as.Date(c("1969-08-14", "1971-09-05", "1988-09-08", 
+                         "1992-08-16", "2004-09-02", "1964-09-28", 
+                         "1965-08-27", "1974-08-29", "1995-09-27", 
+                         "1998-09-15", "2002-09-21", "1985-08-28", 
+                         "2004-09-14", "1979-07-09", "1985-08-12", 
+                         "1985-10-26", "1988-09-07", "1997-07-16")),
+  end_date = as.Date(c("1969-08-22", "1971-09-15", "1988-09-19", 
+                       "1992-08-19", "2004-09-25", "1964-10-05", 
+                       "1965-09-13", "1974-09-10", "1995-10-06", 
+                       "1998-10-01", "2002-10-04", "1985-09-04", 
+                       "2004-09-27", "1979-07-16", "1985-08-20", 
+                       "1985-11-03", "1988-09-11", "1997-07-27"))
+)
+
+# Calculate durations of each hurricane event
+hurricane_events$duration <- as.numeric(hurricane_events$end_date - hurricane_events$start_date)
+
+# Calculate the average duration
+average_duration <- mean(hurricane_events$duration)
+
+# Print result
+average_duration
+
+# average is 10 days
+
+```
+
 Further refine hurricane parameters for 3 months buffer
 ```{r}
 
@@ -755,7 +753,6 @@ ewe_table3 <- table(hurricane_df3$ewe_type)
 view(ewe_table3)
 
 ```
-
 
 ### By individual fish species
 ```{r}
@@ -1591,7 +1588,7 @@ season_labels <- c(
 
 Mutate the dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
-hurricane_df6_sum <- hurricane_df6_clean %>%
+hurricane_df6_sum <- hurricane_df6 %>%
   group_by(psite_type, storm_intensity, season) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
   filter(storm_intensity != "no event",
@@ -1715,7 +1712,7 @@ ggplot(hurricane_df6,
   ylab("") + 
   xlab("")
 
-ggplot(hurricane_df,
+ggplot(hurricane_df6,
        aes(x = ewe_type, y = psite_count)) + 
          geom_col() + 
    theme(strip.background = element_rect(fill = NA, color = NA),
@@ -1728,7 +1725,7 @@ ggplot(hurricane_df,
   ylab("") + 
   xlab("")
 
-ggplot(hurricane_df,
+ggplot(hurricane_df6,
        aes(x = ewe_type, y = mean_streamflow)) + 
          geom_boxplot() + 
    theme(strip.background = element_rect(fill = NA, color = NA),
@@ -1742,7 +1739,7 @@ ggplot(hurricane_df,
   xlab("")
 
 
-ggplot(hurricane_df,
+ggplot(hurricane_df6,
        aes(x = ewe_type, y = mean_temperature, fill = season)) + 
   geom_boxplot() + 
   theme(
@@ -1757,7 +1754,7 @@ ggplot(hurricane_df,
   xlab("") +
   scale_fill_manual(values = my_pal[1:5], name = '')
 
-ggplot(hurricane_df,
+ggplot(hurricane_df6,
        aes(x = psite_count)) + 
          geom_histogram() + 
    theme(strip.background = element_rect(fill = NA, color = NA),
@@ -1799,19 +1796,6 @@ ggplot(drought_flood_df,
 more plots 
 ```{r}
 
-pre_post_order <- c("pre", "post")
-
-pp_label <- c(
-  "pre" = "Pre Storm",
-  "post" = "Post Storm"
-)
-
-# Convert storm_intensity to a factor with custom levels
-hurricane_df6 <- hurricane_df6 %>%
-  mutate(
-    pre_post = factor(pre_post, levels = pre_post_order)
-  )
-
 # remove non-comparable sites:
 hdf_pp <- hurricane_df6 %>%
   filter(site != "CD",
@@ -1819,7 +1803,7 @@ hdf_pp <- hurricane_df6 %>%
          site != "IB")
 
 z <- ggplot(hdf_pp,
-       aes(x = pre_post, y = mean_temperature, fill = pre_post)) + 
+       aes(x = timing, y = mean_temperature, fill = timing)) + 
   geom_boxplot() + facet_grid(.~site) +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
@@ -1834,10 +1818,10 @@ z <- ggplot(hdf_pp,
   ) +
   ylab("Mean Temperature (C)") + 
   xlab("Pre or Post Hurricane") +
-  scale_fill_manual(values = my_pal[3:4], name = '', labels = pp_label)
+  scale_fill_manual(values = my_pal[1:4], name = '', labels = pp_label)
 
 x <- ggplot(hdf_pp,
-       aes(x = pre_post, y = mean_streamflow, fill = pre_post)) + 
+       aes(x = timing, y = mean_streamflow, fill = timing)) + 
   geom_boxplot() + facet_grid(.~site) +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
@@ -1853,7 +1837,7 @@ x <- ggplot(hdf_pp,
   ) +
  ylab("Mean Streamflow (m³/s)") + 
   xlab("") +
-  scale_fill_manual(values = my_pal[3:4], name = '', labels = pp_label) 
+  scale_fill_manual(values = my_pal[1:4], name = '', labels = pp_label) 
 
 zx <- ggarrange(z, x, common.legend = TRUE, legend = "bottom", labels = c("A", "B"), align = "v", ncol = 1)
 
