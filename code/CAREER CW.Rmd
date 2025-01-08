@@ -267,7 +267,7 @@ print(abc)
 ggplot(data = drought_flood_df, 
        aes(x = year_collected, y = mean_streamflow)) +
   facet_wrap(~ewe_type) +
-  geom_violin() + xlab("Collection Date") + ylab("Mean Streamflow") +
+  geom_point() + xlab("Collection Date") + ylab("Mean Streamflow") +
    theme(strip.background = element_rect(fill = NA, color = NA),
          panel.background = element_rect(fill = NA, color = NA),
          panel.grid.major = element_blank(),
