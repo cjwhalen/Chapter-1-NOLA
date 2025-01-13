@@ -178,23 +178,192 @@ full_data <- full_data %>%
 ```
 
 ### Add columns for extreme weather events to the full dataset
+
+Find dates of no flood or droughts
+```{r}
+# 1963, 1964, 1966, 1970, 1971, 1974, 1975, 1978, 1980, 1982, 1983, 1984, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1996
+# 1997, 1998, 1999, 2001, 2002, 2003, 2004
+
+# select years to represent as controls: alternate years to turn 28 non event years in 14 to match # of years in events
+# 1964, 1970, 1974, 1978, 1982, 1984, 1988, 1990, 1992, 1994, 1997, 1999, 2002, 2004
+```
+
+Find average dates of flood and drought
+```{r}
+average_d <- drought_flood_df %>%
+  filter(str_detect(ewe_type, "drought")) %>%
+  mutate(
+    month = month(date),
+    day = day(date)
+  ) %>%
+  summarise(
+    average_month = mean(month),
+    average_day = mean(day)
+  )
+
+ # average drought occurs on 6/17 of each year
+
+average_f <- drought_flood_df %>%
+  filter(str_detect(ewe_type, "flood")) %>%
+  mutate(
+    month = month(date),
+    day = day(date)
+  ) %>%
+  summarise(
+    average_month = mean(month),
+    average_day = mean(day)
+  )
+
+ # average flood occurs on 7/17 of each year
+
+# find average duration of each event
+
+# Define date ranges for events
+drought_events <- data.frame(
+  start_date = as.Date(c("1967-01-01", "1976-01-01", "1981-01-01", 
+                         "1985-01-01", "2000-01-01")),
+  end_date = as.Date(c("1969-01-01", "1978-01-01", "1982-01-01", 
+                       "1987-01-01", "2001-01-01"))
+)
+
+flood_events <- data.frame(
+  start_date = as.Date(c("1965-08-27", "1972-12-01", "1979-04-01", "1995-05-08")),
+  end_date = as.Date(c("1965-09-12", "1973-06-01", "1979-05-01", "1995-05-10"))
+)
+
+# Calculate durations of each event
+drought_events$duration <- as.numeric(drought_events$end_date - drought_events$start_date)
+flood_events$duration <- as.numeric(flood_events$end_date - flood_events$start_date)
+
+# Calculate the average duration
+average_duration_d <- mean(drought_events$duration)
+average_duration_f <- mean(flood_events$duration)
+
+# Print result
+average_duration_d
+ # 584 days -- 1 year, 6 months
+
+average_duration_f
+ # 57 days -- 2 months, 27 days
+```
+
+
 -6 month buffer on either side of hurricane events
 - generate datasets for each type of weather event
 ```{r}
 # create drought/flood dataset
-
 drought_flood_df <- full_data %>% 
   mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected <= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 ~ "flood",
-    TRUE ~ "a_no event"
+    date >= as.Date("1966-06-01") & date <= as.Date("1966-12-31") ~ "pre_drought",
+    date >= as.Date("1967-01-01") & date <= as.Date("1970-01-01") ~ "drought",
+    date >= as.Date("1970-01-02") & date <= as.Date("1970-06-01") ~ "post_drought",
+    date >= as.Date("1975-06-01") & date <= as.Date("1975-12-31") ~ "pre_drought",
+    date >= as.Date("1976-01-01") & date <= as.Date("1978-01-01") ~ "drought",
+    date >= as.Date("1978-01-02") & date <= as.Date("1978-06-01") ~ "post_drought",
+    date >= as.Date("1980-06-01") & date <= as.Date("1980-12-31") ~ "pre_drought",
+    date >= as.Date("1981-01-01") & date <= as.Date("1982-01-01") ~ "drought",
+    date >= as.Date("1982-01-02") & date <= as.Date("1982-06-01") ~ "post_drought",
+    date >= as.Date("1984-06-01") & date <= as.Date("1984-12-31") ~ "pre_drought",
+    date >= as.Date("1985-01-01") & date <= as.Date("1987-01-01") ~ "drought",
+    date >= as.Date("1987-01-02") & date <= as.Date("1987-06-01") ~ "post_drought",
+    date >= as.Date("1999-06-01") & date <= as.Date("1999-12-31") ~ "pre_drought",
+    date >= as.Date("2000-01-01") & date <= as.Date("2001-01-01") ~ "drought",
+    date >= as.Date("2001-01-02") & date <= as.Date("2001-06-02") ~ "post_drought",
+    date >= as.Date("1965-02-26") & date <= as.Date("1965-08-26") ~ "pre_flood",
+    date >= as.Date("1965-08-27") & date <= as.Date("1965-09-12") ~ "flood",
+    date >= as.Date("1965-09-13") & date <= as.Date("1966-03-13") ~ "post_flood",
+    date >= as.Date("1972-05-01") & date <= as.Date("1972-11-30") ~ "pre_flood",
+    date >= as.Date("1972-12-01") & date <= as.Date("1973-06-01") ~ "flood",
+    date >= as.Date("1973-06-02") & date <= as.Date("1973-12-02") ~ "post_flood",
+    date >= as.Date("1978-10-01") & date <= as.Date("1978-03-31") ~ "pre_flood",
+    date >= as.Date("1979-04-01") & date <= as.Date("1979-05-01") ~ "flood",
+    date >= as.Date("1979-05-02") & date <= as.Date("1979-11-02") ~ "post_flood",
+    date >= as.Date("1994-11-07") & date <= as.Date("1995-05-07") ~ "pre_flood",
+    date >= as.Date("1995-05-08") & date <= as.Date("1995-05-10") ~ "flood",
+    date >= as.Date("1995-05-11") & date <= as.Date("1995-11-11") ~ "post_flood",
+    TRUE ~ "no event"
   ))
+
+# left off here, apply the average durations to the non event years listed above (THESE VALUES ARE NOT CORRECT RN)
+# create controls for the same dataset -- non events
+drought_flood_df <- full_data %>% 
+  mutate(ewe_type = case_when(
+    date >= as.Date("1966-06-01") & date <= as.Date("1966-12-31") ~ "pre_drought",
+    date >= as.Date("1967-01-01") & date <= as.Date("1970-01-01") ~ "drought",
+    date >= as.Date("1970-01-02") & date <= as.Date("1970-06-01") ~ "post_drought",
+    
+    date >= as.Date("1975-06-01") & date <= as.Date("1975-12-31") ~ "pre_drought",
+    date >= as.Date("1976-01-01") & date <= as.Date("1978-01-01") ~ "drought",
+    date >= as.Date("1978-01-02") & date <= as.Date("1978-06-01") ~ "post_drought",
+    
+    date >= as.Date("1980-06-01") & date <= as.Date("1980-12-31") ~ "pre_drought",
+    date >= as.Date("1981-01-01") & date <= as.Date("1982-01-01") ~ "drought",
+    date >= as.Date("1982-01-02") & date <= as.Date("1982-06-01") ~ "post_drought",
+    
+    date >= as.Date("1984-06-01") & date <= as.Date("1984-12-31") ~ "pre_drought",
+    date >= as.Date("1985-01-01") & date <= as.Date("1987-01-01") ~ "drought",
+    date >= as.Date("1987-01-02") & date <= as.Date("1987-06-01") ~ "post_drought",
+    
+    date >= as.Date("1999-06-01") & date <= as.Date("1999-12-31") ~ "pre_drought",
+    date >= as.Date("2000-01-01") & date <= as.Date("2001-01-01") ~ "drought",
+    date >= as.Date("2001-01-02") & date <= as.Date("2001-06-02") ~ "post_drought",
+    
+    
+    
+    date >= as.Date("1965-02-26") & date <= as.Date("1965-08-26") ~ "pre_flood",
+    date >= as.Date("1965-08-27") & date <= as.Date("1965-09-12") ~ "flood",
+    date >= as.Date("1965-09-13") & date <= as.Date("1966-03-13") ~ "post_flood",
+    
+    date >= as.Date("1972-05-01") & date <= as.Date("1972-11-30") ~ "pre_flood",
+    date >= as.Date("1972-12-01") & date <= as.Date("1973-06-01") ~ "flood",
+    date >= as.Date("1973-06-02") & date <= as.Date("1973-12-02") ~ "post_flood",
+    
+    date >= as.Date("1978-10-01") & date <= as.Date("1978-03-31") ~ "pre_flood",
+    date >= as.Date("1979-04-01") & date <= as.Date("1979-05-01") ~ "flood",
+    date >= as.Date("1979-05-02") & date <= as.Date("1979-11-02") ~ "post_flood",
+    
+    date >= as.Date("1994-11-07") & date <= as.Date("1995-05-07") ~ "pre_flood",
+    date >= as.Date("1995-05-08") & date <= as.Date("1995-05-10") ~ "flood",
+    date >= as.Date("1995-05-11") & date <= as.Date("1995-11-11") ~ "post_flood",
+    TRUE ~ "no event"
+  ))
+
+drought_flood_df <- full_data %>% 
+  mutate(event = case_when(
+    ewe_type == "pre_5" ~ "hurricane",
+    ewe_type == "post_5" ~ "hurricane",
+    ewe_type == "pre_4" ~ "hurricane",
+    ewe_type == "post_4" ~ "hurricane",
+    ewe_type == "pre_3" ~ "hurricane",
+    ewe_type == "post_3" ~ "hurricane",
+    ewe_type == "pre_1" ~ "hurricane",
+    ewe_type == "post_1" ~ "hurricane",
+    ewe_type == "pre_ts" ~ "hurricane",
+    ewe_type == "post_ts" ~ "hurricane",
+    ewe_type == "no event" & control == "pre_control" ~ "control",
+    ewe_type == "no event" & control == "post_control" ~ "control",
+    TRUE ~ "NA"
+  )) %>%
+  filter(!is.na(event))
+
+drought_flood_df <- full_data %>% 
+  mutate(timing = case_when(
+    ewe_type == "pre_5" ~ "pre",
+    ewe_type == "post_5" ~ "post",
+    ewe_type == "pre_4" ~ "pre",
+    ewe_type == "post_4" ~ "post",
+    ewe_type == "pre_3" ~ "pre",
+    ewe_type == "post_3" ~ "post",
+    ewe_type == "pre_1" ~ "pre",
+    ewe_type == "post_1" ~ "post",
+    ewe_type == "pre_ts" ~ "pre",
+    ewe_type == "post_ts" ~ "post",
+    control == "pre_control" ~ "pre",
+    control == "post_control" ~ "post",
+    TRUE ~ "NA"
+  )) %>%
+  filter(!is.na(timing))
+
 
 df_table <- table(drought_flood_df$ewe_type)
 view(df_table)
@@ -477,8 +646,9 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_ts" ~ "hurricane",
     ewe_type == "no event" & control == "pre_control" ~ "control",
     ewe_type == "no event" & control == "post_control" ~ "control",
-    TRUE ~ "a_NA"
-  ))
+    TRUE ~ "NA"
+  )) %>%
+  filter(!is.na(event))
 
 hurricane_df6 <- hurricane_df6 %>%
   mutate(timing = case_when(
@@ -494,12 +664,21 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_ts" ~ "post",
     control == "pre_control" ~ "pre",
     control == "post_control" ~ "post",
-    TRUE ~ "a_NA"
-  ))
+    TRUE ~ "NA"
+  )) %>%
+  filter(!is.na(timing))
 
-ewe_table6 <- table(hurricane_df6$ewe_type)
+
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
+  mutate(timing = relevel(timing, ref = "pre")) #%>% 
+ # mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
+ # mutate(event = relevel(event, ref = "control"))
+
+ewe_table6 <- table(hurricane_df6$event)
 view(ewe_table6)
-
+ewe_table6_2 <- table(hurricane_df6$timing)
+view(ewe_table6_2)
 ```
 
 find the average date of a hurricane:
@@ -729,8 +908,9 @@ hurricane_df3 <- hurricane_df3 %>%
     ewe_type == "post_ts" ~ "hurricane",
     ewe_type == "no event" & control == "pre_control" ~ "control",
     ewe_type == "no event" & control == "post_control" ~ "control",
-    TRUE ~ "a_NA"
-  ))
+    TRUE ~ "NA"
+  )) %>%
+  filter(!is.na(event))
 
 hurricane_df3 <- hurricane_df3 %>%
   mutate(timing = case_when(
@@ -746,10 +926,17 @@ hurricane_df3 <- hurricane_df3 %>%
     ewe_type == "post_ts" ~ "post",
     control == "pre_control" ~ "pre",
     control == "post_control" ~ "post",
-    TRUE ~ "a_NA"
-  ))
+    TRUE ~ "NA"
+  )) %>%
+  filter(!is.na(timing))
 
-ewe_table3 <- table(hurricane_df3$ewe_type)
+hurricane_df3 <- hurricane_df3 %>%
+  mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
+  mutate(timing = relevel(timing, ref = "pre")) #%>% 
+ # mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
+ # mutate(event = relevel(event, ref = "control"))
+
+ewe_table3 <- table(hurricane_df3$event)
 view(ewe_table3)
 
 ```
@@ -1887,15 +2074,15 @@ hurricane model - count (abundance)
 # summary(hurricane_count <- glmmTMB(psite_count ~ ewe_type + control + ci + (1|storm_intensity) + (1|catalog_number/site) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), data = hurricane_df6, family = "nbinom1"))
 
 
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + ci + (1|storm_intensity) + (1|catalog_number) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
                           data = hurricane_df6, family = "nbinom1"))
 
+# diagnostics
+#Evaluate residuals
+s = simulateResiduals(fittedModel = hurricane_count, n = 250)
+s$scaledResiduals
+plot(s)
 
-vif(lm(psite_count ~ ewe_type * control + ci, data = hurricane_df6))
-
-
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + ci + (1|storm_intensity) + (1|catalog_number) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
-                          data = hurricane_df3, family = "nbinom1"))
 ```
 
 hurricane model - prevalence
