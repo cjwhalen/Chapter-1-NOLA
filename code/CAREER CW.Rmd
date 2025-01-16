@@ -2051,10 +2051,19 @@ summary(d_1 <- glmmTMB(psite_abundance ~ ewe_type + (1|catalog_number) + (1|seas
 summary(f_1 <- glmmTMB(psite_abundance ~ ewe_type + (1|catalog_number) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
                           data = fdf, family = "nbinom1"))
 
-
+### this is the main one:
 # trying with the new code and model - same as hurricane
 summary(df_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
                           data = drought_flood_df, family = "nbinom1"))
+
+summary(df_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = drought_flood_df, family = nbinom1(link = "sqrt"))) 
+
+summary(df_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = drought_flood_df, family = nbinom2(link = "sqrt"))) 
+
+summary(df_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = drought_flood_df, family = nbinom2(link = "log")))
 
 # diagnostics
 #Evaluate residuals
@@ -2086,7 +2095,16 @@ hurricane model - count (abundance)
 
 
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
-                          data = hurricane_df6, family = "nbinom1"))
+                          data = hurricane_df6, family = "nbinom1")) 
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = hurricane_df6, family = nbinom1(link="sqrt")))
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = hurricane_df6, family = nbinom2(link="sqrt"))) 
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = hurricane_df6, family = nbinom2(link="log"))) 
 
 # diagnostics
 #Evaluate residuals
