@@ -648,7 +648,7 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "no event" & control == "post_control" ~ "control",
     TRUE ~ "NA"
   )) %>%
-  filter(!is.na(event))
+  filter(event != "NA")
 
 hurricane_df6 <- hurricane_df6 %>%
   mutate(timing = case_when(
@@ -664,9 +664,10 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_ts" ~ "post",
     control == "pre_control" ~ "pre",
     control == "post_control" ~ "post",
+    ewe_type == "hurricane_4" ~ "during",
     TRUE ~ "NA"
   )) %>%
-  filter(!is.na(timing))
+  filter(timing != "NA")
 
 
 hurricane_df6 <- hurricane_df6 %>%
@@ -729,7 +730,6 @@ average_duration
 
 Further refine hurricane parameters for 3 months buffer
 ```{r}
-
 hurricane_df3 <- full_data %>%
   mutate(ewe_type = case_when(
     date >= as.Date("1969-05-14") & date <= as.Date("1969-08-14") ~ "pre_5",
@@ -910,7 +910,7 @@ hurricane_df3 <- hurricane_df3 %>%
     ewe_type == "no event" & control == "post_control" ~ "control",
     TRUE ~ "NA"
   )) %>%
-  filter(!is.na(event))
+  filter(event != "NA")
 
 hurricane_df3 <- hurricane_df3 %>%
   mutate(timing = case_when(
@@ -928,7 +928,7 @@ hurricane_df3 <- hurricane_df3 %>%
     control == "post_control" ~ "post",
     TRUE ~ "NA"
   )) %>%
-  filter(!is.na(timing))
+  filter(timing != "NA")
 
 hurricane_df3 <- hurricane_df3 %>%
   mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
@@ -1749,7 +1749,7 @@ parasite_labels <- c(
 )
 
 
-storm_order <- c("five", "four", "three", "two", "one", "ts")
+storm_order <- c("five", "four", "three", "two", "one", "ts", "control")
 
 storm_labels <- c(
   "five" = "5",
@@ -1757,7 +1757,8 @@ storm_labels <- c(
   "three" = "3",
   "two" = "2",
   "one" = "1",
-  "ts" = "TS"
+  "ts" = "TS", 
+  "control" = "control"
 )
 
 season_order <- c(
@@ -1771,12 +1772,24 @@ season_labels <- c(
   "fall" = "Fall"
 )
 
+timing_order <- c(
+  "pre", "during", "post"
+)
+
+timing_labels <- c(
+  "pre" = "Pre",
+  "during" = "During",
+  "post" = "Post"
+)
+
+
+
 ```
 
 Mutate the dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 hurricane_df6_sum <- hurricane_df6 %>%
-  group_by(psite_type, storm_intensity, season) %>%
+  group_by(psite_type, storm_intensity, season, event, timing ) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
   filter(storm_intensity != "no event",
          total_psite_count != "0") %>%
@@ -1791,6 +1804,9 @@ hurricane_df6_sum <- hurricane_df6_sum %>%
 
 hurricane_df6_sum <- hurricane_df6_sum %>%
     mutate(season = fct_relevel(season, season_order))
+
+hurricane_df6_sum <- hurricane_df6_sum %>%
+    mutate(timing = fct_relevel(timing, timing_order))
 
 ```
 
@@ -1808,6 +1824,7 @@ custom_y <- list(
   scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
 )
 
+## by season
 ggplot(hurricane_df6_sum,
        aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
   geom_col() + 
@@ -1831,7 +1848,90 @@ ggplot(hurricane_df6_sum,
   scale_x_discrete(labels = storm_labels) +
   facetted_pos_scales(y = custom_y)
 
+## by timing
+custom_y_t <- list(
+  scale_y_continuous(limits = c(0, 1400), breaks = c(0, 700, 1400)),
+  scale_y_continuous(limits = c(0, 1000), breaks = c(0, 500, 1000)),
+  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
+  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
+  scale_y_continuous(limits = c(0, 60), breaks = c(0, 30, 60)),
+  scale_y_continuous(limits = c(0, 20), breaks = c(0, 10, 20)),  
+  scale_y_continuous(limits = c(0, 12), breaks = c(0, 6, 12)),
+  scale_y_continuous(limits = c(0, 4), breaks = c(0, 2, 4)),
+  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
+)
+
+ggplot(hurricane_df6_sum,
+       aes(x = storm_intensity, y = total_psite_count, fill = timing)) + 
+  geom_col(position = "dodge") + 
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Hurricane Category") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels) +
+  scale_x_discrete(labels = storm_labels) +
+  facetted_pos_scales(y = custom_y_t)
 ```
+is before and after diversity different? -- remove intensity of storms
+```{r}
+## by timing
+custom_y_t2 <- list(
+  scale_y_continuous(limits = c(0, 3200), breaks = c(0, 700, 3200)),
+  scale_y_continuous(limits = c(0, 2000), breaks = c(0, 1000, 2000)),
+  scale_y_continuous(limits = c(0, 1200), breaks = c(0, 600, 1200)),
+  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
+  scale_y_continuous(limits = c(0, 80), breaks = c(0, 40, 80)),
+  scale_y_continuous(limits = c(0, 16), breaks = c(0, 8, 16)),  
+  scale_y_continuous(limits = c(0, 40), breaks = c(0, 20, 40)),
+  scale_y_continuous(limits = c(0, 8), breaks = c(0, 4, 8)),
+  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
+)
+
+ggplot(hurricane_df6_sum,
+       aes(x = timing, y = total_psite_count, fill = timing)) + 
+  geom_col() + 
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels2), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels) +
+  facetted_pos_scales(y = custom_y_t2)
+```
+
+
+
+Plot frequency of different storm intensities 
+```{r}
+view(table(hurricane_df6$storm_intensity))
+
+# total number of storms: cat 5 = 5, cat 4 = 6, cat 3 = 2, cat 2 = 0, cat 1 = 5, ts = 5
+```
+
+
 Create and plot a timeline of hurricane events:
 ```{r}
 # Create a timeline-specific dataframe
@@ -2050,6 +2150,8 @@ summary(d_1 <- glmmTMB(psite_abundance ~ ewe_type + (1|catalog_number) + (1|seas
 # just floods vs. control
 summary(f_1 <- glmmTMB(psite_abundance ~ ewe_type + (1|catalog_number) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
                           data = fdf, family = "nbinom1"))
+
+
 
 ### this is the main one:
 # trying with the new code and model - same as hurricane
