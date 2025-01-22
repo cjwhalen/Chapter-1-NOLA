@@ -1758,7 +1758,7 @@ storm_labels <- c(
   "two" = "2",
   "one" = "1",
   "ts" = "TS", 
-  "control" = "control"
+  "no event" = "control"
 )
 
 season_order <- c(
@@ -1789,10 +1789,9 @@ timing_labels <- c(
 Mutate the dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 hurricane_df6_sum <- hurricane_df6 %>%
-  group_by(psite_type, storm_intensity, season, event, timing ) %>%
+  group_by(psite_type, storm_intensity, season, event, timing) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
-  filter(storm_intensity != "no event",
-         total_psite_count != "0") %>%
+  filter(total_psite_count != "0") %>%
   filter(!is.na(psite_type), 
          psite_type != "leech")
 
@@ -1848,7 +1847,7 @@ ggplot(hurricane_df6_sum,
   scale_x_discrete(labels = storm_labels) +
   facetted_pos_scales(y = custom_y)
 
-## by timing
+## by timing 
 custom_y_t <- list(
   scale_y_continuous(limits = c(0, 1400), breaks = c(0, 700, 1400)),
   scale_y_continuous(limits = c(0, 1000), breaks = c(0, 500, 1000)),
@@ -1886,22 +1885,22 @@ ggplot(hurricane_df6_sum,
 ```
 is before and after diversity different? -- remove intensity of storms
 ```{r}
-## by timing
+## by timing and event
 custom_y_t2 <- list(
-  scale_y_continuous(limits = c(0, 3200), breaks = c(0, 700, 3200)),
-  scale_y_continuous(limits = c(0, 2000), breaks = c(0, 1000, 2000)),
-  scale_y_continuous(limits = c(0, 1200), breaks = c(0, 600, 1200)),
+  scale_y_continuous(limits = c(0, 5000), breaks = c(0, 2500, 5000)),
+  scale_y_continuous(limits = c(0, 8000), breaks = c(0, 4000, 8000)),
+  scale_y_continuous(limits = c(0, 800), breaks = c(0, 400, 800)),
   scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
   scale_y_continuous(limits = c(0, 80), breaks = c(0, 40, 80)),
-  scale_y_continuous(limits = c(0, 16), breaks = c(0, 8, 16)),  
-  scale_y_continuous(limits = c(0, 40), breaks = c(0, 20, 40)),
+  scale_y_continuous(limits = c(0, 12), breaks = c(0, 6, 12)),  
+  scale_y_continuous(limits = c(0, 20), breaks = c(0, 00, 20)),
   scale_y_continuous(limits = c(0, 8), breaks = c(0, 4, 8)),
   scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
 )
 
 ggplot(hurricane_df6_sum,
-       aes(x = timing, y = total_psite_count, fill = timing)) + 
-  geom_col() + 
+       aes(x = event, y = total_psite_count, fill = timing)) + 
+  geom_col(position = "dodge") + 
   facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels2), scales = "free_y") +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
@@ -1922,6 +1921,31 @@ ggplot(hurricane_df6_sum,
   facetted_pos_scales(y = custom_y_t2)
 ```
 
+Just by total pre and post, hurricane and control
+```{r}
+ggplot(hurricane_df6_sum,
+       aes(x = event, y = total_psite_count, fill = event)) + 
+  geom_col() +
+  facet_wrap(~ timing) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Event") + 
+  scale_fill_manual(
+  values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels) 
+
+sum(hurricane_df6_sum$total_psite_count) # 33422
+```
 
 
 Plot frequency of different storm intensities 
