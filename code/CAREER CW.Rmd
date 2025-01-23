@@ -1980,13 +1980,33 @@ ggplot(drought_flood_df_sum2,
 ## include year of collection
 ggplot(drought_flood_df_sum2,
        aes(x = year_collected, y = relative_count, fill = event)) + 
-  geom_smooth(method = "loess",
-              se = FALSE,
-              formula = 'y ~ x',
-              span = 0.8) +
-  stat_smooth(se=FALSE, geom="area",
-              method = 'loess', alpha=.5,
-              span = 0.8,aes(fill=event)) +
+  geom_col() +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) + 
+  geom_hline(yintercept = 0, color = "black") +
+  ylab("Relative Parasite Count") + 
+  xlab("Year Collected") + 
+  scale_fill_manual(
+    values = c("drought" = "#F28A8A", "flood" = "#1BB6AF", "control" = "#95C65C"), 
+    name = "",
+    labels = season_labels
+  )
+```
+
+
+```{r}
+ggplot(drought_flood_df_sum,
+       aes(x = event, y = total_psite_count, fill = event)) + 
+  geom_col() +
+  facet_wrap(~ timing) +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
     panel.background = element_rect(fill = NA, color = "white"),
@@ -1997,8 +2017,8 @@ ggplot(drought_flood_df_sum2,
     axis.text = element_text(size = 8, color = "grey30"),
     axis.ticks = element_line(size = 0.2, color = "darkgrey")
   ) +
-  ylab("Relative Parasite Count") + 
-  xlab("Year Collected") + 
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
   scale_fill_manual(
   values = c("drought" = "#F28A8A", "flood" = "#1BB6AF", "control" = "#95C65C"), 
   name = "",
@@ -2165,7 +2185,6 @@ ggplot(hurricane_df6_sum,
   facetted_pos_scales(y = custom_y_t2)
 
 
-
 ## include year of collection
 ggplot(hurricane_df6_sum,
        aes(x = year_collected, y = total_psite_count, color = timing)) + 
@@ -2215,14 +2234,36 @@ ggplot(hurricane_df6_sum2,
   values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
   name = "",
   labels = season_labels) 
+
+ggplot(hurricane_df6_sum2,
+       aes(x = year_collected, y = relative_count, fill = event)) + 
+  geom_col() +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) + 
+  geom_hline(yintercept = 0, color = "black") +
+  ylab("Relative Parasite Count") + 
+  xlab("Year Collected") + 
+  scale_fill_manual(
+    values = c("hurricane" = "#F28A8A", "control" = "#95C65C"), 
+    name = "",
+    labels = season_labels
+  )
 ```
 
 Just by total pre and post, hurricane and control
 ```{r}
 ggplot(hurricane_df6_sum,
-       aes(x = event, y = total_psite_count, fill = event)) + 
+       aes(x = timing, y = total_psite_count, fill = event)) + 
   geom_col() +
-  facet_wrap(~ timing) +
+  facet_wrap(~ event) +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
     panel.background = element_rect(fill = NA, color = "white"),
@@ -2234,13 +2275,12 @@ ggplot(hurricane_df6_sum,
     axis.ticks = element_line(size = 0.2, color = "darkgrey")
   ) +
   ylab("Parasite Count") + 
-  xlab("Event") + 
+  xlab("Timing") + 
   scale_fill_manual(
   values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
   name = "",
   labels = season_labels) 
 
-sum(hurricane_df6_sum$total_psite_count) # 33422
 ```
 
 
