@@ -1795,7 +1795,7 @@ event_labels <- c(
 Mutate the hurricane dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 hurricane_df6_sum <- hurricane_df6 %>%
-  group_by(psite_type, storm_intensity, season, event, timing) %>%
+  group_by(psite_type, year_collected, storm_intensity, season, event, timing) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
   filter(total_psite_count != "0") %>%
   filter(!is.na(psite_type), 
@@ -2004,6 +2004,53 @@ ggplot(hurricane_df6_sum,
   name = "",
   labels = season_labels) +
   facetted_pos_scales(y = custom_y_t2)
+
+
+
+## include year of collection
+ggplot(hurricane_df6_sum,
+       aes(x = year_collected, y = total_psite_count, color = timing)) + 
+  geom_line(linejoin = "round") + 
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
+  scale_fill_manual(
+  values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels)
+
+
+## include year of collection
+ggplot(hurricane_df6_sum,
+       aes(x = year_collected, y = total_psite_count, fill = event)) + 
+  geom_area(position = "stack", binwidth = 20) + 
+  facet_wrap(~ timing) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
+  scale_fill_manual(
+  values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels)
 ```
 
 Just by total pre and post, hurricane and control
