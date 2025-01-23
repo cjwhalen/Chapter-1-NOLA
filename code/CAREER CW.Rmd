@@ -2346,6 +2346,14 @@ print(zx)
 ```
 
 
+Adjust datasets for model to help with trends seen 
+```{r}
+hurricane_df6_trem <- hurricane_df6 %>%
+  filter(!is.na(psite_type), 
+         psite_type == "trematode")
+```
+
+
 
 ## Model
 drought flood - count
@@ -2420,6 +2428,11 @@ summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalo
 
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
                           data = hurricane_df6, family = nbinom2(link="log"))) 
+
+
+## model trematode only
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+                          data = hurricane_df6_trem, family = nbinom1(link="sqrt"))) 
 
 # diagnostics
 #Evaluate residuals
