@@ -941,6 +941,7 @@ view(ewe_table3)
 
 ```
 
+
 ### By individual fish species
 ```{r}
 carvel <- carvel %>% 
@@ -1779,9 +1780,9 @@ timing_order <- c(
 timing_labels <- c(
   "pre" = "Pre",
   "post" = "Post", 
-  "control" = "During Control",
-  "flood" = "During Flood", 
-  "drought" = "During Drought"
+  "control" = "During",
+  "flood" = "During", 
+  "drought" = "During"
 )
 
 event_labels <- c(
@@ -1833,7 +1834,38 @@ drought_flood_df_sum <- drought_flood_df_sum %>%
 drought_flood_df_sum <- drought_flood_df_sum %>%
     mutate(timing = fct_relevel(timing, timing_order))
 
+
+# inclduing zeroes
+drought_flood_df_sum2 <- drought_flood_df %>%
+  group_by(psite_type, season, event, timing) %>%
+  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
+  filter(!is.na(psite_type), 
+         psite_type != "leech")
+
+drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
+    mutate(psite_type = fct_relevel(psite_type, parasite_order))
+
+drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
+    mutate(season = fct_relevel(season, season_order))
+
+drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
+    mutate(timing = fct_relevel(timing, timing_order))
+
+
 ```
+
+Designate average changes in parasitism
+```{r}
+# drought first
+sum(drought_flood_df_sum2$total_psite_count, na.rm = TRUE)
+28842/195 # average rate of parasitism across all observations is 147.9077
+# in this case, each categorical 0 is counted only once, so the sum of each category includes summing all the zeroes but if there is only zeroes in a category, then those will show up as zero
+
+drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
+  mutate(relative_count = total_psite_count - 148)
+
+```
+
 ## Drought/Flood Plots
 ```{r}
 custom_y_t3 <- list(
@@ -1891,6 +1923,31 @@ ggplot(drought_flood_df_sum,
   values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
   name = "",
   labels = timing_labels) 
+
+## by species??
+
+## by relative count
+ggplot(drought_flood_df_sum2,
+       aes(x = event, y = relative_count, fill = timing)) + 
+  geom_col(position = "dodge") + 
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
+  name = "",
+  labels = timing_labels) 
+
 ```
 
 ## Hurricane Plots
