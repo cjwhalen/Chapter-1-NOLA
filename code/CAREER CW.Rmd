@@ -1814,12 +1814,32 @@ hurricane_df6_sum <- hurricane_df6_sum %>%
 hurricane_df6_sum <- hurricane_df6_sum %>%
     mutate(timing = fct_relevel(timing, timing_order))
 
+
+## including zeroes
+hurricane_df6_sum2 <- hurricane_df6 %>%
+  group_by(psite_type, year_collected, storm_intensity, season, event, timing) %>%
+  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
+  filter(!is.na(psite_type), 
+         psite_type != "leech")
+
+hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
+    mutate(psite_type = fct_relevel(psite_type, parasite_order))
+
+hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
+    mutate(storm_intensity = fct_relevel(storm_intensity, storm_order))
+
+hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
+    mutate(season = fct_relevel(season, season_order))
+
+hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
+    mutate(timing = fct_relevel(timing, timing_order))
+
 ```
 
 Mutate the drought/flood dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 drought_flood_df_sum <- drought_flood_df %>%
-  group_by(psite_type, season, event, timing) %>%
+  group_by(psite_type, year_collected, season, event, timing) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
   filter(total_psite_count != "0") %>%
   filter(!is.na(psite_type), 
@@ -1837,7 +1857,7 @@ drought_flood_df_sum <- drought_flood_df_sum %>%
 
 # inclduing zeroes
 drought_flood_df_sum2 <- drought_flood_df %>%
-  group_by(psite_type, season, event, timing) %>%
+  group_by(psite_type, year_collected, season, event, timing) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
   filter(!is.na(psite_type), 
          psite_type != "leech")
@@ -1863,6 +1883,14 @@ sum(drought_flood_df_sum2$total_psite_count, na.rm = TRUE)
 
 drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
   mutate(relative_count = total_psite_count - 148)
+
+# hurricane
+sum(hurricane_df6_sum2$total_psite_count, na.rm = TRUE)
+33422/868  # average rate of parasitism across all observations is 38.50461
+# in this case, each categorical 0 is counted only once, so the sum of each category includes summing all the zeroes but if there is only zeroes in a category, then those will show up as zero
+
+hurricane_df6_sum2 <- hurricane_df6_sum2 %>% 
+  mutate(relative_count = total_psite_count - 39)
 
 ```
 
@@ -1948,6 +1976,34 @@ ggplot(drought_flood_df_sum2,
   name = "",
   labels = timing_labels) 
 
+
+## include year of collection
+ggplot(drought_flood_df_sum2,
+       aes(x = year_collected, y = relative_count, fill = event)) + 
+  geom_smooth(method = "loess",
+              se = FALSE,
+              formula = 'y ~ x',
+              span = 0.8) +
+  stat_smooth(se=FALSE, geom="area",
+              method = 'loess', alpha=.5,
+              span = 0.8,aes(fill=event)) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Relative Parasite Count") + 
+  xlab("Year Collected") + 
+  scale_fill_manual(
+  values = c("drought" = "#F28A8A", "flood" = "#1BB6AF", "control" = "#95C65C"), 
+  name = "",
+  labels = season_labels) 
+
 ```
 
 ## Hurricane Plots
@@ -1967,6 +2023,30 @@ custom_y <- list(
 
 ## by season
 ggplot(hurricane_df6_sum,
+       aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
+  geom_col() + 
+  facet_wrap(~psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Hurricane Category") + 
+  scale_fill_manual(
+  values = c("spring" = "#1BB6AF", "summer" = "#EA7580", "fall" = "#F6A1A5", "winter" = "#088BBE"), 
+  name = "",
+  labels = season_labels) +
+  scale_x_discrete(labels = storm_labels) +
+  facetted_pos_scales(y = custom_y)
+
+## by season with zeroes
+ggplot(hurricane_df6_sum2,
        aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
   geom_col() + 
   facet_wrap(~psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
@@ -2022,8 +2102,30 @@ ggplot(hurricane_df6_sum,
   values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
   name = "",
   labels = season_labels) +
-  scale_x_discrete(labels = storm_labels) +
-  facetted_pos_scales(y = custom_y_t)
+  scale_x_discrete(labels = storm_labels)
+
+# with zeroes
+ggplot(hurricane_df6_sum2,
+       aes(x = storm_intensity, y = total_psite_count, fill = timing)) + 
+  geom_col(position = "dodge") + 
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Hurricane Category") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels) +
+  scale_x_discrete(labels = storm_labels)
 ```
 is before and after diversity different? -- remove intensity of storms
 ```{r}
@@ -2088,10 +2190,15 @@ ggplot(hurricane_df6_sum,
 
 
 ## include year of collection
-ggplot(hurricane_df6_sum,
-       aes(x = year_collected, y = total_psite_count, fill = event)) + 
-  geom_area(position = "stack", binwidth = 20) + 
-  facet_wrap(~ timing) +
+ggplot(hurricane_df6_sum2,
+       aes(x = year_collected, y = relative_count, fill = event)) + 
+  geom_smooth(method = "loess",
+              se = FALSE,
+              formula = 'y ~ x',
+              span = 0.8) +
+  stat_smooth(se=FALSE, geom="area",
+              method = 'loess', alpha=.5,
+              span = 0.8,aes(fill=event)) +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
     panel.background = element_rect(fill = NA, color = "white"),
@@ -2102,12 +2209,12 @@ ggplot(hurricane_df6_sum,
     axis.text = element_text(size = 8, color = "grey30"),
     axis.ticks = element_line(size = 0.2, color = "darkgrey")
   ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
+  ylab("Relative Parasite Count") + 
+  xlab("Year Collected") + 
   scale_fill_manual(
   values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
   name = "",
-  labels = season_labels)
+  labels = season_labels) 
 ```
 
 Just by total pre and post, hurricane and control
@@ -2346,7 +2453,8 @@ print(zx)
 ```
 
 
-Adjust datasets for model to help with trends seen 
+### other adjustments -- dataset by species only
+Adjust datasets for model to help with trends seen -- by parasite species only 
 ```{r}
 hurricane_df6_trem <- hurricane_df6 %>%
   filter(!is.na(psite_type), 
