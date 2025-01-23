@@ -348,14 +348,14 @@ drought_flood_df <- drought_flood_df %>%
 drought_flood_df <- drought_flood_df %>% 
   mutate(timing = case_when(
     ewe_type == "pre_drought" ~ "pre",
-    ewe_type == "post_drought" ~ "post",
+    ewe_type == "post_drought" ~ "post",    
     ewe_type == "pre_flood" ~ "pre",
     ewe_type == "post_flood" ~ "post",
     control == "pre_control" ~ "pre",
     control == "post_control" ~ "post",
-    ewe_type == "drought" ~ "during_d",
-    ewe_type == "flood" ~ "during_f",
-    control == "control" ~ "during_c",
+    ewe_type == "drought" & event == "drought" ~ "drought",
+    ewe_type == "flood" & event == "flood" ~ "flood",
+    control == "control" & event == "control" ~ "control",
     TRUE ~ "NA"
   )) %>%
   filter(!str_detect(timing, "NA")) 
@@ -1778,15 +1778,21 @@ timing_order <- c(
 
 timing_labels <- c(
   "pre" = "Pre",
-  "during" = "During",
-  "post" = "Post"
+  "post" = "Post", 
+  "control" = "During Control",
+  "flood" = "During Flood", 
+  "drought" = "During Drought"
 )
 
-
+event_labels <- c(
+  "drought" = "drought", 
+  "flood" = "flood", 
+  
+)
 
 ```
 
-Mutate the dataset so that the total sum of each type of parasite can be plotted:
+Mutate the hurricane dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 hurricane_df6_sum <- hurricane_df6 %>%
   group_by(psite_type, storm_intensity, season, event, timing) %>%
@@ -1809,7 +1815,86 @@ hurricane_df6_sum <- hurricane_df6_sum %>%
 
 ```
 
-This is the final one for 554:
+Mutate the drought/flood dataset so that the total sum of each type of parasite can be plotted:
+```{r}
+drought_flood_df_sum <- drought_flood_df %>%
+  group_by(psite_type, season, event, timing) %>%
+  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
+  filter(total_psite_count != "0") %>%
+  filter(!is.na(psite_type), 
+         psite_type != "leech")
+
+drought_flood_df_sum <- drought_flood_df_sum %>%
+    mutate(psite_type = fct_relevel(psite_type, parasite_order))
+
+drought_flood_df_sum <- drought_flood_df_sum %>%
+    mutate(season = fct_relevel(season, season_order))
+
+drought_flood_df_sum <- drought_flood_df_sum %>%
+    mutate(timing = fct_relevel(timing, timing_order))
+
+```
+## Drought/Flood Plots
+```{r}
+custom_y_t3 <- list(
+  scale_y_continuous(limits = c(0, 3000), breaks = c(0, 1500, 3000)),
+  scale_y_continuous(limits = c(0, 1200), breaks = c(0, 600, 1200)),
+  scale_y_continuous(limits = c(0, 600), breaks = c(0, 300, 600)),
+  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
+  scale_y_continuous(limits = c(0, 100), breaks = c(0, 50, 100)),
+  scale_y_continuous(limits = c(0, 50), breaks = c(0, 25, 50)),  
+  scale_y_continuous(limits = c(0, 20), breaks = c(0, 10, 20)),
+  scale_y_continuous(limits = c(0, 10), breaks = c(0, 5, 10)),
+  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
+)
+
+# by parasite spp
+ggplot(drought_flood_df_sum,
+       aes(x = event, y = total_psite_count, fill = timing)) + 
+  geom_col(position = "dodge") + 
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
+  name = "",
+  labels = timing_labels) 
+
+## by just timing
+ggplot(drought_flood_df_sum,
+       aes(x = event, y = total_psite_count, fill = timing)) + 
+  geom_col() + 
+  facet_wrap(~ timing) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Timing") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
+  name = "",
+  labels = timing_labels) 
+```
+
+## Hurricane Plots
+This is the final one for 554 Hurricane:
 ```{r}
 custom_y <- list(
   scale_y_continuous(limits = c(0, 3000), breaks = c(0, 1500, 3000)),
