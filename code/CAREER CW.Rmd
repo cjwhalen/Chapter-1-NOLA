@@ -119,6 +119,9 @@ Load full dataset
 ```{r datasets and dataframe loading, echo=FALSE}
 full_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_physical_2024.09.25.csv") %>% 
   janitor::clean_names()
+
+SPI_data <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/SPI data - Sheet1.csv") %>% 
+  janitor::clean_names()
 ```
 
 Assign each parasite type a new column
@@ -131,7 +134,7 @@ full_data <- full_data %>%
     str_detect(fish_psite_combo, "CILI") ~ "ciliate",
     str_detect(fish_psite_combo, "COPE") ~ "copepod",
     str_detect(fish_psite_combo, "LEECH") ~ "leech",
-    str_detect(fish_psite_combo, "META") ~ "trematode",
+    str_detect(fish_psite_combo, "META") ~ "trematode_metacercaria",
     str_detect(fish_psite_combo, "MONO") ~ "monogenean",
     str_detect(fish_psite_combo, "MYX") ~ "myxozoan",
     str_detect(fish_psite_combo, "MYXO") ~ "myxozoan",
@@ -173,12 +176,21 @@ Prep the data:
 full_data <- full_data %>%
   mutate(date = as.Date(paste(year_collected, month_collected, day_collected, sep = "-"))) 
 
+SPI_data <- SPI_data %>% 
+  mutate(date = as.Date(date))
+
 full_data <- full_data %>% 
   mutate(psite_prevalence = as.character(psite_prevalence))
 ```
 
-### Add columns for extreme weather events to the full dataset
+Merge the SPI dataset with the full_data dataset by date 
+```{r}
+full_data <- full_data %>% 
+  left_join(SPI_data, by = "date")
+```
 
+### Add columns for extreme weather events to the full dataset
+#### DROUGHT
 Find dates of no flood or droughts
 ```{r}
 # 1963, 1964, 1966, 1970, 1971, 1974, 1975, 1978, 1980, 1982, 1983, 1984, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1996
@@ -340,7 +352,6 @@ drought_flood_df <- drought_flood_df %>%
     ewe_type == "no event" & control == "pre_control" ~ "control",
     ewe_type == "no event" & control == "post_control" ~ "control",
     ewe_type == "no event" & control == "control" ~ "control",
-    ewe_type == "no event" & control == "control" ~ "control",
     TRUE ~ "NA"
   )) %>%
   filter(!str_detect(event, "NA")) 
@@ -366,7 +377,7 @@ drought_flood_df <- drought_flood_df %>%
 
 df_table <- table(drought_flood_df$timing)
 df_table <- table(drought_flood_df$event)
-view(df_table)
+# view(df_table)
 
 ```
 
@@ -457,6 +468,8 @@ fdf <- drought_flood_df %>%
   filter(ewe_type != "drought")
 ```
 
+#### HURRICANE
+
 Pick out years where there was no hurricane:
 ```{r}
 # 1963, 1966, 1967, 1968, 1970, 1972, 1973, 
@@ -470,74 +483,81 @@ Add actual hurricane timeline parameters for 6 month
 hurricane_df6 <- full_data %>%
   mutate(ewe_type = case_when(
     date >= as.Date("1969-02-14") & date <= as.Date("1969-08-14") ~ "pre_5",
-    date >= as.Date("1969-08-14") & date <= as.Date("1969-08-22") ~ "hurricane_5",
+    date >= as.Date("1969-08-14") & date <= as.Date("1969-08-22") ~ "hurricane_5", #camille
     date >= as.Date("1969-08-22") & date <= as.Date("1970-02-22") ~ "post_5",
     date >= as.Date("1971-03-05") & date <= as.Date("1971-09-05") ~ "pre_5",
-    date >= as.Date("1971-09-05") & date <= as.Date("1971-09-15") ~ "hurricane_5",
+    date >= as.Date("1971-09-05") & date <= as.Date("1971-09-15") ~ "hurricane_5", #edith
     date >= as.Date("1971-09-15") & date <= as.Date("1972-03-15") ~ "post_5",
-    date >= as.Date("1988-03-08") & date <= as.Date("1988-09-08") ~ "pre_5",
-    date >= as.Date("1988-09-08") & date <= as.Date("1988-09-19") ~ "hurricane_5",
-    date >= as.Date("1988-09-19") & date <= as.Date("1989-03-19") ~ "post_5",
     date >= as.Date("1992-02-16") & date <= as.Date("1992-08-16") ~ "pre_5",
-    date >= as.Date("1992-08-16") & date <= as.Date("1992-08-19") ~ "hurricane_5",
+    date >= as.Date("1992-08-16") & date <= as.Date("1992-08-19") ~ "hurricane_5", #andrew
     date >= as.Date("1992-08-19") & date <= as.Date("1993-03-19") ~ "post_5",
     date >= as.Date("2004-03-02") & date <= as.Date("2004-09-02") ~ "pre_5",
-    date >= as.Date("2004-09-02") & date <= as.Date("2004-09-25") ~ "hurricane_5",
+    date >= as.Date("2004-09-02") & date <= as.Date("2004-09-25") ~ "hurricane_5", #ivan -- external
     date >= as.Date("2004-09-25") & date <= as.Date("2005-03-25") ~ "post_5",
     date >= as.Date("1964-03-28") & date <= as.Date("1964-09-28") ~ "pre_4",
-    date >= as.Date("1964-09-28") & date <= as.Date("1964-10-05") ~ "hurricane_4",
+    date >= as.Date("1964-09-28") & date <= as.Date("1964-10-05") ~ "hurricane_4", #hilda
     date >= as.Date("1964-10-05") & date <= as.Date("1965-04-05") ~ "post_4",
     date >= as.Date("1965-02-27") & date <= as.Date("1965-08-27") ~ "pre_4",
-    date >= as.Date("1965-08-27") & date <= as.Date("1965-09-13") ~ "hurricane_4",
+    date >= as.Date("1965-08-27") & date <= as.Date("1965-09-13") ~ "hurricane_4", #betsy
     date >= as.Date("1965-09-13") & date <= as.Date("1966-03-13") ~ "post_4",
     date >= as.Date("1974-02-28") & date <= as.Date("1974-08-29") ~ "pre_4",
-    date >= as.Date("1974-08-29") & date <= as.Date("1974-09-10") ~ "hurricane_4",
+    date >= as.Date("1974-08-29") & date <= as.Date("1974-09-10") ~ "hurricane_4", #carmen -- external
     date >= as.Date("1974-09-10") & date <= as.Date("1975-03-10") ~ "post_4",
     date >= as.Date("1995-03-27") & date <= as.Date("1995-09-27") ~ "pre_4",
-    date >= as.Date("1995-09-27") & date <= as.Date("1995-10-06") ~ "hurricane_4",
+    date >= as.Date("1995-09-27") & date <= as.Date("1995-10-06") ~ "hurricane_4", #opal -- external
     date >= as.Date("1995-10-06") & date <= as.Date("1996-04-06") ~ "post_4",
     date >= as.Date("1998-03-15") & date <= as.Date("1998-09-15") ~ "pre_4",
-    date >= as.Date("1998-09-15") & date <= as.Date("1998-10-01") ~ "hurricane_4",
+    date >= as.Date("1998-09-15") & date <= as.Date("1998-10-01") ~ "hurricane_4", #georges
     date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_4",
     date >= as.Date("2002-03-21") & date <= as.Date("2002-09-21") ~ "pre_4",
-    date >= as.Date("2002-09-21") & date <= as.Date("2002-10-04") ~ "hurricane_4",
+    date >= as.Date("2002-09-21") & date <= as.Date("2002-10-04") ~ "hurricane_4", #lili -- external 
     date >= as.Date("2002-10-04") & date <= as.Date("2003-04-04") ~ "post_4",
     date >= as.Date("1985-02-28") & date <= as.Date("1985-08-28") ~ "pre_3",
-    date >= as.Date("1985-08-28") & date <= as.Date("1985-09-04") ~ "hurricane_3",
+    date >= as.Date("1985-08-28") & date <= as.Date("1985-09-04") ~ "hurricane_3", #elena
     date >= as.Date("1985-09-04") & date <= as.Date("1986-03-04") ~ "post_3",
-    date >= as.Date("2004-03-14") & date <= as.Date("2004-09-14") ~ "pre_3",
-    date >= as.Date("2004-09-14") & date <= as.Date("2004-09-27") ~ "hurricane_3",
-    date >= as.Date("2004-09-27") & date <= as.Date("2005-03-27") ~ "post_3",
+    date >= as.Date("2002-03-14") & date <= as.Date("2002-09-14") ~ "pre_3",
+    date >= as.Date("2002-09-14") & date <= as.Date("2002-09-27") ~ "hurricane_3", #isidore 
+    date >= as.Date("2002-09-27") & date <= as.Date("2003-03-27") ~ "post_3",
+    date >= as.Date("1995-01-30") & date <= as.Date("1995-07-30") ~ "pre_2",
+    date >= as.Date("1995-07-31") & date <= as.Date("1995-08-06") ~ "hurricane_2", #erin
+    date >= as.Date("1995-08-07") & date <= as.Date("1996-02-07") ~ "post_2",
     date >= as.Date("1979-01-09") & date <= as.Date("1979-07-09") ~ "pre_1",
-    date >= as.Date("1979-07-09") & date <= as.Date("1979-07-16") ~ "hurricane_1",
+    date >= as.Date("1979-07-09") & date <= as.Date("1979-07-16") ~ "hurricane_1", #bob
     date >= as.Date("1979-07-16") & date <= as.Date("1980-01-16") ~ "post_1",
     date >= as.Date("1985-02-12") & date <= as.Date("1985-08-12") ~ "pre_1",
-    date >= as.Date("1985-08-12") & date <= as.Date("1985-08-20") ~ "hurricane_1",
+    date >= as.Date("1985-08-12") & date <= as.Date("1985-08-20") ~ "hurricane_1", #danny -- external
     date >= as.Date("1985-08-20") & date <= as.Date("1986-02-20") ~ "post_1",
     date >= as.Date("1985-04-26") & date <= as.Date("1985-10-26") ~ "pre_1",
-    date >= as.Date("1985-10-26") & date <= as.Date("1985-11-03") ~ "hurricane_1",
+    date >= as.Date("1985-10-26") & date <= as.Date("1985-11-03") ~ "hurricane_1", #juan
     date >= as.Date("1985-11-03") & date <= as.Date("1986-05-03") ~ "post_1",
     date >= as.Date("1988-03-07") & date <= as.Date("1988-09-07") ~ "pre_1",
-    date >= as.Date("1988-09-07") & date <= as.Date("1988-09-11") ~ "hurricane_1",
+    date >= as.Date("1988-09-07") & date <= as.Date("1988-09-11") ~ "hurricane_1", #florence
     date >= as.Date("1988-09-11") & date <= as.Date("1989-03-11") ~ "post_1",
     date >= as.Date("1997-01-16") & date <= as.Date("1997-07-16") ~ "pre_1",
-    date >= as.Date("1997-07-16") & date <= as.Date("1997-07-27") ~ "hurricane_1",
+    date >= as.Date("1997-07-16") & date <= as.Date("1997-07-27") ~ "hurricane_1", #danny
     date >= as.Date("1997-07-27") & date <= as.Date("1998-01-27") ~ "post_1",
-    date >= as.Date("1996-04-04") & date <= as.Date("1996-10-04") ~ "pre_ts",
-    date >= as.Date("1996-10-04") & date <= as.Date("1996-10-13") ~ "tropical_storm",
-    date >= as.Date("1996-10-13") & date <= as.Date("1997-04-13") ~ "post_ts",
-    date >= as.Date("1998-03-08") & date <= as.Date("1998-09-08") ~ "pre_ts",
-    date >= as.Date("1998-09-08") & date <= as.Date("1998-09-13") ~ "tropical_storm",
-    date >= as.Date("1998-09-13") & date <= as.Date("1999-03-13") ~ "post_ts",
+    date >= as.Date("1988-02-07") & date <= as.Date("1988-08-07") ~ "pre_ts",
+    date >= as.Date("1988-08-08") & date <= as.Date("1988-08-10") ~ "tropical_storm", #beryl
+    date >= as.Date("1988-08-11") & date <= as.Date("1989-02-11") ~ "post_ts",
+    date >= as.Date("1998-03-26") & date <= as.Date("1998-09-26") ~ "pre_ts",
+    date >= as.Date("1998-09-27") & date <= as.Date("1998-09-30") ~ "tropical_storm", #hermine
+    date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_ts",
     date >= as.Date("2000-12-05") & date <= as.Date("2001-06-05") ~ "pre_ts",
-    date >= as.Date("2001-06-05") & date <= as.Date("2001-06-20") ~ "tropical_storm",
+    date >= as.Date("2001-06-05") & date <= as.Date("2001-06-20") ~ "tropical_storm", #allison
     date >= as.Date("2001-06-20") & date <= as.Date("2001-12-20") ~ "post_ts",
     date >= as.Date("2002-02-04") & date <= as.Date("2002-08-04") ~ "pre_ts",
-    date >= as.Date("2002-08-04") & date <= as.Date("2002-08-09") ~ "tropical_storm",
+    date >= as.Date("2002-08-04") & date <= as.Date("2002-08-09") ~ "tropical_storm", #bertha
     date >= as.Date("2002-08-09") & date <= as.Date("2003-02-09") ~ "post_ts",
     date >= as.Date("2002-03-12") & date <= as.Date("2002-09-12") ~ "pre_ts",
-    date >= as.Date("2002-09-12") & date <= as.Date("2002-09-15") ~ "tropical_storm",
+    date >= as.Date("2002-09-12") & date <= as.Date("2002-09-15") ~ "tropical_storm", #hanna
     date >= as.Date("2002-09-15") & date <= as.Date("2003-03-15") ~ "post_ts",
+    date >= as.Date("2002-12-27") & date <= as.Date("2003-06-27") ~ "pre_ts",
+    date >= as.Date("2003-06-28") & date <= as.Date("2003-07-03") ~ "tropical_storm", #bill
+    date >= as.Date("2003-07-04") & date <= as.Date("2004-01-04") ~ "post_ts",
+    date >= as.Date("1965-03-23") & date <= as.Date("1965-09-23") ~ "pre_ts",
+    date >= as.Date("1965-09-24") & date <= as.Date("1965-09-30") ~ "tropical_storm", #debbie
+    date >= as.Date("1965-10-01") & date <= as.Date("1966-04-01") ~ "post_ts",
+    
     TRUE ~ "no event"
   ))
 
@@ -640,6 +660,8 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_4" ~ "hurricane",
     ewe_type == "pre_3" ~ "hurricane",
     ewe_type == "post_3" ~ "hurricane",
+    ewe_type == "pre_2" ~ "hurricane",
+    ewe_type == "post_2" ~ "hurricane",
     ewe_type == "pre_1" ~ "hurricane",
     ewe_type == "post_1" ~ "hurricane",
     ewe_type == "pre_ts" ~ "hurricane",
@@ -658,6 +680,8 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_4" ~ "post",
     ewe_type == "pre_3" ~ "pre",
     ewe_type == "post_3" ~ "post",
+    ewe_type == "pre_2" ~ "pre",
+    ewe_type == "post_2" ~ "post",
     ewe_type == "pre_1" ~ "pre",
     ewe_type == "post_1" ~ "post",
     ewe_type == "pre_ts" ~ "pre",
@@ -677,9 +701,9 @@ hurricane_df6 <- hurricane_df6 %>%
  # mutate(event = relevel(event, ref = "control"))
 
 ewe_table6 <- table(hurricane_df6$event)
-view(ewe_table6)
+# view(ewe_table6)
 ewe_table6_2 <- table(hurricane_df6$timing)
-view(ewe_table6_2)
+# view(ewe_table6_2)
 ```
 
 find the average date of a hurricane:
@@ -728,6 +752,7 @@ average_duration
 
 ```
 
+##### 3 month -- needs to be updated to match new storms and dates
 Further refine hurricane parameters for 3 months buffer
 ```{r}
 hurricane_df3 <- full_data %>%
@@ -940,6 +965,7 @@ ewe_table3 <- table(hurricane_df3$event)
 view(ewe_table3)
 
 ```
+
 
 
 ### By individual fish species
@@ -1721,6 +1747,7 @@ combined_data <- combined_dataset %>%
 
 
 
+
 ## Plots
 #### 554 main plot
 create color palette
@@ -1733,12 +1760,13 @@ my_pal <- lacroix_palette("Pamplemousse", n = 5, type = "continuous")
 Faceting Labels
 ```{r}
 parasite_order <- c(
-  "trematode", "myxozoan", "monogenean", "ciliate",
+  "trematode", "trematode_metacercaria", "myxozoan", "monogenean", "ciliate",
   "nematode", "acanthocephalan", "cestode", "copepod", "nematomorph"
 )
 
 parasite_labels <- c(
   "trematode" = "Trematode",
+  "trematode_metacercaria" = "Metacercaria",
   "myxozoan" = "Myxozoan",
   "monogenean" = "Monogenean",
   "ciliate" = "Ciliate",
@@ -1762,16 +1790,16 @@ storm_labels <- c(
   "no event" = "control"
 )
 
-season_order <- c(
-  "winter", "spring", "summer", "fall"
-)
+#season_order <- c(
+#  "winter", "spring", "summer", "fall"
+#)
 
-season_labels <- c(
-  "winter" = "Winter",
-  "spring" = "Spring", 
-  "summer" = "Summer", 
-  "fall" = "Fall"
-)
+#season_labels <- c(
+#  "winter" = "Winter",
+#  "spring" = "Spring", 
+#  "summer" = "Summer", 
+#  "fall" = "Fall"
+#)
 
 timing_order <- c(
   "pre", "during", "post"
@@ -1787,8 +1815,7 @@ timing_labels <- c(
 
 event_labels <- c(
   "drought" = "drought", 
-  "flood" = "flood", 
-  
+  "flood" = "flood"
 )
 
 ```
@@ -1796,11 +1823,12 @@ event_labels <- c(
 Mutate the hurricane dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 hurricane_df6_sum <- hurricane_df6 %>%
-  group_by(psite_type, year_collected, storm_intensity, season, event, timing) %>%
+  group_by(psite_type, year_collected, storm_intensity, event, timing) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
   filter(total_psite_count != "0") %>%
   filter(!is.na(psite_type), 
-         psite_type != "leech")
+         psite_type != "leech",
+         psite_type != "nematomorph")
 
 hurricane_df6_sum <- hurricane_df6_sum %>%
     mutate(psite_type = fct_relevel(psite_type, parasite_order))
@@ -1809,15 +1837,12 @@ hurricane_df6_sum <- hurricane_df6_sum %>%
     mutate(storm_intensity = fct_relevel(storm_intensity, storm_order))
 
 hurricane_df6_sum <- hurricane_df6_sum %>%
-    mutate(season = fct_relevel(season, season_order))
-
-hurricane_df6_sum <- hurricane_df6_sum %>%
     mutate(timing = fct_relevel(timing, timing_order))
 
 
 ## including zeroes
 hurricane_df6_sum2 <- hurricane_df6 %>%
-  group_by(psite_type, year_collected, storm_intensity, season, event, timing) %>%
+  group_by(psite_type, year_collected, storm_intensity, event, timing) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
   filter(!is.na(psite_type), 
          psite_type != "leech")
@@ -1827,9 +1852,6 @@ hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
 
 hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
     mutate(storm_intensity = fct_relevel(storm_intensity, storm_order))
-
-hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
-    mutate(season = fct_relevel(season, season_order))
 
 hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
     mutate(timing = fct_relevel(timing, timing_order))
@@ -1839,17 +1861,18 @@ hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
 Mutate the drought/flood dataset so that the total sum of each type of parasite can be plotted:
 ```{r}
 drought_flood_df_sum <- drought_flood_df %>%
-  group_by(psite_type, year_collected, season, event, timing) %>%
+  group_by(psite_type, year_collected, event, timing, drought_flood, category) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
   filter(total_psite_count != "0") %>%
   filter(!is.na(psite_type), 
-         psite_type != "leech")
+         psite_type != "leech", 
+         psite_type != "nematomorph")
 
 drought_flood_df_sum <- drought_flood_df_sum %>%
     mutate(psite_type = fct_relevel(psite_type, parasite_order))
 
-drought_flood_df_sum <- drought_flood_df_sum %>%
-    mutate(season = fct_relevel(season, season_order))
+#drought_flood_df_sum <- drought_flood_df_sum %>%
+ #   mutate(season = fct_relevel(season, season_order))
 
 drought_flood_df_sum <- drought_flood_df_sum %>%
     mutate(timing = fct_relevel(timing, timing_order))
@@ -1857,7 +1880,7 @@ drought_flood_df_sum <- drought_flood_df_sum %>%
 
 # inclduing zeroes
 drought_flood_df_sum2 <- drought_flood_df %>%
-  group_by(psite_type, year_collected, season, event, timing) %>%
+  group_by(psite_type, year_collected, season, event, timing, drought_flood, category) %>%
   summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
   filter(!is.na(psite_type), 
          psite_type != "leech")
@@ -1865,8 +1888,8 @@ drought_flood_df_sum2 <- drought_flood_df %>%
 drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
     mutate(psite_type = fct_relevel(psite_type, parasite_order))
 
-drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
-    mutate(season = fct_relevel(season, season_order))
+#drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
+#    mutate(season = fct_relevel(season, season_order))
 
 drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
     mutate(timing = fct_relevel(timing, timing_order))
@@ -1895,6 +1918,31 @@ hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
 ```
 
 ## Drought/Flood Plots
+
+plot drought-flood from NOAA data
+```{r}
+ggplot(drought_flood_df_sum,
+       aes(x = year_collected, y = drought_flood, fill = event)) + 
+  geom_col(position = "dodge") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("") + 
+  xlab("") + 
+  scale_fill_manual(
+  values = c("drought" = "#F28A8A", "flood" = "#1BB6AF"), 
+  name = "",
+  labels = timing_labels) 
+```
+
+
 ```{r}
 custom_y_t3 <- list(
   scale_y_continuous(limits = c(0, 3000), breaks = c(0, 1500, 3000)),
@@ -2026,6 +2074,7 @@ ggplot(drought_flood_df_sum,
 
 ```
 
+
 ## Hurricane Plots
 This is the final one for 554 Hurricane:
 ```{r}
@@ -2042,52 +2091,28 @@ custom_y <- list(
 )
 
 ## by season
-ggplot(hurricane_df6_sum,
-       aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
-  geom_col() + 
-  facet_wrap(~psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Hurricane Category") + 
-  scale_fill_manual(
-  values = c("spring" = "#1BB6AF", "summer" = "#EA7580", "fall" = "#F6A1A5", "winter" = "#088BBE"), 
-  name = "",
-  labels = season_labels) +
-  scale_x_discrete(labels = storm_labels) +
-  facetted_pos_scales(y = custom_y)
-
-## by season with zeroes
-ggplot(hurricane_df6_sum2,
-       aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
-  geom_col() + 
-  facet_wrap(~psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Hurricane Category") + 
-  scale_fill_manual(
-  values = c("spring" = "#1BB6AF", "summer" = "#EA7580", "fall" = "#F6A1A5", "winter" = "#088BBE"), 
-  name = "",
-  labels = season_labels) +
-  scale_x_discrete(labels = storm_labels) +
-  facetted_pos_scales(y = custom_y)
+#ggplot(hurricane_df6_sum,
+#       aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
+#  geom_col() + 
+ # facet_wrap(~psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
+ # theme(
+ #   strip.background = element_rect(fill = NA, color = NA),
+ #   panel.background = element_rect(fill = NA, color = "white"),
+ #   panel.grid.major = element_blank(),
+#    panel.grid.minor = element_blank(),
+#    panel.spacing.x = unit(0, "lines"),
+#    panel.spacing.y = unit(0, "lines"),
+#    axis.text = element_text(size = 8, color = "grey30"),
+#    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+#  ) +
+#  ylab("Parasite Count") + 
+#  xlab("Hurricane Category") + 
+#  scale_fill_manual(
+#  values = c("spring" = "#1BB6AF", "summer" = "#EA7580", "fall" = "#F6A1A5", "winter" = "#088BBE"), 
+#  name = "",
+#  labels = season_labels) +
+ # scale_x_discrete(labels = storm_labels) +
+#  facetted_pos_scales(y = custom_y)
 
 ## by timing 
 custom_y_t <- list(
@@ -2123,31 +2148,11 @@ ggplot(hurricane_df6_sum,
   name = "",
   labels = season_labels) +
   scale_x_discrete(labels = storm_labels)
-
-# with zeroes
-ggplot(hurricane_df6_sum2,
-       aes(x = storm_intensity, y = total_psite_count, fill = timing)) + 
-  geom_col(position = "dodge") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Hurricane Category") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels) +
-  scale_x_discrete(labels = storm_labels)
 ```
+
+
 is before and after diversity different? -- remove intensity of storms
+
 ```{r}
 ## by timing and event
 custom_y_t2 <- list(
@@ -2165,7 +2170,7 @@ custom_y_t2 <- list(
 ggplot(hurricane_df6_sum,
        aes(x = event, y = total_psite_count, fill = timing)) + 
   geom_col(position = "dodge") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels2), scales = "free_y") +
+  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
   theme(
     strip.background = element_rect(fill = NA, color = NA),
     panel.background = element_rect(fill = NA, color = "white"),
@@ -2181,9 +2186,8 @@ ggplot(hurricane_df6_sum,
   scale_fill_manual(
   values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
   name = "",
-  labels = season_labels) +
-  facetted_pos_scales(y = custom_y_t2)
-
+  labels = season_labels) #+
+ # facetted_pos_scales(y = custom_y_t2)
 
 ## include year of collection
 ggplot(hurricane_df6_sum,
@@ -2261,7 +2265,7 @@ ggplot(hurricane_df6_sum2,
 Just by total pre and post, hurricane and control
 ```{r}
 ggplot(hurricane_df6_sum,
-       aes(x = timing, y = total_psite_count, fill = event)) + 
+       aes(x = timing, y = total_psite_count, fill = timing)) + 
   geom_col() +
   facet_wrap(~ event) +
   theme(
@@ -2277,7 +2281,7 @@ ggplot(hurricane_df6_sum,
   ylab("Parasite Count") + 
   xlab("Timing") + 
   scale_fill_manual(
-  values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
   name = "",
   labels = season_labels) 
 
@@ -2288,7 +2292,7 @@ Plot frequency of different storm intensities
 ```{r}
 view(table(hurricane_df6$storm_intensity))
 
-# total number of storms: cat 5 = 5, cat 4 = 6, cat 3 = 2, cat 2 = 0, cat 1 = 5, ts = 5
+# total number of storms: cat 5 = 4, cat 4 = 6, cat 3 = 2, cat 2 = 1, cat 1 = 5, ts = 7
 ```
 
 
