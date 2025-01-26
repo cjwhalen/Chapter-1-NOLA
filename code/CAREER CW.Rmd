@@ -13,8 +13,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
-# Opening comments, header for the file, collection information, university affiliation, all that jazz
-
 ## Questions
 
 
@@ -37,6 +35,7 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 
 
+
 ## Methods
 
 #### Install packages.
@@ -53,6 +52,7 @@ install.packages("ggh4x")
 install.packages("vistime")
 install.packages("DHARMa")
 ```
+
 
 #### Load packages.
 ```{r package load, echo=FALSE}
@@ -76,45 +76,8 @@ library(car)
 library(DHARMa)
 ```
 
+
 #### Import dataset and assign dataframe 
-species
-```{r datasets and dataframe loading, echo=FALSE}
-pimvig <- read.csv("~/Desktop/UW/TUBRI/data/processed/Pimephales_vigilax_processed_human_readable_UPDATED_2024.08.16.csv") %>% janitor::clean_names() %>%
-  mutate(weight_mg = as.numeric(weight_mg)) %>% 
-  mutate(weight_g = (weight_mg/1000))
-
-ictpun <- read.csv("~/Desktop/UW/TUBRI/data/processed/Ictalurus_punctatus_processed_human_readable.csv_UPDATED_2024.08.25.csv")  %>%
-  janitor::clean_names() %>%
-  mutate(day_collected = as.integer(day_collected)) %>%
-  mutate(weight_mg = as.numeric(weight_mg))%>% 
-  mutate(weight_g = (weight_mg/1000))
-
-notath <- read.csv("~/Desktop/UW/TUBRI/data/processed/Notropis_atherinoides_processed_human_readable_UPDATED_2024.08.16.csv") %>% 
-  janitor::clean_names() %>%
-  mutate(weight_mg = as.numeric(weight_mg)) %>% 
-  mutate(weight_g = (weight_mg/1000))
-
-hybnuc <- read_csv("~/Desktop/UW/TUBRI/data/processed/Hybognathus_nuchalis_processed_human_readable_UPDATED_2024.08.01.csv") %>%
-  janitor::clean_names() %>%
-  mutate(weight_mg = as.numeric(weight_mg)) %>% 
-  mutate(weight_g = (weight_mg/1000))
-
-pervig <- read_csv("~/Desktop/UW/TUBRI/data/processed/Percina_vigil_processed_human_readable_UPDATED_2024.08.01.csv") %>%
-  janitor::clean_names() %>%
-  mutate(weight_mg = as.numeric(weight_mg)) %>% 
-  mutate(weight_g = (weight_mg/1000))
-
-carvel <- read_csv("~/Desktop/UW/TUBRI/data/processed/Carpiodes_velifer_processed_human_readable_UPDATED_2024.08.16.csv") %>%
-  janitor::clean_names() %>%
-  mutate(weight_mg = as.numeric(weight_mg)) %>% 
-  mutate(weight_g = (weight_mg/1000))
-
-gamaff <- read_csv("~/Desktop/UW/TUBRI/data/processed/Gambusia_affinis_processed_human_readable_UPDATED_2024.08.17.csv") %>%
-  janitor::clean_names() %>%
-  mutate(weight_mg = as.numeric(weight_mg)) %>% 
-  mutate(weight_g = (weight_mg/1000))
-```
-
 Load full dataset
 ```{r datasets and dataframe loading, echo=FALSE}
 full_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_physical_2024.09.25.csv") %>% 
@@ -124,7 +87,7 @@ SPI_data <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/SPI data - Sheet1.csv"
   janitor::clean_names()
 ```
 
-Assign each parasite type a new column
+Prep all data. 
 ```{r}
 full_data <- full_data %>%
   mutate(psite_type = case_when(
@@ -143,10 +106,7 @@ full_data <- full_data %>%
     str_detect(fish_psite_combo, "TREM") ~ "trematode",
     TRUE ~ NA
   ))
-```
 
-Filter by myxozoan to create category for parasite prevalence (presence absence). Make all other parasites count as parasite_abundance.
-```{r}
 full_data <- full_data %>%
   mutate(psite_abundance = case_when(
     str_detect(fish_psite_combo, "ACAN") ~ psite_count,
@@ -169,10 +129,7 @@ full_data <- full_data %>%
     str_detect(fish_psite_combo, "MYXO") ~ 1,
     TRUE ~ 0
   ))
-```
 
-Prep the data:
-```{r}
 full_data <- full_data %>%
   mutate(date = as.Date(paste(year_collected, month_collected, day_collected, sep = "-"))) 
 
@@ -181,13 +138,11 @@ SPI_data <- SPI_data %>%
 
 full_data <- full_data %>% 
   mutate(psite_prevalence = as.character(psite_prevalence))
-```
 
-Merge the SPI dataset with the full_data dataset by date 
-```{r}
 full_data <- full_data %>% 
   left_join(SPI_data, by = "date")
 ```
+
 
 ### Add columns for extreme weather events to the full dataset
 #### DROUGHT
@@ -468,6 +423,7 @@ fdf <- drought_flood_df %>%
   filter(ewe_type != "drought")
 ```
 
+
 #### HURRICANE
 
 Pick out years where there was no hurricane:
@@ -519,7 +475,7 @@ hurricane_df6 <- full_data %>%
     date >= as.Date("2002-09-14") & date <= as.Date("2002-09-27") ~ "hurricane_3", #isidore 
     date >= as.Date("2002-09-27") & date <= as.Date("2003-03-27") ~ "post_3",
     date >= as.Date("1995-01-30") & date <= as.Date("1995-07-30") ~ "pre_2",
-    date >= as.Date("1995-07-31") & date <= as.Date("1995-08-06") ~ "hurricane_2", #erin
+    date >= as.Date("1995-07-31") & date <= as.Date("1995-08-06") ~ "hurricane_2", #erin --> overlaps with opal
     date >= as.Date("1995-08-07") & date <= as.Date("1996-02-07") ~ "post_2",
     date >= as.Date("1979-01-09") & date <= as.Date("1979-07-09") ~ "pre_1",
     date >= as.Date("1979-07-09") & date <= as.Date("1979-07-16") ~ "hurricane_1", #bob
@@ -968,784 +924,6 @@ view(ewe_table3)
 
 
 
-### By individual fish species
-```{r}
-carvel <- carvel %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-
-gamaff <- gamaff %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-
-hybnuc <- hybnuc %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-
-ictpun <- ictpun %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-
-notath <- notath %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-
-pervig <- pervig %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-
-pimvig <- pimvig %>% 
-  mutate(ewe_type = case_when(
-    year_collected >= 1967 & year_collected < 1969 ~ "drought",
-    year_collected >= 1976 & year_collected < 1977 ~ "drought",
-    year_collected >= 1981 & year_collected < 1981 ~ "drought",
-    year_collected >= 1985 & year_collected < 1986 ~ "drought",
-    year_collected >= 2000 & year_collected < 2000 ~ "drought",
-    year_collected >= 1965 & month_collected == 8 & day_collected == 27 & year_collected >= 1965 & month_collected == 9 & day_collected == 12 ~ "flood",
-    year_collected >= 1972 & month_collected == 12 & year_collected >= 1973 & month_collected == 6 ~ "flood",
-    year_collected >= 1979 & month_collected == 4 & year_collected >= 1979 & month_collected == 4 ~ "flood",
-    year_collected >= 1964 & month_collected == 9 & day_collected == 28 & year_collected >= 1964 & month_collected == 10 & day_collected == 5 ~ "hurricane_4", 
-    year_collected >= 1964 & month_collected >= 6 & year_collected <= 1964 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1965 & month_collected == 8 & day_collected >= 27 & year_collected <= 1965 & month_collected == 9 & day_collected <= 13 ~ "hurricane_4", 
-    year_collected >= 1965 & month_collected >= 5 & year_collected <= 1965 & month_collected <= 11 ~ "hurricane_4_impacts", 
-    year_collected >= 1969 & month_collected == 8 & day_collected >= 14 & year_collected <= 1969 & month_collected == 8 & day_collected <= 22 ~ "hurricane_5", 
-    year_collected >= 1969 & month_collected >= 5 & year_collected <= 1969 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1971 & month_collected == 9 & day_collected >= 5 & year_collected <= 1971 & month_collected == 9 & day_collected <= 15 ~ "hurricane_5", 
-    year_collected >= 1971 & month_collected >= 6 & year_collected <= 1971 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1974 & month_collected == 8 & day_collected >= 29 & year_collected <= 1974 & month_collected == 9 & day_collected <= 10 ~ "hurricane_4", 
-    year_collected >= 1974 & month_collected >= 5 & year_collected <= 1974 & month_collected <= 11 ~ "hurricane_4_impacts",
-    year_collected >= 1979 & month_collected == 7 & day_collected >= 9 & year_collected <= 1979 & month_collected == 7 & day_collected <= 16 ~ "hurricane_1", 
-    year_collected >= 1979 & month_collected >= 4 & year_collected <= 1979 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 12 & year_collected <= 1985 & month_collected == 8 & day_collected <= 20 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_1_impacts",
-    year_collected >= 1985 & month_collected == 8 & day_collected >= 28 & year_collected <= 1985 & month_collected == 9 & day_collected <= 4 ~ "hurricane_3", 
-    year_collected >= 1985 & month_collected >= 5 & year_collected <= 1985 & month_collected <= 11 ~ "hurricane_3_impacts",
-    year_collected >= 1985 & month_collected == 10 & day_collected >= 26 & year_collected <= 1985 & month_collected == 11 & day_collected <= 3 ~ "hurricane_1", 
-    year_collected >= 1985 & month_collected >= 7 & year_collected <= 1985 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 7 & year_collected <= 1988 & month_collected == 9 & day_collected <= 11 ~ "hurricane_1", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_1_impacts",
-    year_collected >= 1988 & month_collected == 9 & day_collected >= 8 & year_collected <= 1988 & month_collected == 9 & day_collected <= 19 ~ "hurricane_5", 
-    year_collected >= 1988 & month_collected >= 6 & year_collected <= 1988 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 1992 & month_collected == 8 & day_collected >= 16 & year_collected <= 1992 & month_collected == 8 & day_collected <= 29 ~ "hurricane_5", 
-    year_collected >= 1992 & month_collected >= 5 & year_collected <= 1992 & month_collected <= 11 ~ "hurricane_5_impacts",
-    year_collected >= 1995 & month_collected == 9 & day_collected >= 27 & year_collected <= 1995 & month_collected == 10 & day_collected <= 6 ~ "hurricane_4", 
-    year_collected >= 1995 & month_collected >= 6 & year_collected <= 1995 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 1996 & month_collected == 10 & day_collected >= 4 & year_collected <= 1996 & month_collected == 10 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1996 & month_collected >= 7 & year_collected <= 1996 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1997 & month_collected == 7 & day_collected >= 16 & year_collected <= 1997 & month_collected == 7 & day_collected <= 27 ~ "hurricane_1", 
-    year_collected >= 1997 & month_collected >= 4 & year_collected <= 1997 & month_collected <= 10 ~ "hurricane_1_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 8 & year_collected <= 1998 & month_collected == 9 & day_collected <= 13 ~ "tropical_storm", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "tropical_storm_impacts",
-    year_collected >= 1998 & month_collected == 9 & day_collected >= 15 & year_collected <= 1998 & month_collected == 10 & day_collected <= 1 ~ "hurricane_4", 
-    year_collected >= 1998 & month_collected >= 6 & year_collected <= 1998 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 14 & year_collected <= 2002 & month_collected == 9 & day_collected <= 27 ~ "hurricane_3", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_3_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 21 & year_collected <= 2002 & month_collected == 10 & day_collected <= 4 ~ "hurricane_4", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "hurricane_4_impacts",
-    year_collected >= 2004 & month_collected == 9 & day_collected >= 2 & year_collected <= 2004 & month_collected == 9 & day_collected <= 25 ~ "hurricane_5", 
-    year_collected >= 2004 & month_collected >= 6 & year_collected <= 2004 & month_collected <= 12 ~ "hurricane_5_impacts",
-    year_collected >= 2001 & month_collected == 6 & day_collected >= 5 & year_collected <= 2001 & month_collected == 6 & day_collected <= 20 ~ "tropical_storm", 
-    year_collected >= 2001 & month_collected >= 3 & year_collected <= 2001 & month_collected <= 9 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 8 & day_collected >= 4 & year_collected <= 2002 & month_collected == 8 & day_collected <= 9 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 5 & year_collected <= 2002 & month_collected <= 11 ~ "tropical_storm_impacts",
-    year_collected >= 2002 & month_collected == 9 & day_collected >= 12 & year_collected <= 2002 & month_collected == 9 & day_collected <= 15 ~ "tropical_storm", 
-    year_collected >= 2002 & month_collected >= 6 & year_collected <= 2002 & month_collected <= 12 ~ "tropical_storm_impacts",
-    TRUE ~ "no_event"
-  ))
-```
-
-Filter by myxozoan to create category for parasite prevalence (presence absence). Make all other parasites count as parasite_count.
-```{r}
-### sum all parasites in each fish
-carvel <- carvel %>%
-  mutate(psite_count = rowSums(across(c( 
-                      "cest_ws",
-                      "cest_megan",
-                      "cest_tri",
-                      "cest_arch",
-                      "cope_hny",
-                      "nem_cerl",
-                      "trem_sep",
-                      "trem_ors",
-                      "trem_cv",
-                      "trem_larv"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-carvel <- carvel %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                      "myx_s",
-                      "myx_f",
-                      "myx_e",
-                      "myx_g",
-                      "myx_cm",
-                      "myx_bna",
-                      "myx_kl",
-                      "myx_gm"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-pimvig <- pimvig %>%
-  mutate(psite_count = rowSums(across(c( 
-                      "acanth_bigb", 
-                      "acanth_bkr",
-                      "nem_cona",
-                      "nem_cap",
-                      "nem_dich",
-                      "nem_larv",
-                      "nem_trbk",
-                      "nem_unk",
-                      "cest_godz",
-                      "cest_ntg",
-                      "cope_cl",
-                      "cope_grab",
-                      "cest_pea",
-                      "cest_l",
-                      "cest_vit",
-                      "cest_unk",
-                      "mono_gyro",
-                      "mono_dact",
-                      "mono_lg",
-                      "trem_rnda",
-                      "trem_unk",
-                      "meta_hs",
-                      "meta_unk",
-                      "cest_comp",
-                      "trem_met",
-                      "trem_sss",
-                      "trem_buc",
-                      "trem_metaf",
-                      "trem_metags",
-                      "trem_ms",
-                      "trem_nea"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-pimvig <- pimvig %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                      "myx_go",
-                      "myx_geom",
-                      "myxo_bc",
-                      "myx_thel",
-                      "myxo_sbad",
-                      "myxo_unk",
-                      "myxo_up"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-ictpun <- ictpun %>%
-  mutate(psite_count = rowSums(across(c( 
-                      "nem_cyst",
-                      "trem_meta_gg",
-                      "trem_meta_unk",
-                      "trem_lg",
-                      "nem_cyst",
-                      "cest_comp",
-                      "acan_ostr",
-                      "cest_meg",
-                      "leech_kut",
-                      "nem_nmts",
-                      "mono_ip",
-                      "mono_unk",
-                      "nem_phar",
-                      "nem_pty",
-                      "nem_sp",
-                      "nem_taf",
-                      "nem_unk",
-                      "nmorph",
-                      "trem_2",
-                      "trem_allo",
-                      "trem_ble",
-                      "trem_crep",
-                      "trem_f",
-                      "trem_lip",
-                      "trem_megict",
-                      "trem_smile",
-                      "trem_unk"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-ictpun <- ictpun %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                      "myx_tail",
-                      "myx_geom"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-notath <- notath %>%
-  mutate(psite_count = rowSums(across(c( 
-                      "nem_cyst",
-                      "trem_larv",
-                      "trem_meta",
-                      "cest_comp",
-                      "cest_lvs",
-                      "trem_cyst",
-                      "cest_hyd",
-                      "cest_tri",
-                      "cope_a",
-                      "mono_all",
-                      "mono_unk",
-                      "nem_bran",
-                      "nem_cap",
-                      "nem_spky",
-                      "nem_tfs",
-                      "nem_twas",
-                      "nem_unkn",
-                      "trem_gb",
-                      "trem_l"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-notath <- notath %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                      "myx_sp", 
-                      "myx_round"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-hybnuc <- hybnuc %>%
-  mutate(psite_count = rowSums(across(c( 
-                      "nem_daft",
-                      "trem_cm",
-                      "trem_meta_het",
-                      "trem_meta_sp",
-                      "trem_bc",
-                      "trem_meta_go",
-                      "trem_meta_es",
-                      "meta_unk",
-                      "trem_meta",
-                      "trem_meta_unk",
-                      "cest_bb",
-                      "nem_unk",
-                      "trem_ass",
-                      "trem_ns",
-                      "trem_diplo",
-                      "trem_unk",
-                      "cest_unk",
-                      "mono_dact",
-                      "mono_gdac",
-                      "acan_ad",
-                      "cope_pood"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-hybnuc <- hybnuc %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                      "myx_ak",
-                      "myx_fi",
-                      "myx_tin",
-                      "myx_gl",
-                      "myx_ot",
-                      "myx_eye",
-                      "myx_gc"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-hybnuc <- hybnuc %>%
-  mutate(psite_count = rowSums(across(c( 
-                      "nem_daft",
-                      "trem_cm",
-                      "trem_meta_het",
-                      "trem_meta_sp",
-                      "trem_bc",
-                      "trem_meta_go",
-                      "trem_meta_es",
-                      "meta_unk",
-                      "trem_meta",
-                      "trem_meta_unk",
-                      "cest_bb",
-                      "nem_unk",
-                      "trem_ass",
-                      "trem_ns",
-                      "trem_diplo",
-                      "trem_unk",
-                      "cest_unk",
-                      "mono_dact",
-                      "mono_gdac",
-                      "acan_ad",
-                      "cope_pood"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-hybnuc <- hybnuc %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                      "myx_ak",
-                      "myx_fi",
-                      "myx_tin",
-                      "myx_gl",
-                      "myx_ot",
-                      "myx_eye",
-                      "myx_gc"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-pervig <- pervig %>%
-  mutate(psite_count = rowSums(across(c( 
-                     "nem_heath",
-                     "nem_squig",
-                     "acanth_bb",
-                     "trem_phlb",
-                     "cest_bot",
-                     "mono_gyro",
-                     "nem_larv",
-                     "acanth_cya",
-                     "acanth_thin",
-                     "trem_sk",
-                     "trem_chonk",
-                     "trem_endous",
-                     "trem_cl",
-                     "trem_ispot"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-pervig <- pervig %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                     ), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-gamaff <- gamaff %>%
-  mutate(psite_count = rowSums(across(c( 
-                     "acanth_nemor", 
-                     "acanth_blve", 
-                     "cest_mipi", 
-                     "cest_unk", 
-                     "nem_larv", 
-                     "nem_unk", 
-                     "meta_bolism", 
-                     "meta_z",
-                     "mono_sase",
-                     "mono_g",
-                     "cest_woad",
-                     "cest_y",
-                     "cest_triga",
-                     "nem_oodle", 
-                     "nem_w",
-                     "nem_pretz",
-                     "nem_esis", 
-                     "trem_shy", 
-                     "trem_scorp",
-                     "trem_ga", 
-                     "trem_pos"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-gamaff <- gamaff %>%
-  mutate(psite_prevalence = rowSums(across(c(
-                     "myx_stwy", 
-                     "myx_thin",
-                     "myx_upc"), 
-                      ~ as.numeric(.), 
-                      .names = "psite_count"), 
-                      na.rm = TRUE)) %>%
-  janitor::clean_names()
-
-```
-
-Combine Datasets into one
-```{r}
-# Add a column identifying each dataset
-carvel <- carvel %>% mutate(dataset = "carvel")
-pimvig <- pimvig %>% mutate(dataset = "pimvig")
-ictpun <- ictpun %>% mutate(dataset = "ictpun")
-notath <- notath %>% mutate(dataset = "notath")
-hybnuc <- hybnuc %>% mutate(dataset = "hybnuc")
-pervig <- pervig %>% mutate(dataset = "pervig")
-gamaff <- gamaff %>% mutate(dataset = "gamaff")
-
-# Ensure `day_collected` is numeric in all datasets
-carvel <- carvel %>% mutate(day_collected = as.numeric(day_collected))
-pimvig <- pimvig %>% mutate(day_collected = as.numeric(day_collected))
-ictpun <- ictpun %>% mutate(day_collected = as.numeric(day_collected))
-notath <- notath %>% mutate(day_collected = as.numeric(day_collected))
-hybnuc <- hybnuc %>% mutate(day_collected = as.numeric(day_collected))
-pervig <- pervig %>% mutate(day_collected = as.numeric(day_collected))
-gamaff <- gamaff %>% mutate(day_collected = as.numeric(day_collected))
-
-# Add the species column if not already present
-carvel <- carvel %>% mutate(dataset = "carvel")
-pimvig <- pimvig %>% mutate(dataset = "pimvig")
-ictpun <- ictpun %>% mutate(dataset = "ictpun")
-notath <- notath %>% mutate(dataset = "notath")
-hybnuc <- hybnuc %>% mutate(dataset = "hybnuc")
-pervig <- pervig %>% mutate(dataset = "pervig")
-gamaff <- gamaff %>% mutate(dataset = "gamaff")
-
-# Combine all datasets into one
-combined_dataset <- bind_rows(carvel, pimvig, ictpun, notath, hybnuc, pervig, gamaff)
-
-# filter out columns that arent needed
-# Specify the columns to keep
-columns_to_keep <- c("catalog_number", "year_collected", "month_collected", "day_collected", "individual_fish_id", "sex",
-                     "total_length_mm", "standard_length_mm", "weight_mg", "ci", "ewe_type", "psite_count", "psite_prevalence",
-                     "dataset", "latitude", "longitude")
-
-# Keep only the specified columns
-combined_data <- combined_dataset %>%
-  select(all_of(columns_to_keep))
-```
-
-
 
 
 ## Plots
@@ -1897,7 +1075,7 @@ drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
 
 ```
 
-Designate average changes in parasitism
+Designate average changes in parasitism --> scale to the mean 
 ```{r}
 # drought first
 sum(drought_flood_df_sum2$total_psite_count, na.rm = TRUE)
@@ -1917,7 +1095,7 @@ hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
 
 ```
 
-## Drought/Flood Plots
+### Drought/Flood Plots
 
 plot drought-flood from NOAA data
 ```{r}
@@ -2075,7 +1253,7 @@ ggplot(drought_flood_df_sum,
 ```
 
 
-## Hurricane Plots
+### Hurricane Plots
 This is the final one for 554 Hurricane:
 ```{r}
 custom_y <- list(
@@ -2295,7 +1473,6 @@ view(table(hurricane_df6$storm_intensity))
 # total number of storms: cat 5 = 4, cat 4 = 6, cat 3 = 2, cat 2 = 1, cat 1 = 5, ts = 7
 ```
 
-
 Create and plot a timeline of hurricane events:
 ```{r}
 # Create a timeline-specific dataframe
@@ -2507,6 +1684,7 @@ hurricane_df6_trem <- hurricane_df6 %>%
 
 
 
+
 ## Model
 drought flood - count
 ```{r}
@@ -2599,12 +1777,5 @@ hurricane model - prevalence
 summary(hurricane_prevalence <- glmmTMB(psite_prevalence ~ ewe_type + ci + (1|storm_intensity) + (1|catalog_number/site) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
                           data = hurricane_df6, family = binomial))
 ```
-
-
-# QUESTIONS
- Why does it seem like the pearl river is not being affected by floods and droughts?
- Why are pearl river parasites not reacting at all to flood and drought conditions in the river?
-
-
 
 
