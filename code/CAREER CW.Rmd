@@ -459,9 +459,6 @@ hurricane_df6 <- full_data %>%
     date >= as.Date("1974-02-28") & date <= as.Date("1974-08-29") ~ "pre_4",
     date >= as.Date("1974-08-29") & date <= as.Date("1974-09-10") ~ "hurricane_4", #carmen -- external
     date >= as.Date("1974-09-10") & date <= as.Date("1975-03-10") ~ "post_4",
-    date >= as.Date("1995-03-27") & date <= as.Date("1995-09-27") ~ "pre_4",
-    date >= as.Date("1995-09-27") & date <= as.Date("1995-10-06") ~ "hurricane_4", #opal -- external
-    date >= as.Date("1995-10-06") & date <= as.Date("1996-04-06") ~ "post_4",
     date >= as.Date("1998-03-15") & date <= as.Date("1998-09-15") ~ "pre_4",
     date >= as.Date("1998-09-15") & date <= as.Date("1998-10-01") ~ "hurricane_4", #georges
     date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_4",
@@ -474,9 +471,6 @@ hurricane_df6 <- full_data %>%
     date >= as.Date("2002-03-14") & date <= as.Date("2002-09-14") ~ "pre_3",
     date >= as.Date("2002-09-14") & date <= as.Date("2002-09-27") ~ "hurricane_3", #isidore 
     date >= as.Date("2002-09-27") & date <= as.Date("2003-03-27") ~ "post_3",
-    date >= as.Date("1995-01-30") & date <= as.Date("1995-07-30") ~ "pre_2",
-    date >= as.Date("1995-07-31") & date <= as.Date("1995-08-06") ~ "hurricane_2", #erin --> overlaps with opal
-    date >= as.Date("1995-08-07") & date <= as.Date("1996-02-07") ~ "post_2",
     date >= as.Date("1979-01-09") & date <= as.Date("1979-07-09") ~ "pre_1",
     date >= as.Date("1979-07-09") & date <= as.Date("1979-07-16") ~ "hurricane_1", #bob
     date >= as.Date("1979-07-16") & date <= as.Date("1980-01-16") ~ "post_1",
@@ -513,7 +507,9 @@ hurricane_df6 <- full_data %>%
     date >= as.Date("1965-03-23") & date <= as.Date("1965-09-23") ~ "pre_ts",
     date >= as.Date("1965-09-24") & date <= as.Date("1965-09-30") ~ "tropical_storm", #debbie
     date >= as.Date("1965-10-01") & date <= as.Date("1966-04-01") ~ "post_ts",
-    
+    date >= as.Date("1995-01-30") & date <= as.Date("1995-07-30") ~ "pre_double",
+    date >= as.Date("1995-07-31") & date <= as.Date("1995-10-06") ~ "hurricane_double", #opal (4) and erin (2) combined
+    date >= as.Date("1995-10-07") & date <= as.Date("1996-04-07") ~ "post_double",
     TRUE ~ "no event"
   ))
 
@@ -528,6 +524,7 @@ hurricane_df6 <- hurricane_df6 %>%
     str_detect(ewe_type, "4") ~ "four",
     str_detect(ewe_type, "5") ~ "five",
     str_detect(ewe_type, "ts") ~ "ts",
+    str_detect(ewe_type, "double") ~ "double",
     TRUE ~ "no event"
   ))
 
@@ -593,9 +590,6 @@ hurricane_df6 <- hurricane_df6 %>%
     date >= as.Date("1991-03-18") & date <= as.Date("1991-09-18") ~ "pre_control",
     date >= as.Date("1991-09-18") & date <= as.Date("1991-09-28") ~ "control",
     date >= as.Date("1991-09-28") & date <= as.Date("1992-03-28") ~ "post_control",
-    date >= as.Date("1994-03-18") & date <= as.Date("1994-09-18") ~ "pre_control",
-    date >= as.Date("1994-09-18") & date <= as.Date("1994-09-28") ~ "control",
-    date >= as.Date("1994-09-28") & date <= as.Date("1995-03-28") ~ "post_control",
     date >= as.Date("1999-03-18") & date <= as.Date("1999-09-18") ~ "pre_control",
     date >= as.Date("1999-09-18") & date <= as.Date("1999-09-28") ~ "control",
     date >= as.Date("1999-09-28") & date <= as.Date("2000-03-28") ~ "post_control",
@@ -622,6 +616,8 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_1" ~ "hurricane",
     ewe_type == "pre_ts" ~ "hurricane",
     ewe_type == "post_ts" ~ "hurricane",
+    ewe_type == "pre_double" ~ "hurricane",
+    ewe_type == "post_double" ~ "hurricane",
     ewe_type == "no event" & control == "pre_control" ~ "control",
     ewe_type == "no event" & control == "post_control" ~ "control",
     TRUE ~ "NA"
@@ -642,6 +638,8 @@ hurricane_df6 <- hurricane_df6 %>%
     ewe_type == "post_1" ~ "post",
     ewe_type == "pre_ts" ~ "pre",
     ewe_type == "post_ts" ~ "post",
+    ewe_type == "pre_double" ~ "pre",
+    ewe_type == "post_double" ~ "post",
     control == "pre_control" ~ "pre",
     control == "post_control" ~ "post",
     ewe_type == "hurricane_4" ~ "during",
@@ -1686,7 +1684,7 @@ hurricane_df6_trem <- hurricane_df6 %>%
 
 
 ## Model
-drought flood - count
+#### drought flood - count
 ```{r}
 # summary(drfl_1 <- glmmTMB(psite_count ~ ewe_type + (1|catalog_number/site) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), data = drought_flood_df_clean_noci, family = "nbinom1"))
 
@@ -1718,6 +1716,10 @@ summary(df_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_numbe
 summary(df_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
                           data = drought_flood_df, family = nbinom2(link = "log")))
 
+
+
+
+
 # diagnostics
 #Evaluate residuals
 s_df = simulateResiduals(fittedModel = df_count, n = 250)
@@ -1726,7 +1728,7 @@ plot(s_df)
 
 ```
 
-drought flood - prevalence
+#### drought flood - prevalence
 ```{r}
 # drought and flood against control together
 summary(drfl_2 <- glmmTMB(psite_prevalence ~ ewe_type + (1|catalog_number) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
@@ -1742,27 +1744,16 @@ summary(f_2 <- glmmTMB(psite_prevalence ~ ewe_type + (1|catalog_number) + (1|sea
 ```
 
 
-hurricane model - count (abundance)
+#### hurricane model - count (abundance)
 ```{r}
-# summary(hurricane_count <- glmmTMB(psite_count ~ ewe_type + control + ci + (1|storm_intensity) + (1|catalog_number/site) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), data = hurricane_df6, family = "nbinom1"))
 
+# family options:, family = "nbinom1" , family = nbinom1(link="sqrt"), , family = nbinom2(link="sqrt"), , family = nbinom2(link="log")
 
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
+## updated model following meeting on 1/27
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
                           data = hurricane_df6, family = "nbinom1")) 
 
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
-                          data = hurricane_df6, family = nbinom1(link="sqrt")))
-
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
-                          data = hurricane_df6, family = nbinom2(link="sqrt"))) 
-
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
-                          data = hurricane_df6, family = nbinom2(link="log"))) 
-
-
-## model trematode only
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_type), 
-                          data = hurricane_df6_trem, family = nbinom1(link="sqrt"))) 
 
 # diagnostics
 #Evaluate residuals
@@ -1772,7 +1763,7 @@ plot(s)
 
 ```
 
-hurricane model - prevalence
+#### hurricane model - prevalence
 ```{r}
 summary(hurricane_prevalence <- glmmTMB(psite_prevalence ~ ewe_type + ci + (1|storm_intensity) + (1|catalog_number/site) + (1|season) + (1|year_collected) + (1|psite_type/fish_sp_y), 
                           data = hurricane_df6, family = binomial))
