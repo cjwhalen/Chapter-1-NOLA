@@ -1137,6 +1137,22 @@ ggplot(full_data,
   ylab("") + 
   xlab("")
 
+ggplot(full_data,
+       aes(x = drought_minus_flood, y = psite_abundance)) + 
+  geom_bin_2d() +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("") + 
+  xlab("")
+
 ```
 
 
