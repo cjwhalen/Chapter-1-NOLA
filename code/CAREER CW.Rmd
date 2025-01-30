@@ -141,6 +141,8 @@ full_data <- full_data %>%
 
 full_data <- full_data %>% 
   left_join(SPI_data, by = "date")
+
+# view(table(full_data$category))
 ```
 
 
@@ -1116,6 +1118,25 @@ ggplot(drought_flood_df_sum,
   values = c("drought" = "#F28A8A", "flood" = "#1BB6AF"), 
   name = "",
   labels = timing_labels) 
+
+######
+
+ggplot(full_data,
+       aes(x = year_collected, y = drought_minus_flood)) + 
+  geom_col(position = "dodge") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("") + 
+  xlab("")
+
 ```
 
 
