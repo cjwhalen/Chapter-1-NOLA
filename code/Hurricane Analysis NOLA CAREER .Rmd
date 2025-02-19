@@ -883,6 +883,12 @@ s = simulateResiduals(fittedModel = hurricane_count, n = 250)
 plot(s)
 ```
 
+### maybe use this:  
+df <- ggpredict(model, terms = "column[n=100]")
+plot(df)
+plot(df, show_data=TRUE)
+
+
 ## Hurricane prevalence (presence/absence for myxozoans) [not currently working]
 ```{r hurricane prevalence, eval=FALSE, echo=FALSE}
 summary(hurricane_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), data = hurricane_df6, family = "nbinom1")) 
