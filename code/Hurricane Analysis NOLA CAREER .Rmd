@@ -870,24 +870,21 @@ print(zx)
 # Models
 ## Hurricane count (abundance)
 ```{r hurricane abundance}
-# family options:, family = "nbinom1" , family = nbinom1(link="sqrt"), , family = nbinom2(link="sqrt"), , family = nbinom2(link="log")
-## updated model following meeting on 1/27
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
                           data = hurricane_df_filtered, family = truncated_nbinom1, ziformula = ~ 1))
 ```
 Create diagnostics.
-```{r hurricane abundance diagnostics, echo=FALSE}
+```{r hurricane abundance diagnostics}
 # diagnostics
 #Evaluate residuals
 s = simulateResiduals(fittedModel = hurricane_count, n = 250)
 plot(s)
+
+# other possible diagnostics
+#df <- ggpredict(model, terms = "column[n=100]")
+#plot(df)
+#plot(df, show_data=TRUE)
 ```
-
-### maybe use this:  
-df <- ggpredict(model, terms = "column[n=100]")
-plot(df)
-plot(df, show_data=TRUE)
-
 
 ## Hurricane prevalence (presence/absence for myxozoans) [not currently working]
 ```{r hurricane prevalence, eval=FALSE, echo=FALSE}
