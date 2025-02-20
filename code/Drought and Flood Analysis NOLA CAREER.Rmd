@@ -189,7 +189,7 @@ average_duration_f
 ```
 
 Add actual drought/flood timeline parameters for 6 month (6 month meaning a buffer period of 6 months before a drought/flood [denoted as pre] and 6 months after a drought/flood [denoted post]). These dates for drought/flood occurrence are taken from the [NOAA flooding website](https://www.weather.gov/safety/flood-states-la#) and the CAREER proposal from the Wood Lab, and represent all drought/flood events that occurred near the Pearl River in Louisiana across the sampling period. [This is the old/original analysis the same as hurricanes, but we are going to use the alternate analysis method of the matched SPI data instead -- not currently in use.] 
-```{r drought/flood 6 month (old), eval=FALSE, echo=FALSE}
+```{r drought/flood 6 month (old), echo=FALSE}
 # create drought/flood dataset
 drought_flood_df <- full_data %>% 
   mutate(ewe_type = case_when(
@@ -289,15 +289,15 @@ drought_flood_df <- drought_flood_df %>%
     ewe_type == "post_flood" ~ "post",
     control == "pre_control" ~ "pre",
     control == "post_control" ~ "post",
-    ewe_type == "drought" & event == "drought" ~ "drought",
-    ewe_type == "flood" & event == "flood" ~ "flood",
-    control == "control" & event == "control" ~ "control",
+    ewe_type == "drought" & event == "drought" ~ "during_drought",
+    ewe_type == "flood" & event == "flood" ~ "during_flood",
+    control == "control" & event == "control" ~ "during_control",
     TRUE ~ "NA"
   )) %>%
   filter(!str_detect(timing, "NA")) 
 
 drought_flood_df <- drought_flood_df %>%
-  mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
+  mutate(timing = factor(timing, levels = c("pre", "post", "during_control", "during_drought", "during_flood"))) %>%
   mutate(timing = relevel(timing, ref = "pre"))
 
 df_table <- table(drought_flood_df$timing)
@@ -308,6 +308,20 @@ df_table <- table(drought_flood_df$event)
 Visualization and checking of data frame.
 ```{r head}
 head(drought_flood_df)
+```
+
+Create a new df that only has parasite types that have high replication in the dataset [keep only trematode, metacercaria, myxozoan, monogenean, cilliate, and nematode]
+```{r filtering}
+# check categories of data and see how many different datapoints we have for each level 
+hurricane_summary_data <- hurricane_df6 %>%
+  group_by(psite_type, event, timing) %>%
+  summarise(total_abundance = sum(psite_abundance, na.rm = TRUE), .groups = 'drop')
+
+print(summary_data)
+
+# drop low replicate categories
+drought_flood_df_filtered <- drought_flood_df %>%
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "cilliate", "nematode", "acanthocephalan", "cestode"))
 ```
 
 # Plots
@@ -625,7 +639,7 @@ ggplot(drought_flood_df,
 # Models
 ## Drought/Flood count (abundance)
 ```{r Drought/Flood abundance}
-summary(drought_flood_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
+summary(drought_flood_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
                           data = drought_flood_df, family = truncated_nbinom1, ziformula = ~ 1))
 ```
 Create diagnostics.
@@ -643,7 +657,7 @@ plot(s)
 
 ## Drought/Flood prevalence (presence/absence for myxozoans) [not currently working]
 ```{r Drought/Flood prevalence, eval=FALSE, echo=FALSE}
-summary(drought_flood_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), data = drought_flood_df, family = "nbinom1")) 
+summary(drought_flood_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), data = drought_flood_df, family = "nbinom1")) 
 
 # diagnostics
 #Evaluate residuals

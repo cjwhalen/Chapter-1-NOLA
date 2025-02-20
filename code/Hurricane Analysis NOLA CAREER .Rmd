@@ -393,32 +393,18 @@ Visualization and checking of data frame.
 head(hurricane_df6)
 ```
 Create a new df that only has parasite types that have high replication in the dataset [keep only trematode, metacercaria, myxozoan, monogenean, cilliate, and nematode]
-```{r}
+```{r filtered}
+# check categories of data and see how many different datapoints we have for each level 
+hurricane_summary_data <- hurricane_df6 %>%
+  group_by(psite_type, event, timing) %>%
+  summarise(total_abundance = sum(psite_abundance, na.rm = TRUE), .groups = 'drop')
+
+print(hurricane_summary_data)
+
+# drop low replicate categories
 hurricane_df_filtered <- hurricane_df6 %>%
   filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "cilliate", "nematode", "acanthocephalan", "cestode"))
-
-
-summary_data <- hurricane_df6 %>%
-  group_by(psite_type, event, timing) %>%
-  summarise(total_abundance = sum(psite_abundance, na.rm = TRUE), .groups = 'drop')
-
-print(summary_data)
-
-# remove specific datapoints with low replication
-hurricane_df_filtered <- hurricane_df6 %>%
-  filter(!(psite_type %in% c("cilliate", "leech", "myxozoan", "nematomorph") & 
-           event %in% c("control", "hurricane") & 
-           timing %in% c("pre", "post")))
-## ^ this did not work 
-
-summary_data <- hurricane_df_filtered %>%
-  group_by(psite_type, event, timing) %>%
-  summarise(total_abundance = sum(psite_abundance, na.rm = TRUE), .groups = 'drop')
-
-print(summary_data)
-
 ```
-
 
 # Plots
 Create color palette and assign faceting labels 
