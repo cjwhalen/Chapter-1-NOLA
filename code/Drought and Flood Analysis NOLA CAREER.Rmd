@@ -112,7 +112,7 @@ SPI_data <- SPI_data %>%
   mutate(date = as.Date(date))
 
 full_data <- full_data %>% 
-  mutate(psite_prevalence = as.character(psite_prevalence))
+  mutate(psite_prevalence = as.numeric(psite_prevalence))
 
 full_data <- full_data %>% 
   left_join(SPI_data, by = "date")
@@ -667,12 +667,13 @@ plot(s)
 ```
 
 ## Drought/Flood prevalence (presence/absence for myxozoans) [not currently working]
-```{r Drought/Flood prevalence, eval=FALSE, echo=FALSE}
-summary(drought_flood_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), data = drought_flood_df, family = "nbinom1")) 
+```{r Drought/Flood prevalence, echo=FALSE}
+summary(drought_flood_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
+                      data = drought_flood_prevalence, family = binomial(link = "logit"), ziformula = ~ 1)) 
 
 # diagnostics
 #Evaluate residuals
-s = simulateResiduals(fittedModel = drought_flood_count, n = 250)
+s = simulateResiduals(fittedModel = drought_flood_prevalence, n = 250)
 s$scaledResiduals
 plot(s)
 ```

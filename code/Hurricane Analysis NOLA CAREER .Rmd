@@ -112,7 +112,7 @@ SPI_data <- SPI_data %>%
   mutate(date = as.Date(date))
 
 full_data <- full_data %>% 
-  mutate(psite_prevalence = as.character(psite_prevalence))
+  mutate(psite_prevalence = as.numeric(psite_prevalence))
 
 full_data <- full_data %>% 
   left_join(SPI_data, by = "date")
@@ -395,22 +395,25 @@ head(hurricane_df6)
 ```
 Create a new df that only has parasite types that have high replication in the dataset [keep only trematode, metacercaria, myxozoan, monogenean, cilliate, and nematode]
 ```{r filtered}
-# check categories of data and see how many different datapoints we have for each level 
-hurricane_summary_data <- hurricane_df6 %>%
-  group_by(psite_type, event, timing) %>%
-  summarise(total_abundance = sum(psite_abundance, na.rm = TRUE), .groups = 'drop')
-
-print(hurricane_summary_data)
-
+# ===== filtering for abundance analysis ===== #
 # drop low replicate categories
-hurricane_df_filtered <- hurricane_df6 %>%
+hurricane_df_abundance <- hurricane_df6 %>%
   filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "nematode", "acanthocephalan", "cestode"))
 
-# filter out all remaining NAs from the psite_abundance column
-hurricane_df_filtered <- hurricane_df_filtered %>%
+# filter out all remaining NAs from the psite_abundance column --> there are some but shouldnt be 
+hurricane_df_abundance <- hurricane_df_abundance %>%
   filter(!is.na(psite_abundance))
-```
 
+# ===== filtering for prevalence analysis ===== #
+# drop low replicate categories
+hurricane_df_prevalence <- hurricane_df6 %>%
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "nematode", "acanthocephalan", "cestode", "myxozoan"))
+
+# filter out all remaining NAs from the psite_prevalence column --> there are none
+hurricane_df_prevalence <- hurricane_df_prevalence %>%
+  filter(!is.na(psite_prevalence))
+
+```
 # Plots
 Create color palette and assign faceting labels 
 ```{r color palette and facet labels, echo=FALSE, eval=FALSE}
@@ -862,7 +865,7 @@ print(zx)
 ## Hurricane count (abundance)
 ```{r hurricane abundance}
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_x/psite_spp_y), 
-                          data = hurricane_df_filtered, family = truncated_nbinom1, ziformula = ~ 1))
+                          data = hurricane_df_abundance, family = truncated_nbinom1, ziformula = ~ 1))
 ```
 Create diagnostics.
 ```{r hurricane abundance diagnostics}
@@ -880,12 +883,13 @@ tab_model(s)
 ```
 
 ## Hurricane prevalence (presence/absence for myxozoans) [not currently working]
-```{r hurricane prevalence, eval=FALSE, echo=FALSE}
-summary(hurricane_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), data = hurricane_df6, family = "nbinom1")) 
+```{r hurricane prevalence, echo=FALSE}
+summary(hurricane_prevalence <- glmmTMB(psite_prevalence ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
+                      data = hurricane_df_prevalence, family = binomial(link = "logit"), ziformula = ~ 1)) 
 
 # diagnostics
 #Evaluate residuals
-s = simulateResiduals(fittedModel = hurricane_count, n = 250)
+s = simulateResiduals(fittedModel = hurricane_prevalence, n = 250)
 s$scaledResiduals
 plot(s)
 ```
