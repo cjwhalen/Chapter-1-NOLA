@@ -53,6 +53,7 @@ library(ggh4x)
 library(vistime)
 library(car)
 library(DHARMa)
+library(sjPlot)
 ```
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
 ```{r datasets and dataframe loading and general df clean and prep for analysis, echo=FALSE}
@@ -403,7 +404,11 @@ print(hurricane_summary_data)
 
 # drop low replicate categories
 hurricane_df_filtered <- hurricane_df6 %>%
-  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "cilliate", "nematode", "acanthocephalan", "cestode"))
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "nematode", "acanthocephalan", "cestode"))
+
+# filter out all remaining NAs from the psite_abundance column
+hurricane_df_filtered <- hurricane_df_filtered %>%
+  filter(!is.na(psite_abundance))
 ```
 
 # Plots
@@ -856,7 +861,7 @@ print(zx)
 # Models
 ## Hurricane count (abundance)
 ```{r hurricane abundance}
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_x/psite_spp_y), 
                           data = hurricane_df_filtered, family = truncated_nbinom1, ziformula = ~ 1))
 ```
 Create diagnostics.
@@ -865,6 +870,8 @@ Create diagnostics.
 #Evaluate residuals
 s = simulateResiduals(fittedModel = hurricane_count, n = 250)
 plot(s)
+
+tab_model(s)
 
 # other possible diagnostics
 #df <- ggpredict(model, terms = "column[n=100]")

@@ -119,6 +119,19 @@ full_data <- full_data %>%
 
 # view(table(full_data$category))
 
+## assign control and flood categories to the different SPI value categories 
+# category = average = true control
+# category = abnormally wet / dry = marginal control 
+# category = exceptionally wet / dry = full drought/flood
+
+full_data <- full_data %>%
+  mutate(event = case_when(
+    str_detect(category, "exceptionally wet") ~ "flood",
+    str_detect(category, "exceptionally dry") ~ "drought",
+    str_detect(category, "average") ~ "control", # there are no parasites collected in the "average" grouping
+    TRUE ~ "marginal"
+  ))
+
 ```
 
 # Drought / Flood analysis and data prepping
@@ -305,23 +318,21 @@ df_table <- table(drought_flood_df$event)
 # view(df_table)
 
 ```
+
 Visualization and checking of data frame.
 ```{r head}
 head(drought_flood_df)
 ```
 
-Create a new df that only has parasite types that have high replication in the dataset [keep only trematode, metacercaria, myxozoan, monogenean, cilliate, and nematode]
-```{r filtering}
-# check categories of data and see how many different datapoints we have for each level 
-hurricane_summary_data <- hurricane_df6 %>%
-  group_by(psite_type, event, timing) %>%
-  summarise(total_abundance = sum(psite_abundance, na.rm = TRUE), .groups = 'drop')
-
-print(summary_data)
-
+Create a new df that only has parasite types that have high replication in the dataset [remove nematomorph, leech, cilliate, and myxozoan (since myxozoans go into a different type of analysis)]
+```{r filtering, eval = FALSE}
 # drop low replicate categories
-drought_flood_df_filtered <- drought_flood_df %>%
-  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "cilliate", "nematode", "acanthocephalan", "cestode"))
+drought_flood_df <- full_data %>%
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "nematode", "acanthocephalan", "cestode"))
+
+# filter out all remaining NAs from the psite_abundance column
+drought_flood_df <- drought_flood_df %>%
+  filter(!is.na(psite_abundance))
 ```
 
 # Plots
@@ -639,7 +650,7 @@ ggplot(drought_flood_df,
 # Models
 ## Drought/Flood count (abundance)
 ```{r Drought/Flood abundance}
-summary(drought_flood_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
+summary(drought_flood_count <- glmmTMB(psite_abundance ~ event*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|year_collected/season) + (1|fish_sp_y/psite_spp_y), 
                           data = drought_flood_df, family = truncated_nbinom1, ziformula = ~ 1))
 ```
 Create diagnostics.
