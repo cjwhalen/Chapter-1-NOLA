@@ -865,7 +865,24 @@ print(zx)
 ## Hurricane count (abundance)
 ```{r hurricane abundance}
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_x/psite_spp_y), 
-                          data = hurricane_df_abundance, family = truncated_nbinom1, ziformula = ~ 1))
+                          data = hurricane_df_abundance, family = poisson))
+
+
+# different family
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
+                          data = hurricane_df_abundance, family = nbinom1(link = "log"), ziformula = ~ 1)) #AIC 13476
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
+                          data = hurricane_df_abundance, family = nbinom1(link = "sqrt"))) #AIC 14197.4
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
+                          data = hurricane_df_abundance, family = nbinom2(link = "sqrt"))) #AIC 15400.1
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
+                          data = hurricane_df_abundance, family = nbinom2(link = "log"))) #AIC 13446.7
+
+
 ```
 Create diagnostics.
 ```{r hurricane abundance diagnostics}
@@ -876,8 +893,9 @@ plot(s)
 
 tab_model(s)
 
+terms(hurricane_count)
 # other possible diagnostics
-#df <- ggpredict(model, terms = "column[n=100]")
+#df <- ggpredict(hurricane_count, terms = "psite_abundance")
 #plot(df)
 #plot(df, show_data=TRUE)
 ```
