@@ -398,11 +398,13 @@ Create a new df that only has parasite types that have high replication in the d
 # ===== filtering for abundance analysis ===== #
 # drop low replicate categories
 hurricane_df_abundance <- hurricane_df6 %>%
-  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "nematode", "acanthocephalan", "cestode"))
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean"))
 
 # filter out all remaining NAs from the psite_abundance column --> there are some but shouldnt be 
 hurricane_df_abundance <- hurricane_df_abundance %>%
   filter(!is.na(psite_abundance))
+
+## i cut down to just monogenes, trematodes, and metacercaria in order for the model to work better, we can maybe do a model with just those little guys in small counts on their own?
 
 # ===== filtering for prevalence analysis ===== #
 # drop low replicate categories
@@ -864,23 +866,27 @@ print(zx)
 # Models
 ## Hurricane count (abundance)
 ```{r hurricane abundance}
-summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_x/psite_spp_y), 
-                          data = hurricane_df_abundance, family = poisson))
+
+# out of date structure
+#summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_x/psite_spp_y),  data = hurricane_df_abundance, family = poisson)) # gives all NA
 
 
 # different family
 
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
-                          data = hurricane_df_abundance, family = nbinom1(link = "log"), ziformula = ~ 1)) #AIC 13476
+                          data = hurricane_df_abundance, family = nbinom1(link = "log"), ziformula = ~ 1)) #AIC 11397
 
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
-                          data = hurricane_df_abundance, family = nbinom1(link = "sqrt"))) #AIC 14197.4
+                          data = hurricane_df_abundance, family = nbinom1(link = "sqrt"), ziformula = ~ 1)) #AIC 13248
 
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
-                          data = hurricane_df_abundance, family = nbinom2(link = "sqrt"))) #AIC 15400.1
+                          data = hurricane_df_abundance, family = truncated_nbinom2, ziformula = ~ 1)) #AIC 13569
 
 summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (1|ci/catalog_number) + (1|year_collected/season) + (total_length_mm|fish_psite_combo) + (1|fish_sp_x),
-                          data = hurricane_df_abundance, family = nbinom2(link = "log"))) #AIC 13446.7
+                          data = hurricane_df_abundance, family = nbinom2(link = "log"))) #AIC 11413
+
+
+#### test truncated hurdle model --> truncated_nbinon1, 2 and poisson all return NAs 
 
 
 ```
