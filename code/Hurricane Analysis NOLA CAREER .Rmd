@@ -870,6 +870,9 @@ print(zx)
 # out of date structure
 #summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (total_length_mm|fish_sp_x/parasite_taxonomic_group) + (1|ci/catalog_number) + (1|storm_intensity) + (1|year_collected/season) + (1|fish_sp_x/psite_spp_y),  data = hurricane_df_abundance, family = poisson)) # gives all NA
 
+# zero inflated performance package
+# truncated at lower / upper bounds and redistributes 
+#aic useless [fixed effect covar], lrtest test random effects --- test overdispersion  (performace)
 
 # different family
 
@@ -888,7 +891,17 @@ summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (
 
 #### test truncated hurdle model --> truncated_nbinon1, 2 and poisson all return NAs 
 
-
+# pairs plot / corr plot to test for correlation between factors 
+# ci cannot be random effect
+# test overd with chi2/df -- pearson redid2 /df > 1 
+# check nbinom function to test for lambda
+# nbinom vs trunc 
+# zeroes vs non xeros 
+# oredicting vs mechanisms 
+# intercept re vs slope re (total_length) 
+# run simple models first , additive model then multiplicative 
+# hessian bad = overparameterized -- change optimizer
+# poisson rate models -- turn counts into per mm of fish tissue -- offset will the offset log the output? counts per subset area 
 ```
 Create diagnostics.
 ```{r hurricane abundance diagnostics}
@@ -904,6 +917,11 @@ terms(hurricane_count)
 #df <- ggpredict(hurricane_count, terms = "psite_abundance")
 #plot(df)
 #plot(df, show_data=TRUE)
+
+
+# manually plot residuals 
+# pair plots 
+# draw out what each covariate means  
 ```
 
 ## Hurricane prevalence (presence/absence for myxozoans) [not currently working]
