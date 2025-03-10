@@ -119,6 +119,10 @@ full_data <- full_data %>%
 
 # view(table(full_data$category))
 
+
+
+# create an offset variable for the issue of total_length_mm and parasite_abundance
+
 ```
 
 # Hurricane analysis and data prepping
@@ -380,9 +384,14 @@ hurricane_df6 <- hurricane_df6 %>%
 
 hurricane_df6 <- hurricane_df6 %>%
   mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
-  mutate(timing = relevel(timing, ref = "pre")) #%>% 
- # mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
- # mutate(event = relevel(event, ref = "control"))
+  mutate(timing = relevel(timing, ref = "pre")) %>% 
+  mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
+  mutate(event = relevel(event, ref = "control")) %>% 
+  mutate(psite_type = factor(psite_type, levels = c("trematode", "trematode_metacercaria", "monogenean"))) %>% 
+  mutate(psite_type = relevel(psite_type, ref = "monogenean")) 
+
+### what should be my reference level for psite_type? 
+### how can i account for the other parasites that are removed from this analysis?
 
 ewe_table6 <- table(hurricane_df6$event)
 # view(ewe_table6)
@@ -902,6 +911,16 @@ summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + (
 # run simple models first , additive model then multiplicative 
 # hessian bad = overparameterized -- change optimizer
 # poisson rate models -- turn counts into per mm of fish tissue -- offset will the offset log the output? counts per subset area 
+
+# remove ci to a fixed effect, add an offset for total fish length
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x), offset = log(total_length_mm),
+                          data = hurricane_df_abundance, family = nbinom1(link = "log"), ziformula = ~ 1)) #AIC 11397
+
+
+summary(hurricane_count <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                          data = hurricane_df_abundance, family = nbinom1(link = "log"), ziformula = ~ 1)) 
+
+
 ```
 Create diagnostics.
 ```{r hurricane abundance diagnostics}
