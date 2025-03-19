@@ -956,6 +956,13 @@ plot(s)
 ```
 
 
+# TO REVISIT 
+
+```{r}
+mydf <- ggpredict(model, terms = c("a", "b"))
+
+plot(mydf, show_data = TRUE, show_residuals = FALSE, jitter = 0.1, color = c("#")) + labs() + theme()
+```
 
 
 
