@@ -690,6 +690,7 @@ plot(s)
 
 #### Checking all model options
 - run each type and then run dHarma 
+- abundance
 ```{r}
 ## normal
 
@@ -937,18 +938,27 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
 residual_summaries %>%
   arrange(AIC) %>%
   print()
+```
 
-
+# final df abundance model
+```{r}
 # this model is the best fit
-simulateResiduals(fittedModel = nbinom2log, plot = TRUE)
-summary(nbinom2log)
-plot(parameters(nbinom2log))
+
+dfa_nbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = drought_flood_df)
+
+simulateResiduals(fittedModel = dfa_nbinom2log, plot = TRUE)
+summary(dfa_nbinom2log)
+plot(parameters(dfa_nbinom2log))
 
 ```
 
 
 
-
+#prevalence
 
 FROM ARIAL's CODE
 ```{r}
@@ -1078,7 +1088,7 @@ plot(s)
 
 
 
-# prevalence 
+## prevalence 
 ```{r}
 ## normal
 
@@ -1306,12 +1316,20 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
 residual_summaries %>%
   arrange(AIC) %>%
   print()
+```
 
-
+# final df prevalence model
+```{r}
 # this model is the best fit
-simulateResiduals(fittedModel = tnbinom2log, plot = TRUE)
-summary(tnbinom2log)
-plot(parameters(tnbinom2log))
+
+dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x/total_length_mm),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x/total_length_mm), 
+                                family = truncated_nbinom2, data = drought_flood_df_m)
+
+
+simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
+summary(dfp_tnbinom2log)
+plot(parameters(dfp_tnbinom2log))
 
 ```
 

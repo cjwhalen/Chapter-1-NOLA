@@ -1211,17 +1211,142 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
 residual_summaries %>%
   arrange(AIC) %>%
   print()
+```
 
 
+# FINAL MODEL HURRICANE ABUNDANCE 
+```{r}
 # this model is the best fit
-simulateResiduals(fittedModel = nbinom2log, plot = TRUE)
-summary(nbinom2log)
-plot(parameters(nbinom2log))
+
+ha_nbinom2log <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance)
+
+simulateResiduals(fittedModel = ha_nbinom2log, plot = TRUE)
+summary(ha_nbinom2log)
+plot(parameters(ha_nbinom2log))
+
+
+```
+
+# color palette and labels
+```{r color palette and facet labels, echo=FALSE, eval=FALSE}
+lacroix_palettes_list <- LaCroixColoR::lacroix_palettes
+my_pal <- lacroix_palette("Pamplemousse", n = 5, type = "continuous")
+
+parasite_order <- c(
+  "trematode", "trematode_metacercaria", "myxozoan", "monogenean", "ciliate",
+  "nematode", "acanthocephalan", "cestode", "copepod", "nematomorph"
+)
+
+parasite_labels <- c(
+  "trematode" = "Trematode",
+  "trematode_metacercaria" = "Metacercaria",
+  "myxozoan" = "Myxozoan",
+  "monogenean" = "Monogenean"
+)
+
+
+storm_order <- c("five", "four", "three", "two", "one", "ts", "control")
+
+storm_labels <- c(
+  "five" = "5",
+  "four" = "4",
+  "three" = "3",
+  "two" = "2",
+  "one" = "1",
+  "ts" = "TS", 
+  "no event" = "control"
+)
+
+season_order <- c(
+  "winter", "spring", "summer", "fall"
+)
+
+season_labels <- c(
+  "winter" = "Winter",
+  "spring" = "Spring", 
+  "summer" = "Summer", 
+  "fall" = "Fall"
+)
+
+timing_order <- c(
+  "pre", "during", "post"
+)
+
+timing_labels <- c(
+  "pre" = "Pre",
+  "post" = "Post", 
+  "control" = "During",
+  "flood" = "During", 
+  "drought" = "During"
+)
+
+event_labels <- c(
+  "drought" = "drought", 
+  "flood" = "flood"
+)
+```
+
+# hurricane abundance plots
+- takeaway from conditional model is: 
+MODEL RESULT 1)
+⭐ eventhurricane:timingpost:psite_typetrematode:
+Estimate = 1.127, p = 0.023 ✅
+→ After a hurricane, in the post period, trematode abundance increases significantly. compared to control and whatever the reference psite_type category is -- monogenes
+📌 Interpretation: There's a delayed increase in trematode abundance after hurricanes. 
+🧠 Biological angle: This might reflect parasite life cycles needing time to respond to environmental change post-hurricane.
+
+MODEL RESULT 2)
+✅ Significant Results – Conditional Model (Count Part)
+⭐ eventhurricane:psite_typetrematode_metacercaria:
+Estimate = -1.095, p = 0.048 ✅
+→ When hurricanes occur and the parasite is a trematode metacercaria, abundance significantly decreases compared to baseline (non-hurricane, non-metacercaria -- whatever the reference level psite_type is -- monogenes).
+📌 Interpretation: Hurricanes reduce the abundance of metacercarial trematodes in fish.
+
+
+- takeaway from zi model is: 
+1)
+⭐ Intercept:
+Estimate = 1.425, p = 0.044
+→ Baseline log-odds of being structurally zero (not infected) is significantly greater than zero. So, some fish are truly parasite-free under baseline conditions.
+
+2)
+⭐ psite_typetrematode:
+Estimate = 2.003, p = 0.011 ✅
+→ Trematodes are associated with a higher likelihood of fish being uninfected (i.e., more zeros than expected) compared to reference psite_type of monogenes
+📌 Interpretation: Trematodes are patchier — more fish have no infection at all.
+
+```{r}
+#1)
+ggplot(hurricane_df_abundance,
+       aes(x = psite_type, y = psite_abundance, fill = timing)) + 
+  geom_col(position = "dodge") + facet_wrap(~ event) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Count") + 
+  xlab("Parasite Type") + 
+  scale_fill_manual(
+  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
+  name = "",
+  labels = season_labels) +
+  scale_x_discrete(labels = storm_labels)
+
 
 ```
 
 
-
+# prevalence
 
 FROM ARIAL's CODE:
 ```{r}
@@ -1748,12 +1873,26 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
 residual_summaries %>%
   arrange(AIC) %>%
   print()
+```
 
-
+# FINAL MODEL HURRICANE PREVALENCE
+```{r}
 # this model is the best fit
-simulateResiduals(fittedModel = tnbinom2logoff, plot = TRUE)
-summary(tnbinom2logoff)
-plot(parameters(tnbinom2logoff))
+
+hp_tnbinom2logoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = truncated_nbinom2, data = hurricane_df_prevalence)
+
+simulateResiduals(fittedModel = hp_tnbinom2logoff, plot = TRUE)
+summary(hp_tnbinom2logoff)
+plot(parameters(hp_tnbinom2logoff))
+
+```
+
+# HURRICANE prevalence plots
+```{r}
 
 ```
 
