@@ -143,8 +143,11 @@ full_data <- full_data %>%
   mutate(category = as.factor(category)) %>% 
   mutate(psite_type = as.factor(psite_type))
 
-table(full_data$event)
-
+table(full_data$psite_type)
+# check how many of these are > 0 
+full_data %>%
+  filter(psite_abundance > 0) %>%
+  count(psite_type)
 ```
 
 # Drought / Flood analysis and data prepping
@@ -341,6 +344,12 @@ drought_flood_df <- full_data %>%
 # filter out all remaining NAs from the psite_abundance column
 drought_flood_df <- drought_flood_df %>%
   filter(!is.na(psite_abundance))
+
+#relevel to drop the non-used categories
+drought_flood_df <- drought_flood_df %>%
+  mutate(psite_type = factor(psite_type, 
+                             levels = c("monogenean", "trematode", "trematode_metacercaria")))
+
 
 # create new category for myxos
 drought_flood_df_m <- full_data %>%
@@ -940,7 +949,8 @@ residual_summaries %>%
   print()
 ```
 
-# final df abundance model
+
+# FINAL df abundance model
 ```{r}
 # this model is the best fit
 
@@ -954,8 +964,67 @@ simulateResiduals(fittedModel = dfa_nbinom2log, plot = TRUE)
 summary(dfa_nbinom2log)
 plot(parameters(dfa_nbinom2log))
 
+
 ```
 
+# FINAL abundance plot
+conditional findings: 
+1) Trematode metacercariae have lower abundance than monogeneans in baseline conditions. (doesnt match what the plot shows)
+2) Trematode abundance is higher during drought compared to monogeneans under baseline conditions.
+3) Trematode metacercariae abundance is much higher during drought compared to monogeneans in baseline.
+4) Trematode metacercariae abundance is also elevated during floods compared to baseline monogeneans.
+zi findings:
+5) at intercept: High baseline probability of structural zeros (no parasites).
+6)  Drought reduces the probability of structural zeros — i.e., more fish have some parasites.
+7) BUT: trematodes during drought increase zero-inflation — more fish with zero trematodes (somewhat counteracting the general trend).
+8) Same as above, but even stronger: drought increases the likelihood of fish having no trematode metacercariae.
+
+```{r}
+#1
+ggplot(drought_flood_df,
+       aes(x = psite_type, y = psite_abundance, fill = event)) +
+  geom_col(position = "dodge") + 
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Parasite Abundance") + 
+  xlab("Parasite Type") + 
+  scale_fill_manual(
+    values = c("drought" = "#F28A8A", "flood" = "#1BB6AF", "control" = "#172869"))
+
+```
+
+# FINAL prevalence model 
+```{r}
+# this model is the best fit
+
+dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x/total_length_mm),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x/total_length_mm), 
+                                family = truncated_nbinom2, data = drought_flood_df_m)
+
+
+simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
+summary(dfp_tnbinom2log)
+plot(parameters(dfp_tnbinom2log))
+
+```
+
+# FINAL prevalence plot
+conditional findings:
+NA
+zi findings:
+- The baseline probability of excess zeros (i.e., prevalence being 0) is very high. This is expected because you're modeling a zero-inflated dataset, but zeros have been truncated, so this reflects the model accounting for the missing zero data.
+A large, significant intercept means: in the reference condition (e.g., control event, control/impact = control), the likelihood that a zero would've occurred is high — but it's not varying significantly by predictors (see below).
+```{r}
+# can plot the zeroes being more than we expect? 
+```
 
 
 #prevalence
@@ -1319,21 +1388,4 @@ residual_summaries %>%
 ```
 
 # final df prevalence model
-```{r}
-# this model is the best fit
-
-dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x/total_length_mm),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x/total_length_mm), 
-                                family = truncated_nbinom2, data = drought_flood_df_m)
-
-
-simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
-summary(dfp_tnbinom2log)
-plot(parameters(dfp_tnbinom2log))
-
-```
-
-
-
-
 

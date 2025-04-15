@@ -416,6 +416,12 @@ ewe_table6 <- table(hurricane_df6$event)
 # view(ewe_table6)
 ewe_table6_2 <- table(hurricane_df6$timing)
 # view(ewe_table6_2)
+
+table(hurricane_df6$psite_type)
+# check how many of these are > 0 
+hurricane_df6 %>%
+  filter(psite_abundance > 0) %>%
+  count(psite_type)
 ```
 Visualization and checking of data frame.
 ```{r head}
@@ -1892,8 +1898,47 @@ plot(parameters(hp_tnbinom2logoff))
 ```
 
 # HURRICANE prevalence plots
-```{r}
 
+- takeaway from model:
+conditional model:
+🔍 None of the predictors (event, timing, ci, or their interaction) were significant in predicting non-zero prevalence counts.
+
+zi model:
+- There is a significant baseline tendency for excess zeroes in the data (i.e., more zero prevalence than expected). but the estimate is zero?
+- The odds of an excess zero decrease significantly after the event (i.e., post timing), meaning post-event samples are less likely to have structural zeroes.
+
+```{r}
+# conditional not plotted bc insignificant 
+
+# zi plot
+hurricane_df_prevalence_zi <- hurricane_df_prevalence %>% 
+  filter(psite_prevalence == 0)
+
+# Count zero occurrences per group
+zero_counts <- hurricane_df_prevalence_zi %>%
+  group_by(psite_type, timing, event) %>%
+  summarise(n_zeros = n(), .groups = "drop")
+
+# Bar plot of zero counts
+ggplot(zero_counts, aes(x = event, y = n_zeros, fill = timing)) +
+  geom_col(position = "dodge") +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("Number of Zero Counts") + 
+  xlab("Event") + 
+  scale_fill_manual(
+    values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
+    name = "",
+    labels = season_labels) +
+  scale_x_discrete(labels = storm_labels)
 ```
 
 
