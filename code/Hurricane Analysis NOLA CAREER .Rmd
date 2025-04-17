@@ -72,6 +72,8 @@ library(DHARMa)
 library(purrr)
 library(dplyr)
 # library(broom.mixed)
+library(purrr)
+library(vegan)
 
 ```
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
@@ -438,6 +440,98 @@ hat <- hurricane_df_abundance %>%
 hatm <- hurricane_df_abundance %>% 
   filter(psite_type %in% c("trematode_metacercaria"))
 ```
+
+# Estimating Biodiversity Changes
+Jackknife estimates
+```{r}
+# prep dataframe to include only data on biodiversity
+
+hurricane_diveristy <- hurricane_df6 %>%
+  select(x, psite_type, psite_count, event, timing, category, ci, psite_spp_x, fish_psite_combo) %>%
+  mutate(psite_spp_id = as.numeric(factor(psite_spp_x))) %>% 
+  filter(psite_count != 0)
+
+# overall species before and after plus timing
+
+
+# Get all unique combinations of event, timing, and ci
+group_combos <- unique(hurricane_df6[, c("event", "timing", "ci")])
+
+# Empty results data frame
+jackknife_results <- data.frame(
+  event = character(),
+  timing = character(),
+  ci = character(),
+  jackknife_mean_richness = numeric(),
+  total_psite_count = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop over each event × timing × ci combo
+for (i in 1:nrow(group_combos)) {
+  e <- group_combos$event[i]
+  t <- group_combos$timing[i]
+  c <- group_combos$ci[i]
+  
+  # Subset data for this combination
+  sub_df <- hurricane_df6[hurricane_df6$event == e &
+                          hurricane_df6$timing == t &
+                          hurricane_df6$ci == c, ]
+  
+  # Get unique sample IDs
+  sample_ids <- unique(sub_df$x)
+  
+  richness_values <- numeric(length(sample_ids))
+  
+  # Leave-one-out loop for jackknife richness
+  for (j in seq_along(sample_ids)) {
+    id_to_leave_out <- sample_ids[j]
+    
+    df_minus_one <- sub_df[sub_df$x != id_to_leave_out, ]
+    
+    richness_values[j] <- length(unique(df_minus_one$psite_spp_x))
+  }
+  
+  # Sum total parasite count in this group
+  total_count <- sum(sub_df$psite_count, na.rm = TRUE)
+  
+  # Store results
+  jackknife_results <- rbind(jackknife_results, data.frame(
+    event = e,
+    timing = t,
+    ci = c,
+    jackknife_mean_richness = mean(richness_values),
+    total_psite_count = total_count
+  ))
+}
+
+
+
+
+
+
+# prelim plot
+ggplot(hurricane_diveristy,
+       aes(x = psite_spp_id, y = psite_count, fill = timing)) + 
+  geom_line() + facet_wrap(event ~ ci) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("") + 
+  xlab("") + 
+  scale_fill_manual(
+  values = c("post" = "#F28A8A", "pre" = "#1BB6AF"))
+
+```
+
+
 # Models
 ## Abundance
 ### 3 parasite types
@@ -2064,4 +2158,28 @@ ggplot(zero_counts, aes(x = event, y = n_zeros, fill = timing)) +
 
 
 
+
+
+
+# come back to this plot:
+```{r}
+# prelim plot
+ggplot(hurricane_diveristy,
+       aes(x = event, y = psite_count, fill = timing)) + 
+  geom_col(position = "dodge") + facet_wrap(~ ci) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("") + 
+  xlab("") + 
+  scale_fill_manual(
+  values = c("post" = "#F28A8A", "pre" = "#1BB6AF"))
+```
 
