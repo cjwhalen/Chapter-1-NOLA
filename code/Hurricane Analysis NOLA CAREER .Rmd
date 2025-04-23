@@ -32,6 +32,7 @@ install.packages("ggh4x")
 install.packages("vistime")
 install.packages("DHARMa")
 install.packages("bbmle")
+install.packages("reghelper")
 ```
 
 #### Load packages.
@@ -74,6 +75,7 @@ library(dplyr)
 # library(broom.mixed)
 library(purrr)
 library(vegan)
+library(reghelper)
 
 ```
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
@@ -137,6 +139,9 @@ full_data <- full_data %>%
 
 full_data <- full_data %>% 
   left_join(SPI_data, by = "date")
+
+full_data <- full_data %>% 
+  mutate(psite_type = as.factor(psite_type))
 
 ```
 
@@ -2233,145 +2238,90 @@ ggplot(hurricane_zi_clean, aes(x = reorder(Effect, Estimate), y = Estimate, fill
 
 ```
 
-SJplot ones:
-```{r}
-plot_model(ha_nbinom2log3, type = "pred", terms = c("psite_type", "event", "timing"), component = "zi")
-
-ha_nbinom2log3_predict <- ggeffect(ha_nbinom2log3, terms = "psite_type", type = "zero_inflated")
-
-ggplot(ha_nbinom2log3_predict, 
-       aes(x = , y = predicted), group = sex, linetype = sex) +
-  geom_errorbar(data = ha_nbinom2log3_predict, mapping = aes(x = , ymin = conf.low, ymax = conf.high), width = 0.03) + geom_line(aes(group=group,linetype=group))+
-  geom_point(size=6,pch=21,fill=c("cadetblue","burlywood4","cadetblue","burlywood4"))+
-  xlab("host coloration")+
-  ylab("hepatosomatic index")+
-  theme_minimal()+
-  labs(linetype="host sex")+
-  theme(plot.title=element_text(size=18,hjust=0.5,face="plain"),axis.text.y=element_text(size=14),
-        axis.title.y=element_text(size=18),axis.text.x=element_text(size=18,color=c("burlywood4","cadetblue")),
-        axis.title.x=element_text(size=16),panel.background=element_rect(fill="white",color="black"),
-        panel.grid.major=element_line(color=NA),panel.grid.minor=element_line(color=NA),plot.margin=unit(c(0,0,0,0),"cm"))+
-  scale_x_discrete(limits=rev(levels(HSI_predict$x)),labels=c("brown","blue"))+
-  theme(legend.position="top",legend.title = element_text(size = 18),
-        legend.text = element_text(size=14))
-
-```
-
-
-
-## From chelsea's paper on lincod
+abundance:
 ```{r}
 # color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+connor_theme <- theme(legend.position = "top", 
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        strip.background = element_rect(fill = NA, color = NA),
+        panel.background = element_rect(fill = NA, color = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        panel.spacing.y = unit(0, "lines"),
+        axis.text = element_text(size = 8, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
 
+model_data <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
 
-### Create Figure 1a
+model_data <- model_data %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group,
+    timing = facet)
 
-hurricane_plot_df <- hurricane_df6 %>% 
-  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean", "myxozoan")) %>%
-  mutate(psite_type = factor(psite_type, levels = c("myxozoan", "trematode", "trematode_metacercaria", "monogenean")))
+model_mono <- model_data %>% 
+  filter(psite_type %in% c("monogenean"))
 
+model_trem <- model_data %>% 
+  filter(psite_type %in% c("trematode"))
 
+model_meta <- model_data %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
 
-ggplot(hurricane_plot_df,
-                      aes(x = psite_type, y = psite_count, fill = timing)) + 
-  geom_bar(position = "dodge", stat = "identity") + 
-  facet_grid(event ~ .) +
-  geom_segment(aes(x = 2, xend = 4, y = 80, yend = 80), inherit.aes = FALSE) +
-  geom_segment(aes(x = 2, xend = 2, y = 80, yend = 75), inherit.aes = FALSE) +
-  geom_segment(aes(x = 4, xend = 4, y = 80, yend = 75), inherit.aes = FALSE) +
-  annotate("text", x = 3, y = 82, label = "*", size = 5) +
-  xlab("parasite type") +
-  ylab("number of parasites individuals sampled") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Parasite Type") + 
-  scale_fill_manual(
-  values = c("hurricane" = "#CB87B4", "control" = "#F4B95A"))
+ggplot(model_data,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ psite_type) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = event, linetype = event),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = event, group = event),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("hurricane" = "#CB87B4", "control" = "#F4B95A")) +
+  labs(x = "Timing", y = "Estimate", fill = "Event", linetype = "Event") +
+  connor_theme
+
 ```
 
-
+prevalence:
 ```{r}
-### Create Figure 1c
 
-ggplot(hurricane_plot_df,
-       aes(x = , y = predicted), group = sex, linetype = sex) +
-  geom_errorbar(data = hurricane_plot_df, mapping = aes(x = c(1.95, 0.95, 2.05, 1.05), ymin = conf.low, ymax = conf.high), width = 0.03) +
-  geom_line(aes(group = group, linetype = group)) +
-  geom_point(size = 6, pch = 21, fill = c("cadetblue", "burlywood4", "cadetblue", "burlywood4")) +
-  labs(linetype = "host sex") +
-  
-  
-  
-  
-  
-  theme(plot.title=element_text(size=18,hjust=0.5,face="plain"),axis.text.y=element_text(size=14),
-        axis.title.y=element_text(size=18),axis.text.x=element_text(size=18,color=c("burlywood4","cadetblue")),
-        axis.title.x=element_text(size=16),panel.background=element_rect(fill="white",color="black"),
-        panel.grid.major=element_line(color=NA),panel.grid.minor=element_line(color=NA),plot.margin=unit(c(0,0,0,0),"cm"))+
-  scale_x_discrete(limits=rev(levels(skinny_predict$x)),labels=c("brown","blue"))+
-  theme(legend.position="top",legend.title = element_text(size = 18),
-        legend.text = element_text(size=14))
+model_data <- ggpredict(mxyxo_final, terms = c("event", "timing", "ci"))
 
+model_data <- model_data %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    ci = facet)
 
+ggplot(model_data,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ ci) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = event, linetype = event),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = event, group = event),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("hurricane" = "#CB87B4", "control" = "#F4B95A")) +
+  labs(x = "Timing", y = "Estimate", fill = "Event", linetype = "Event") +
+  connor_theme
 
-### Does hepatosomatic index (HSI) differ among blue/brown, male/female lingcod?
-
-str(lingcod_color)
-min(lingcod_color$HSI,na.rm=T)
-max(lingcod_color$HSI,na.rm=T)
-hist(lingcod_color$HSI)
-
-new<-lingcod_color[lingcod_color[,18]<18,]
-new<-new[new[,18]>0,]
-min(new$HSI,na.rm=T)
-max(new$HSI,na.rm=T)
-hist(new$HSI)
-
-new$depth_ft_sc<-scale(new$Depth.ft)+2
-
-new$HSI_trans<-(new$HSI)^(0.25)
-hist(new$HSI_trans)
-
-HSI_model_gaus<-glmer(new$HSI_trans~Sex*Color+depth_ft_sc+(1|Region/Location),data=new,family="gaussian")
-summary(HSI_model_gaus)
-
-coefs <- data.frame(coef(summary(HSI_model_gaus)))
-# use normal distribution to approximate p-value
-coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
-coefs
-
-
-### Create Figure 1d
-
-HSI_predict<-ggeffect(HSI_model_gaus,c("Color","Sex"))
-
-HSI_plot<-ggplot(HSI_predict,aes(c(1.95,0.95,2.05,1.05),predicted),group=sex,linetype=sex)+
-  geom_errorbar(data=HSI_predict,mapping=aes(x=c(1.95,0.95,2.05,1.05),ymin=conf.low,ymax=conf.high),width=0.03)+
-  geom_line(aes(group=group,linetype=group))+
-  geom_point(size=6,pch=21,fill=c("cadetblue","burlywood4","cadetblue","burlywood4"))+
-  xlab("host coloration")+
-  ylab("hepatosomatic index")+
-  theme_minimal()+
-  labs(linetype="host sex")+
-  theme(plot.title=element_text(size=18,hjust=0.5,face="plain"),axis.text.y=element_text(size=14),
-        axis.title.y=element_text(size=18),axis.text.x=element_text(size=18,color=c("burlywood4","cadetblue")),
-        axis.title.x=element_text(size=16),panel.background=element_rect(fill="white",color="black"),
-        panel.grid.major=element_line(color=NA),panel.grid.minor=element_line(color=NA),plot.margin=unit(c(0,0,0,0),"cm"))+
-  scale_x_discrete(limits=rev(levels(HSI_predict$x)),labels=c("brown","blue"))+
-  theme(legend.position="top",legend.title = element_text(size = 18),
-        legend.text = element_text(size=14))
-HSI_plot
 ```
-
 
 
 
