@@ -1204,6 +1204,19 @@ simulateResiduals(fittedModel = dfa_nbinom2log, plot = TRUE)
 summary(dfa_nbinom2log)
 plot(parameters(dfa_nbinom2log))
 
+# prevalence
+dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = truncated_nbinom2, data = drought_flood_df_m)
+
+
+simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
+summary(dfp_tnbinom2log)
+plot(parameters(dfp_tnbinom2log))
+```
+
+NO LONGER USING THESE ONES
+```{r}
 # abundance mono
 mono_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
                                   (1|fish_sp_x) + offset(log(total_length_mm)),
@@ -1233,18 +1246,11 @@ simulateResiduals(fittedModel = meta_final_df, plot = TRUE)
 summary(meta_final_df)
 plot(parameters(meta_final_df))
 
-# prevalence
-dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = truncated_nbinom2, data = drought_flood_df_m)
 
-
-simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
-summary(dfp_tnbinom2log)
-plot(parameters(dfp_tnbinom2log))
 ```
 
 # Plots
+###
 Create color palette and assign faceting labels.
 ```{r color palette and facet labels, echo=FALSE}
 lacroix_palettes_list <- LaCroixColoR::lacroix_palettes
@@ -1554,5 +1560,73 @@ ggplot(drought_flood_df,
   ylab("Parasite Abundance") + 
   xlab("Collection Date") +
   scale_fill_manual(values = my_pal[1:5], name = '')
+```
+
+
+
+
+
+
+
+## primary
+
+
+
+
+drought/flood conditional
+```{r}
+# Drought/Flood Conditional Model Results
+df_conditional <- tribble(
+  ~Parasite_Type, ~Effect, ~Estimate, ~SE, ~p_value,
+  "Trematode", "Drought vs Baseline (Monogene)", 1.977, 1.0, 0.0406,
+  "Trematode_Metacercaria", "Flood vs Baseline (Monogene)", 2.771, 1.0, 0.00559,
+  "Trematode_Metacercaria", "Impact vs Control", 6.940, 1.0, 0.0001,
+  "Trematode_Metacercaria", "Flood Event vs None", 2.505, 1.0, 0.0123,
+  "Monogenean", "Baseline (Intercept)", -5.506, 1.0, 0.0001
+)
+
+ggplot(df_conditional, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_Type)) +
+  geom_col(width = 0.6) +
+  geom_errorbar(aes(ymin = Estimate - SE, ymax = Estimate + SE), width = 0.2) +
+  coord_flip() +
+  labs(
+    title = "Drought/Flood Effects on Parasite Abundance (Conditional Model)",
+    x = NULL,
+    y = "Model Estimate (log scale)"
+  ) +
+  scale_fill_brewer(palette = "Paired") +
+  theme_minimal(base_size = 13)
+
+```
+
+drought/flood zi
+```{r}
+# Drought/Flood Zero-Inflated Model Results
+df_zi <- tribble(
+  ~Parasite_Type, ~Effect, ~Estimate, ~SE, ~p_value,
+  "Trematode_Metacercaria", "Flood/Drought vs Monogene", -2.101, 1.0, 0.03564,
+  "Trematode", "Baseline Zero Inflation (vs Monogene)", 2.508, 1.0, 0.0122,
+  "Trematode_Metacercaria", "TMC Zero Counts", 3.037, 1.0, 0.00239,
+  "Trematode", "More Zeros under Drought", 2.401, 1.0, 0.01633,
+  "Drought_Event", "Zeros Decrease Under Drought", -1.977, 1.0, 0.04802,
+  "Monogenean", "Drought Event (Fewer Zeros)", -2.667, 1.0, 0.00765,
+  "Monogenean", "Baseline (Intercept)", -9.645, 1.0, 0.0001,
+  "All", "Overall High Zero Inflation", 3.096, 1.0, 0.00196,
+  "All", "Baseline Zero Inflation", 6.315, 1.0, 0.0001
+)
+
+# Clean up labeling if needed
+ggplot(df_zi, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_Type)) +
+  geom_col(width = 0.6) +
+  geom_errorbar(aes(ymin = Estimate - SE, ymax = Estimate + SE), width = 0.2) +
+  coord_flip() +
+  labs(
+    title = "Drought/Flood Effects on Parasite Prevalence (Zero-Inflated Model)",
+    x = NULL,
+    y = "Model Estimate (log odds of zero abundance)"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_minimal(base_size = 13)
+
 ```
 
