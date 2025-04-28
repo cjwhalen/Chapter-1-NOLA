@@ -1175,7 +1175,7 @@ residual_summaries %>%
   arrange(AIC) %>%
   print()
 
-# this model is the best fit
+# this model is the best fit -- swapped 4/27
 
 dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
                                 ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
@@ -1185,7 +1185,6 @@ dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + 
 simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
 summary(dfp_tnbinom2log)
 plot(parameters(dfp_tnbinom2log))
-
 ```
 
 
@@ -1204,7 +1203,7 @@ simulateResiduals(fittedModel = dfa_nbinom2log, plot = TRUE)
 summary(dfa_nbinom2log)
 plot(parameters(dfa_nbinom2log))
 
-# prevalence
+# prevalence -- DONT USE THIS ONE
 dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
                                 ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
                                 family = truncated_nbinom2, data = drought_flood_df_m)
@@ -1213,6 +1212,20 @@ dfp_tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + 
 simulateResiduals(fittedModel = dfp_tnbinom2log, plot = TRUE)
 summary(dfp_tnbinom2log)
 plot(parameters(dfp_tnbinom2log))
+
+
+### USE THIS MODEL FOR PREVALENCE NOT THE TRUNCATED ONE
+nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
+
+simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
+summary(nbinom1sqrtoff)
+plot(parameters(nbinom1sqrtoff))
+
+
 ```
 
 NO LONGER USING THESE ONES
@@ -1569,10 +1582,6 @@ ggplot(drought_flood_df,
 
 
 ## primary
-
-
-
-
 drought/flood conditional
 ```{r}
 # Drought/Flood Conditional Model Results
@@ -1629,4 +1638,123 @@ ggplot(df_zi, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_T
   theme_minimal(base_size = 13)
 
 ```
+
+
+
+
+abundance:
+```{r}
+# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
+connor_theme <- theme(legend.position = "top", 
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        strip.background = element_rect(fill = NA, color = NA),
+        panel.background = element_rect(fill = NA, color = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        panel.spacing.y = unit(0, "lines"),
+        axis.text = element_text(size = 8, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+
+# finding 3) metas are more abundant in drought
+# finding 4) metas are more abundant in flood
+
+md_1 <- ggpredict(dfa_nbinom2log, terms = c("psite_type"))
+
+md_1 <- md_1 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+# finding 1) meta abundance is lower than reference
+ggplot(md_1,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79")) +
+  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
+  connor_theme
+
+# finding 2) trematode abundance in drought is higher than in control
+md_2 <- ggpredict(dfa_nbinom2log, terms = c("psite_type", "event"))
+
+md_2 <- md_2 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+# remove trems from dataset:
+md_2 <- md_2 %>% 
+  filter(psite_type %in% c("trematode", "monogenean"))
+
+# finding 1) meta abundance is lower than reference
+ggplot(md_2,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79")) +
+  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
+  connor_theme
+
+
+
+## still need to plot the ZIs 
+```
+
+```{r}
+library(emmeans)
+
+# Estimate marginal means
+emm <- emmeans(dfa_nbinom2log, ~ psite_type * event)
+
+# Pairwise comparisons (optional: by event or by psite_type)
+pairwise_tests <- contrast(emm, method = "pairwise", by = "event", adjust = "tukey")
+summary(pairwise_tests)
+```
+
+
+
+
+
+prevalence:
+```{r}
+
+
+## still need to plot the ZIs 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 

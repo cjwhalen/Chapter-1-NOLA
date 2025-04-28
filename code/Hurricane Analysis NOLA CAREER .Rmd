@@ -37,7 +37,7 @@ install.packages("reghelper")
 
 #### Load packages.
 ```{r package load, echo=FALSE}
-library(ggpubr)
+library(ggpubr) 
 library(ggeffects)
 library(tidyverse)
 library(readr)
@@ -48,7 +48,6 @@ library(stringr)
 library(glmmTMB)
 #library(lmerTest)
 library(lme4)
-source("~/Desktop/UW/Dissertation/theme_ctmt.R")
 library(LaCroixColoR)
 library(patchwork)
 library(ggh4x)
@@ -2241,6 +2240,7 @@ ggplot(hurricane_zi_clean, aes(x = reorder(Effect, Estimate), y = Estimate, fill
 abundance:
 ```{r}
 # color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
 connor_theme <- theme(legend.position = "top", 
         legend.title = element_text(size = 18),
         legend.text = element_text(size = 14),
@@ -2252,6 +2252,40 @@ connor_theme <- theme(legend.position = "top",
         panel.spacing.y = unit(0, "lines"),
         axis.text = element_text(size = 8, color = "grey30"),
         axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+
+# finding 1) metas are less abundance in the presence of hurricane, ignoring timing, when compared to control and monogenes
+
+model_data_1 <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event"))
+
+model_data_1 <- model_data_1 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+# remove trems from dataset:
+model_data_1 <- model_data_1 %>% 
+  filter(psite_type %in% c("monogenean", "trematode_metacercaria"))
+
+ggplot(model_data_1,
+       aes(x = event, y = estimate)) +
+  facet_wrap(~ psite_type) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000")) +
+  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
+  connor_theme
+
+# finding 2) trematodes are more abundant following a hurricane compared to monogenes 
 
 model_data <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
 
@@ -2265,38 +2299,35 @@ model_data <- model_data %>%
     event = group,
     timing = facet)
 
-model_mono <- model_data %>% 
-  filter(psite_type %in% c("monogenean"))
-
-model_trem <- model_data %>% 
-  filter(psite_type %in% c("trematode"))
-
-model_meta <- model_data %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
+model_data <- model_data %>% 
+  filter(psite_type %in% c("monogenean", "trematode"))
 
 ggplot(model_data,
        aes(x = timing, y = estimate)) +
-  facet_wrap(~ psite_type) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = event, linetype = event),
+  geom_line(aes(group = psite_type, linetype = psite_type),
             position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = event, group = event),
+  geom_point(aes(fill = psite_type, group = psite_type),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("hurricane" = "#CB87B4", "control" = "#F4B95A")) +
-  labs(x = "Timing", y = "Estimate", fill = "Event", linetype = "Event") +
+  scale_fill_manual(values = c("monogenean" = "#A6E000", "trematode" = "#c9ad79")) +
+  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
   connor_theme
+
+
+## still need to plot the ZIs 
 
 ```
 
 prevalence:
 ```{r}
 
-model_data <- ggpredict(mxyxo_final, terms = c("event", "timing", "ci"))
+model_data_p <- ggpredict(mxyxo_final, terms = c("event", "timing", "ci"))
 
-model_data <- model_data %>%
+model_data_p <- model_data_p %>%
   rename(
     event = x,
     estimate = predicted,
@@ -2306,7 +2337,7 @@ model_data <- model_data %>%
     timing = group,
     ci = facet)
 
-ggplot(model_data,
+ggplot(model_data_p,
        aes(x = timing, y = estimate)) +
   facet_wrap(~ ci) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
@@ -2321,6 +2352,23 @@ ggplot(model_data,
   labs(x = "Timing", y = "Estimate", fill = "Event", linetype = "Event") +
   connor_theme
 
+## still need to plot the ZIs 
+```
+
+
+
+TESTING the model with drought stuff too 
+```{r}
+# abundance 3 types
+test <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + category + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + category + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance)
+
+simulateResiduals(fittedModel = test, plot = TRUE)
+summary(test)
+plot(parameters(test))
 ```
 
 
