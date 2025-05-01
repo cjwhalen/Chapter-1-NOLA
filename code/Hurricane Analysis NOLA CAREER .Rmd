@@ -46,9 +46,7 @@ library(lubridate)
 library(ggplot2)
 library(stringr)
 library(glmmTMB)
-#library(lmerTest)
 library(lme4)
-library(LaCroixColoR)
 library(patchwork)
 library(ggh4x)
 library(vistime)
@@ -59,19 +57,8 @@ library(performance)
 library(parameters)
 library(tidyverse)
 library(corrplot)
-library(patchwork)
-library(performance)
-library(parameters)
-library(DHARMa)
-library(glmmTMB)
 library(bbmle) 
-# library(viridis)
 library(lmtest)
-# library(marginaleffects)
-library(DHARMa)
-library(purrr)
-library(dplyr)
-# library(broom.mixed)
 library(purrr)
 library(vegan)
 library(reghelper)
@@ -536,7 +523,7 @@ ggplot(hurricane_diveristy,
 ```
 
 
-# Models
+# Models -- testing which model is the best fit for the data
 ## Abundance
 ### 3 parasite types
 ```{r}
@@ -1532,7 +1519,7 @@ plot(parameters(mxyxo_final))
 ```
 
 
-# ALL MODELS SUMMARY 
+# Final Models Summary
 ```{r}
 # abundance 3 types
 ha_nbinom2log3 <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
@@ -1555,689 +1542,9 @@ summary(mxyxo_final)
 plot(parameters(mxyxo_final))
 ```
 
-NO LONGER USING THESE ONES 
-```{r}
-# abundance mono
-mono_final <- glmmTMB(psite_abundance ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = ham)
 
-simulateResiduals(fittedModel = mono_final, plot = TRUE)
-summary(mono_final)
-plot(parameters(mono_final))
-
-# abundance trem
-trem_final <- glmmTMB(psite_abundance ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = hat)
-
-simulateResiduals(fittedModel = trem_final, plot = TRUE)
-summary(trem_final)
-plot(parameters(trem_final))
-
-# abundance meta
-meta_final <- glmmTMB(psite_abundance ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),  
-                                family = truncated_nbinom1(link = "sqrt"), data = hatm)
-
-simulateResiduals(fittedModel = meta_final, plot = TRUE)
-summary(meta_final)
-plot(parameters(meta_final))
-
-
-```
-
-# Plots
-## archival 
-### color palette and labels
-```{r color palette and facet labels, echo=FALSE, eval=FALSE}
-lacroix_palettes_list <- LaCroixColoR::lacroix_palettes
-my_pal <- lacroix_palette("Pamplemousse", n = 5, type = "continuous")
-
-parasite_order <- c(
-  "trematode", "trematode_metacercaria", "myxozoan", "monogenean", "ciliate",
-  "nematode", "acanthocephalan", "cestode", "copepod", "nematomorph"
-)
-
-parasite_labels <- c(
-  "trematode" = "Trematode",
-  "trematode_metacercaria" = "Metacercaria",
-  "myxozoan" = "Myxozoan",
-  "monogenean" = "Monogenean"
-)
-
-
-storm_order <- c("five", "four", "three", "two", "one", "ts", "control")
-
-storm_labels <- c(
-  "five" = "5",
-  "four" = "4",
-  "three" = "3",
-  "two" = "2",
-  "one" = "1",
-  "ts" = "TS", 
-  "no event" = "control"
-)
-
-season_order <- c(
-  "winter", "spring", "summer", "fall"
-)
-
-season_labels <- c(
-  "winter" = "Winter",
-  "spring" = "Spring", 
-  "summer" = "Summer", 
-  "fall" = "Fall"
-)
-
-timing_order <- c(
-  "pre", "during", "post"
-)
-
-timing_labels <- c(
-  "pre" = "Pre",
-  "post" = "Post", 
-  "control" = "During",
-  "flood" = "During", 
-  "drought" = "During"
-)
-
-event_labels <- c(
-  "drought" = "drought", 
-  "flood" = "flood"
-)
-```
-
-### hurricane abundance plots
-
-
-```{r}
-#1)
-ggplot(hurricane_df_abundance,
-       aes(x = psite_type, y = psite_abundance, fill = timing)) + 
-  geom_col(position = "dodge") + facet_wrap(~ event) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Parasite Type") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels) +
-  scale_x_discrete(labels = storm_labels)
-
-
-Create color palette and assign faceting labels 
-```{r color palette and facet labels, echo=FALSE, eval=FALSE}
-lacroix_palettes_list <- LaCroixColoR::lacroix_palettes
-my_pal <- lacroix_palette("Pamplemousse", n = 5, type = "continuous")
-
-parasite_order <- c(
-  "trematode", "trematode_metacercaria", "myxozoan", "monogenean", "ciliate",
-  "nematode", "acanthocephalan", "cestode", "copepod", "nematomorph"
-)
-
-parasite_labels <- c(
-  "trematode" = "Trematode",
-  "trematode_metacercaria" = "Metacercaria",
-  "myxozoan" = "Myxozoan",
-  "monogenean" = "Monogenean",
-  "ciliate" = "Ciliate",
-  "nematode" = "Nematode",
-  "cestode" = "Cestode",
-  "acanthocephalan" = "Acanthocephalan",
-  "copepod" = "Copepod", 
-  "nematomorph" = "Nematomorph"
-)
-
-
-storm_order <- c("five", "four", "three", "two", "one", "ts", "control")
-
-storm_labels <- c(
-  "five" = "5",
-  "four" = "4",
-  "three" = "3",
-  "two" = "2",
-  "one" = "1",
-  "ts" = "TS", 
-  "no event" = "control"
-)
-
-season_order <- c(
-  "winter", "spring", "summer", "fall"
-)
-
-season_labels <- c(
-  "winter" = "Winter",
-  "spring" = "Spring", 
-  "summer" = "Summer", 
-  "fall" = "Fall"
-)
-
-timing_order <- c(
-  "pre", "during", "post"
-)
-
-timing_labels <- c(
-  "pre" = "Pre",
-  "post" = "Post", 
-  "control" = "During",
-  "flood" = "During", 
-  "drought" = "During"
-)
-
-event_labels <- c(
-  "drought" = "drought", 
-  "flood" = "flood"
-)
-```
-Mutate the hurricane dataset so that the total sum of each type of parasite can be plotted. Designate average changes in parasitism by scaling parasite counts to the mean.
-```{r sum to plot all parasites added together and scale to mean, echo=FALSE, eval=FALSE}
-hurricane_df6_sum <- hurricane_df6 %>%
-  group_by(psite_type, year_collected, storm_intensity, event, timing) %>%
-  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
-  filter(total_psite_count != "0") %>%
-  filter(!is.na(psite_type), 
-         psite_type != "leech",
-         psite_type != "nematomorph")
-
-hurricane_df6_sum <- hurricane_df6_sum %>%
-    mutate(psite_type = fct_relevel(psite_type, parasite_order))
-
-hurricane_df6_sum <- hurricane_df6_sum %>%
-    mutate(storm_intensity = fct_relevel(storm_intensity, storm_order))
-
-hurricane_df6_sum <- hurricane_df6_sum %>%
-    mutate(timing = fct_relevel(timing, timing_order))
-
-
-## including zeroes
-hurricane_df6_sum2 <- hurricane_df6 %>%
-  group_by(psite_type, year_collected, storm_intensity, event, timing) %>%
-  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
-  filter(!is.na(psite_type), 
-         psite_type != "leech")
-
-hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
-    mutate(psite_type = fct_relevel(psite_type, parasite_order))
-
-hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
-    mutate(storm_intensity = fct_relevel(storm_intensity, storm_order))
-
-hurricane_df6_sum2 <- hurricane_df6_sum2 %>%
-    mutate(timing = fct_relevel(timing, timing_order))
-
-# scale to mean 
-sum(hurricane_df6_sum2$total_psite_count, na.rm = TRUE)
-33422/868  # average rate of parasitism across all observations is 38.50461
-# in this case, each categorical 0 is counted only once, so the sum of each category includes summing all the zeroes but if there is only zeroes in a category, then those will show up as zero
-
-hurricane_df6_sum2 <- hurricane_df6_sum2 %>% 
-  mutate(relative_count = total_psite_count - 39)
-
-```
-These are numerous plots in no particular order (to be refined at the conclusion of analyses)
-```{r various plots, echo=FALSE, eval=FALSE}
-# final plot for FISH 554
-custom_y <- list(
-  scale_y_continuous(limits = c(0, 3000), breaks = c(0, 1500, 3000)),
-  scale_y_continuous(limits = c(0, 1200), breaks = c(0, 600, 1200)),
-  scale_y_continuous(limits = c(0, 600), breaks = c(0, 300, 600)),
-  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
-  scale_y_continuous(limits = c(0, 100), breaks = c(0, 50, 100)),
-  scale_y_continuous(limits = c(0, 50), breaks = c(0, 25, 50)),  
-  scale_y_continuous(limits = c(0, 20), breaks = c(0, 10, 20)),
-  scale_y_continuous(limits = c(0, 10), breaks = c(0, 5, 10)),
-  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
-)
-
-## by season
-#ggplot(hurricane_df6_sum,
-#       aes(x = storm_intensity, y = total_psite_count, fill = season)) + 
-#  geom_col() + 
- # facet_wrap(~psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
- # theme(
- #   strip.background = element_rect(fill = NA, color = NA),
- #   panel.background = element_rect(fill = NA, color = "white"),
- #   panel.grid.major = element_blank(),
-#    panel.grid.minor = element_blank(),
-#    panel.spacing.x = unit(0, "lines"),
-#    panel.spacing.y = unit(0, "lines"),
-#    axis.text = element_text(size = 8, color = "grey30"),
-#    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-#  ) +
-#  ylab("Parasite Count") + 
-#  xlab("Hurricane Category") + 
-#  scale_fill_manual(
-#  values = c("spring" = "#1BB6AF", "summer" = "#EA7580", "fall" = "#F6A1A5", "winter" = "#088BBE"), 
-#  name = "",
-#  labels = season_labels) +
- # scale_x_discrete(labels = storm_labels) +
-#  facetted_pos_scales(y = custom_y)
-
-## by timing 
-custom_y_t <- list(
-  scale_y_continuous(limits = c(0, 1400), breaks = c(0, 700, 1400)),
-  scale_y_continuous(limits = c(0, 1000), breaks = c(0, 500, 1000)),
-  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
-  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
-  scale_y_continuous(limits = c(0, 60), breaks = c(0, 30, 60)),
-  scale_y_continuous(limits = c(0, 20), breaks = c(0, 10, 20)),  
-  scale_y_continuous(limits = c(0, 12), breaks = c(0, 6, 12)),
-  scale_y_continuous(limits = c(0, 4), breaks = c(0, 2, 4)),
-  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
-)
-
-ggplot(hurricane_df6_sum,
-       aes(x = storm_intensity, y = total_psite_count, fill = timing)) + 
-  geom_col(position = "dodge") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Hurricane Category") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels) +
-  scale_x_discrete(labels = storm_labels)
-
-## by timing and event
-custom_y_t2 <- list(
-  scale_y_continuous(limits = c(0, 5000), breaks = c(0, 2500, 5000)),
-  scale_y_continuous(limits = c(0, 8000), breaks = c(0, 4000, 8000)),
-  scale_y_continuous(limits = c(0, 800), breaks = c(0, 400, 800)),
-  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
-  scale_y_continuous(limits = c(0, 80), breaks = c(0, 40, 80)),
-  scale_y_continuous(limits = c(0, 12), breaks = c(0, 6, 12)),  
-  scale_y_continuous(limits = c(0, 20), breaks = c(0, 00, 20)),
-  scale_y_continuous(limits = c(0, 8), breaks = c(0, 4, 8)),
-  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
-)
-
-ggplot(hurricane_df6_sum,
-       aes(x = event, y = total_psite_count, fill = timing)) + 
-  geom_col(position = "dodge") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels) #+
- # facetted_pos_scales(y = custom_y_t2)
-
-## include year of collection
-ggplot(hurricane_df6_sum,
-       aes(x = year_collected, y = total_psite_count, color = timing)) + 
-  geom_line(linejoin = "round") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels)
-
-
-## include year of collection
-ggplot(hurricane_df6_sum2,
-       aes(x = year_collected, y = relative_count, fill = event)) + 
-  geom_smooth(method = "loess",
-              se = FALSE,
-              formula = 'y ~ x',
-              span = 0.8) +
-  stat_smooth(se=FALSE, geom="area",
-              method = 'loess', alpha=.5,
-              span = 0.8,aes(fill=event)) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Relative Parasite Count") + 
-  xlab("Year Collected") + 
-  scale_fill_manual(
-  values = c("hurricane" = "#F28A8A", "control" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels) 
-
-ggplot(hurricane_df6_sum2,
-       aes(x = year_collected, y = relative_count, fill = event)) + 
-  geom_col() +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) + 
-  geom_hline(yintercept = 0, color = "black") +
-  ylab("Relative Parasite Count") + 
-  xlab("Year Collected") + 
-  scale_fill_manual(
-    values = c("hurricane" = "#F28A8A", "control" = "#95C65C"), 
-    name = "",
-    labels = season_labels
-  )
-
-ggplot(hurricane_df6_sum,
-       aes(x = timing, y = total_psite_count, fill = timing)) + 
-  geom_col() +
-  facet_wrap(~ event) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
-  name = "",
-  labels = season_labels) 
-
-# Plot frequency of different storm intensities 
-view(table(hurricane_df6$storm_intensity))
-# total number of storms: cat 5 = 4, cat 4 = 6, cat 3 = 2, cat 2 = 1, cat 1 = 5, ts = 7
-
-ggplot(hurricane_df6,
-       aes(x = psite_abundance, y = psite_prevalence)) + 
-         geom_point() + facet_wrap(~timing) +
-   theme(strip.background = element_rect(fill = NA, color = NA),
-         panel.background = element_rect(fill = NA, 
-                                         color = "darkgrey"),
-         panel.grid.major = element_blank(),
-         panel.grid.minor = element_blank(),
-         panel.spacing.x = unit(0, "lines"),
-         panel.spacing.y = unit(0, "lines")) +
-  ylab("") + 
-  xlab("")
-
-ggplot(hurricane_df6,
-       aes(x = storm_intensity, y = mean_streamflow)) + 
-         geom_boxplot() + 
-   theme(strip.background = element_rect(fill = NA, color = NA),
-         panel.background = element_rect(fill = NA, 
-                                         color = "darkgrey"),
-         panel.grid.major = element_blank(),
-         panel.grid.minor = element_blank(),
-         panel.spacing.x = unit(0, "lines"),
-         panel.spacing.y = unit(0, "lines")) +
-  ylab("") + 
-  xlab("")
-
-ggplot(hurricane_df6,
-       aes(x = ewe_type, y = psite_count)) + 
-         geom_col() + 
-   theme(strip.background = element_rect(fill = NA, color = NA),
-         panel.background = element_rect(fill = NA, 
-                                         color = "darkgrey"),
-         panel.grid.major = element_blank(),
-         panel.grid.minor = element_blank(),
-         panel.spacing.x = unit(0, "lines"),
-         panel.spacing.y = unit(0, "lines")) +
-  ylab("") + 
-  xlab("")
-
-ggplot(hurricane_df6,
-       aes(x = ewe_type, y = mean_streamflow)) + 
-         geom_boxplot() + 
-   theme(strip.background = element_rect(fill = NA, color = NA),
-         panel.background = element_rect(fill = NA, 
-                                         color = "darkgrey"),
-         panel.grid.major = element_blank(),
-         panel.grid.minor = element_blank(),
-         panel.spacing.x = unit(0, "lines"),
-         panel.spacing.y = unit(0, "lines")) +
-  ylab("") + 
-  xlab("")
-
-
-ggplot(hurricane_df6,
-       aes(x = ewe_type, y = mean_temperature, fill = season)) + 
-  geom_boxplot() + 
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "darkgrey"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines")
-  ) +
-  ylab("") + 
-  xlab("") +
-  scale_fill_manual(values = my_pal[1:5], name = '')
-
-ggplot(hurricane_df6,
-       aes(x = psite_count)) + 
-         geom_histogram() + 
-   theme(strip.background = element_rect(fill = NA, color = NA),
-         panel.background = element_rect(fill = NA, 
-                                         color = "darkgrey"),
-         panel.grid.major = element_blank(),
-         panel.grid.minor = element_blank(),
-         panel.spacing.x = unit(0, "lines"),
-         panel.spacing.y = unit(0, "lines")) +
-  ylab("") + 
-  xlab("")
-
-# remove non-comparable sites:
-hdf_pp <- hurricane_df6 %>%
-  filter(site != "CD",
-         site != "CC", 
-         site != "IB")
-
-z <- ggplot(hdf_pp,
-       aes(x = timing, y = mean_temperature, fill = timing)) + 
-  geom_boxplot() + facet_grid(.~site) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "grey99"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"), 
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks = element_blank()
-  ) +
-  ylab("Mean Temperature (C)") + 
-  xlab("Pre or Post Hurricane") +
-  scale_fill_manual(values = my_pal[1:4], name = '', labels = pp_label)
-
-x <- ggplot(hdf_pp,
-       aes(x = timing, y = mean_streamflow, fill = timing)) + 
-  geom_boxplot() + facet_grid(.~site) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    strip.text = element_blank(),
-    panel.background = element_rect(fill = NA, color = "grey99"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"), 
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks = element_blank()
-  ) +
- ylab("Mean Streamflow (m³/s)") + 
-  xlab("") +
-  scale_fill_manual(values = my_pal[1:4], name = '', labels = pp_label) 
-
-zx <- ggarrange(z, x, common.legend = TRUE, legend = "bottom", labels = c("A", "B"), align = "v", ncol = 1)
-
-print(zx)
-
-# Create and plot a timeline of hurricane events:
-```
-
-### HURRICANE prevalence plots
-
-
-```{r}
-# conditional not plotted bc insignificant 
-
-# zi plot
-hurricane_df_prevalence_zi <- hurricane_df_prevalence %>% 
-  filter(psite_prevalence == 0)
-
-# Count zero occurrences per group
-zero_counts <- hurricane_df_prevalence_zi %>%
-  group_by(psite_type, timing, event) %>%
-  summarise(n_zeros = n(), .groups = "drop")
-
-# Bar plot of zero counts
-ggplot(zero_counts, aes(x = event, y = n_zeros, fill = timing)) +
-  geom_col(position = "dodge") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Number of Zero Counts") + 
-  xlab("Event") + 
-  scale_fill_manual(
-    values = c("pre" = "#F28A8A", "post" = "#1BB6AF"), 
-    name = "",
-    labels = season_labels) +
-  scale_x_discrete(labels = storm_labels)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-## primary
-```{r}
-lacroix_palettes_list <- LaCroixColoR::lacroix_palettes
-my_pal <- lacroix_palette("Pamplemousse", n = 5, type = "continuous")
-
-```
-
-hurricane conditional 
-```{r}
-
-# Hurricane Conditional Model Results
-hurricane_conditional <- tribble(
-  ~Parasite_Type, ~Effect, ~Estimate, ~SE, ~p_value,
-  "Trematode", "Post-Hurricane vs Baseline (Monogene)", 1.12668, 0.49543, 0.023,
-  "Trematode_Metacercaria", "Hurricane vs No Event (Monogene)", -1.09510, 0.55365, 0.0479,
-  "Monogenean", "Baseline (Intercept)", -7.272, 1.0, 0.0001,
-  "Trematode_Metacercaria", "Baseline (Intercept)", -7.032, 1.0, 0.0001
-)
-
-# Plot
-ggplot(hurricane_conditional, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_Type)) +
-  geom_col(width = 0.6, position = "dodge") +
-  geom_errorbar(aes(ymin = Estimate - SE, ymax = Estimate + SE), width = 0.2) +
-  coord_flip() +
-  labs(
-    title = "Hurricane Effects on Parasite Abundance (Conditional Model)",
-    x = NULL,
-    y = "Model Estimate (log scale)"
-  ) 
-
-
-```
-
-hurricane zi
-```{r}
-# Hurricane Zero-Inflated Model Results
-hurricane_zi <- tribble(
-  ~Parasite_Type, ~Effect, ~Estimate, ~SE, ~p_value,
-  "Trematode", "Baseline Zero Inflation (vs Monogene)", 2.0029, 0.7844, 0.0107,
-  "Trematode_Metacercaria", "Baseline Zero Inflation (vs Monogene)", 1.5732, 0.8733, 0.0716,
-  "Monogenean", "Baseline (Intercept)", -6.896, 1.0, 0.0001,
-  "Trematode", "Zeroes after Hurricane", 0.0, 1.0, NA,  # No sig result
-  "Trematode_Metacercaria", "Zeroes after Hurricane", 2.417, 1.0, 0.0157,
-  "Monogenean", "Zeroes after Hurricane", 1.988, 1.0, 0.0468
-)
-
-# Remove rows with NA estimates if needed
-hurricane_zi_clean <- hurricane_zi %>% filter(!is.na(Estimate))
-
-# Plot
-ggplot(hurricane_zi_clean, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_Type)) +
-  geom_col(width = 0.6, position = "dodge") +
-  geom_errorbar(aes(ymin = Estimate - SE, ymax = Estimate + SE), width = 0.2) +
-  coord_flip() +
-  labs(
-    title = "Hurricane Effects on Parasite Prevalence (Zero-Inflated Model)",
-    x = NULL,
-    y = "Model Estimate (log odds of zero abundance)"
-  ) +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal(base_size = 13)
-
-```
-
-abundance:
+# PLOTS
+Setup plot aesthetics
 ```{r}
 # color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
 # trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
@@ -2252,12 +1559,13 @@ connor_theme <- theme(legend.position = "top",
         panel.spacing.y = unit(0, "lines"),
         axis.text = element_text(size = 8, color = "grey30"),
         axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+```
 
-# finding 1) metas are less abundance in the presence of hurricane, ignoring timing, when compared to control and monogenes
 
-model_data_1 <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event"))
-
-model_data_1 <- model_data_1 %>%
+Hurricane presence positively modulated trematode abundance and this effect was strongest following a hurricane event (estimate = 1.126, p value = 0.023). (plotted in A and B) hurriance presence negatively modulated trematode metacercaria abundance, irrespective of the timing of the hurricane event (estimate = -1.095, p value = 0.0479).(plotted in A and C)
+```{r}
+a1a <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event"))
+a1a <- a1a %>%
   rename(
     psite_type = x,
     estimate = predicted,
@@ -2266,13 +1574,9 @@ model_data_1 <- model_data_1 %>%
     upper = conf.high,
     event = group)
 
-# remove trems from dataset:
-model_data_1 <- model_data_1 %>% 
-  filter(psite_type %in% c("monogenean", "trematode_metacercaria"))
-
-ggplot(model_data_1,
+# plot a1a
+a1ap <- ggplot(a1a,
        aes(x = event, y = estimate)) +
-  facet_wrap(~ psite_type) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
@@ -2281,28 +1585,28 @@ ggplot(model_data_1,
   geom_point(aes(fill = psite_type, group = psite_type),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000")) +
-  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
-# finding 2) trematodes are more abundant following a hurricane compared to monogenes 
 
-model_data <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
-
-model_data <- model_data %>%
+a1b <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
+a1b <- a1b %>%
   rename(
     psite_type = x,
     estimate = predicted,
     se = std.error,
     lower = conf.low,
     upper = conf.high,
-    event = group,
+    event = group, 
     timing = facet)
 
-model_data <- model_data %>% 
-  filter(psite_type %in% c("monogenean", "trematode"))
+a1b <- a1b %>% 
+  filter(psite_type %in% c("trematode"))
 
-ggplot(model_data,
+# plot a1b
+a1bp <- ggplot(a1b,
        aes(x = timing, y = estimate)) +
   facet_wrap(~ event) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
@@ -2313,21 +1617,57 @@ ggplot(model_data,
   geom_point(aes(fill = psite_type, group = psite_type),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("monogenean" = "#A6E000", "trematode" = "#c9ad79")) +
-  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
+a1c <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
+a1c <- a1c %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
 
-## still need to plot the ZIs 
+a1c <- a1c %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
 
-```
+# plot a1b
+a1cp <- ggplot(a1c,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
 
-prevalence:
-```{r}
+a1a <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event"))
+a1a <- a1a %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
 
-model_data_p <- ggpredict(mxyxo_final, terms = c("event", "timing", "ci"))
+#### prevalence plot
+# Myxozoan parasites were more abundant in the impact category (estimate = 2.8743, p value < 0.001). 
+p1p <- ggpredict(mxyxo_final, terms = c("event", "timing", "ci"))
 
-model_data_p <- model_data_p %>%
+p1p <- p1p %>%
   rename(
     event = x,
     estimate = predicted,
@@ -2337,7 +1677,7 @@ model_data_p <- model_data_p %>%
     timing = group,
     ci = facet)
 
-ggplot(model_data_p,
+p1p <- ggplot(p1p,
        aes(x = timing, y = estimate)) +
   facet_wrap(~ ci) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
@@ -2350,25 +1690,12 @@ ggplot(model_data_p,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("hurricane" = "#CB87B4", "control" = "#F4B95A")) +
   labs(x = "Timing", y = "Estimate", fill = "Event", linetype = "Event") +
-  connor_theme
+  connor_theme 
+
+hurricane_plot <- ggarrange(a1ap, a1bp, a1cp, p1p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
+plot(hurricane_plot)
 
 ## still need to plot the ZIs 
-```
-
-
-
-TESTING the model with drought stuff too 
-```{r}
-# abundance 3 types
-test <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + category + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*timing*psite_type + ci + category + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = hurricane_df_abundance)
-
-simulateResiduals(fittedModel = test, plot = TRUE)
-summary(test)
-plot(parameters(test))
 ```
 
 

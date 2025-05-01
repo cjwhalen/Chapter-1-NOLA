@@ -182,6 +182,8 @@ dfat <- drought_flood_df %>%
   filter(psite_type %in% c("trematode"))
 dfatm <- drought_flood_df %>% 
   filter(psite_type %in% c("trematode_metacercaria"))
+
+save(drought_flood_df_m, file = "df_myxo.RData")
 ```
 
 Visualization and checking of data frame.
@@ -190,7 +192,98 @@ head(drought_flood_df)
 table(drought_flood_df$event)
 ```
 
-# Models
+# Estimating Biodiversity Changes
+Jackknife estimates -- taken from the hurricane page, needs to be updated for drought and flood data 4/30
+```{r}
+# prep dataframe to include only data on biodiversity
+
+hurricane_diveristy <- hurricane_df6 %>%
+  select(x, psite_type, psite_count, event, timing, category, ci, psite_spp_x, fish_psite_combo) %>%
+  mutate(psite_spp_id = as.numeric(factor(psite_spp_x))) %>% 
+  filter(psite_count != 0)
+
+# overall species before and after plus timing
+
+
+# Get all unique combinations of event, timing, and ci
+group_combos <- unique(hurricane_df6[, c("event", "timing", "ci")])
+
+# Empty results data frame
+jackknife_results <- data.frame(
+  event = character(),
+  timing = character(),
+  ci = character(),
+  jackknife_mean_richness = numeric(),
+  total_psite_count = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop over each event × timing × ci combo
+for (i in 1:nrow(group_combos)) {
+  e <- group_combos$event[i]
+  t <- group_combos$timing[i]
+  c <- group_combos$ci[i]
+  
+  # Subset data for this combination
+  sub_df <- hurricane_df6[hurricane_df6$event == e &
+                          hurricane_df6$timing == t &
+                          hurricane_df6$ci == c, ]
+  
+  # Get unique sample IDs
+  sample_ids <- unique(sub_df$x)
+  
+  richness_values <- numeric(length(sample_ids))
+  
+  # Leave-one-out loop for jackknife richness
+  for (j in seq_along(sample_ids)) {
+    id_to_leave_out <- sample_ids[j]
+    
+    df_minus_one <- sub_df[sub_df$x != id_to_leave_out, ]
+    
+    richness_values[j] <- length(unique(df_minus_one$psite_spp_x))
+  }
+  
+  # Sum total parasite count in this group
+  total_count <- sum(sub_df$psite_count, na.rm = TRUE)
+  
+  # Store results
+  jackknife_results <- rbind(jackknife_results, data.frame(
+    event = e,
+    timing = t,
+    ci = c,
+    jackknife_mean_richness = mean(richness_values),
+    total_psite_count = total_count
+  ))
+}
+
+
+
+
+
+
+# prelim plot
+ggplot(hurricane_diveristy,
+       aes(x = psite_spp_id, y = psite_count, fill = timing)) + 
+  geom_line() + facet_wrap(event ~ ci) +
+  theme(
+    strip.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = "white"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing.x = unit(0, "lines"),
+    panel.spacing.y = unit(0, "lines"),
+    axis.text = element_text(size = 8, color = "grey30"),
+    axis.ticks = element_line(size = 0.2, color = "darkgrey")
+  ) +
+  ylab("") + 
+  xlab("") + 
+  scale_fill_manual(
+  values = c("post" = "#F28A8A", "pre" = "#1BB6AF"))
+
+```
+
+
+# Models -- testing which model is the best fit for the data
 ## Abundance
 ### 3 parasite types
 ```{r}
@@ -1190,7 +1283,7 @@ plot(parameters(dfp_tnbinom2log))
 
 
 
-# ALL MODELS SUMMARY 
+# Final Models Summary
 ```{r}
 # abundance 3 types
 dfa_nbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
@@ -1214,435 +1307,22 @@ summary(dfp_tnbinom2log)
 plot(parameters(dfp_tnbinom2log))
 
 
-### USE THIS MODEL FOR PREVALENCE NOT THE TRUNCATED ONE
-nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+### USE THIS MODEL FOR PREVALENCE NOT THE TRUNCATED ONE - nbinom1sqrtoff
+df_myxo <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
                                   (1|fish_sp_x) + offset(sqrt(total_length_mm)),
                                 ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
                                   offset(sqrt(total_length_mm)), 
                                 family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
 
-simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
-summary(nbinom1sqrtoff)
-plot(parameters(nbinom1sqrtoff))
+simulateResiduals(fittedModel = df_myxo, plot = TRUE)
+summary(df_myxo)
+plot(parameters(df_myxo))
 
 
 ```
 
-NO LONGER USING THESE ONES
-```{r}
-# abundance mono
-mono_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = dfam)
-
-simulateResiduals(fittedModel = mono_final_df, plot = TRUE)
-summary(mono_final_df)
-plot(parameters(mono_final_df))
-
-# abundance trem
-trem_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = dfat)
-
-simulateResiduals(fittedModel = trem_final_df, plot = TRUE)
-summary(trem_final_df)
-plot(parameters(trem_final_df))
-
-# abundance meta
-meta_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1(link = "sqrt"), data = dfatm)
-
-
-simulateResiduals(fittedModel = meta_final_df, plot = TRUE)
-summary(meta_final_df)
-plot(parameters(meta_final_df))
-
-
-```
-
-# Plots
-###
-Create color palette and assign faceting labels.
-```{r color palette and facet labels, echo=FALSE}
-lacroix_palettes_list <- LaCroixColoR::lacroix_palettes
-
-my_pal <- lacroix_palette("Pamplemousse", n = 5, type = "continuous")
-
-parasite_order <- c(
-  "trematode", "trematode_metacercaria", "myxozoan", "monogenean", "ciliate",
-  "nematode", "acanthocephalan", "cestode", "copepod", "nematomorph"
-)
-
-parasite_labels <- c(
-  "trematode" = "Trematode",
-  "trematode_metacercaria" = "Metacercaria",
-  "myxozoan" = "Myxozoan",
-  "monogenean" = "Monogenean",
-  "ciliate" = "Ciliate",
-  "nematode" = "Nematode",
-  "cestode" = "Cestode",
-  "acanthocephalan" = "Acanthocephalan",
-  "copepod" = "Copepod", 
-  "nematomorph" = "Nematomorph"
-)
-
-
-storm_order <- c("five", "four", "three", "two", "one", "ts", "control")
-
-storm_labels <- c(
-  "five" = "5",
-  "four" = "4",
-  "three" = "3",
-  "two" = "2",
-  "one" = "1",
-  "ts" = "TS", 
-  "no event" = "control"
-)
-
-season_order <- c(
-  "winter", "spring", "summer", "fall"
-)
-
-season_labels <- c(
-  "winter" = "Winter",
-  "spring" = "Spring", 
-  "summer" = "Summer", 
-  "fall" = "Fall"
-)
-
-timing_order <- c(
-  "pre", "during", "post"
-)
-
-timing_labels <- c(
-  "pre" = "Pre",
-  "post" = "Post", 
-  "control" = "During",
-  "flood" = "During", 
-  "drought" = "During"
-)
-
-event_labels <- c(
-  "drought" = "drought", 
-  "flood" = "flood"
-)
-
-```
-Mutate the drought/flood dataset so that the total sum of each type of parasite can be plotted:
-```{r drought/flood sum to plot all parasites added together and scale to mean, echo=FALSE, eval=FALSE}
-drought_flood_df_sum <- drought_flood_df %>%
-  group_by(psite_type, year_collected, event, timing, drought_flood, category) %>%
-  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>% 
-  filter(total_psite_count != "0") %>%
-  filter(!is.na(psite_type), 
-         psite_type != "leech", 
-         psite_type != "nematomorph")
-
-drought_flood_df_sum <- drought_flood_df_sum %>%
-    mutate(psite_type = fct_relevel(psite_type, parasite_order))
-
-drought_flood_df_sum <- drought_flood_df_sum %>%
-    mutate(season = fct_relevel(season, season_order))
-
-drought_flood_df_sum <- drought_flood_df_sum %>%
-    mutate(timing = fct_relevel(timing, timing_order))
-
-# including zeroes
-drought_flood_df_sum2 <- drought_flood_df %>%
-  group_by(psite_type, year_collected, season, event, timing, drought_flood, category) %>%
-  summarize(total_psite_count = sum(psite_count, na.rm = TRUE), .groups = "drop") %>%
-  filter(!is.na(psite_type), 
-         psite_type != "leech")
-
-drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
-    mutate(psite_type = fct_relevel(psite_type, parasite_order))
-
-drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
-    mutate(season = fct_relevel(season, season_order))
-
-drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
-    mutate(timing = fct_relevel(timing, timing_order))
-
-# scale to mean -- should probably update this parameter
-sum(drought_flood_df_sum2$total_psite_count, na.rm = TRUE)
-28842/195 # average rate of parasitism across all observations is 147.9077
-# in this case, each categorical 0 is counted only once, so the sum of each category includes summing all the zeroes but if there is only zeroes in a category, then those will show up as zero
-
-drought_flood_df_sum2 <- drought_flood_df_sum2 %>%
-  mutate(relative_count = total_psite_count - 148)
-```
-Various plots.
-```{r various plots, echo=FALSE, eval=FALSE}
-ggplot(drought_flood_df_sum,
-       aes(x = year_collected, y = drought_flood, fill = event)) + 
-  geom_col(position = "dodge") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("") + 
-  xlab("") + 
-  scale_fill_manual(
-  values = c("drought" = "#F28A8A", "flood" = "#1BB6AF"), 
-  name = "",
-  labels = timing_labels) 
-
-######
-
-ggplot(full_data,
-       aes(x = year_collected, y = drought_minus_flood)) + 
-  geom_col(position = "dodge") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("") + 
-  xlab("")
-
-ggplot(full_data,
-       aes(x = drought_minus_flood, y = psite_abundance)) + 
-  geom_bin_2d() +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("") + 
-  xlab("")
-
-custom_y_t3 <- list(
-  scale_y_continuous(limits = c(0, 3000), breaks = c(0, 1500, 3000)),
-  scale_y_continuous(limits = c(0, 1200), breaks = c(0, 600, 1200)),
-  scale_y_continuous(limits = c(0, 600), breaks = c(0, 300, 600)),
-  scale_y_continuous(limits = c(0, 400), breaks = c(0, 200, 400)),
-  scale_y_continuous(limits = c(0, 100), breaks = c(0, 50, 100)),
-  scale_y_continuous(limits = c(0, 50), breaks = c(0, 25, 50)),  
-  scale_y_continuous(limits = c(0, 20), breaks = c(0, 10, 20)),
-  scale_y_continuous(limits = c(0, 10), breaks = c(0, 5, 10)),
-  scale_y_continuous(limits = c(0, 2), breaks = c(0, 1, 2))
-)
-
-# by parasite spp
-ggplot(drought_flood_df_sum,
-       aes(x = event, y = total_psite_count, fill = timing)) + 
-  geom_col(position = "dodge") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
-  name = "",
-  labels = timing_labels) 
-
-## by just timing
-ggplot(drought_flood_df_sum,
-       aes(x = event, y = total_psite_count, fill = timing)) + 
-  geom_col() + 
-  facet_wrap(~ timing) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
-  name = "",
-  labels = timing_labels) 
-
-## by species??
-
-## by relative count
-ggplot(drought_flood_df_sum2,
-       aes(x = event, y = relative_count, fill = timing)) + 
-  geom_col(position = "dodge") + 
-  facet_wrap(~ psite_type, labeller = labeller(psite_type = parasite_labels), scales = "free_y") +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("pre" = "#F28A8A", "post" = "#1BB6AF", "drought" = "#95C65C", "flood" = "#95C65C", "control" = "#95C65C"), 
-  name = "",
-  labels = timing_labels) 
-
-
-## include year of collection
-ggplot(drought_flood_df_sum2,
-       aes(x = year_collected, y = relative_count, fill = event)) + 
-  geom_col() +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) + 
-  geom_hline(yintercept = 0, color = "black") +
-  ylab("Relative Parasite Count") + 
-  xlab("Year Collected") + 
-  scale_fill_manual(
-    values = c("drought" = "#F28A8A", "flood" = "#1BB6AF", "control" = "#95C65C"), 
-    name = "",
-    labels = season_labels
-  )
-
-ggplot(drought_flood_df_sum,
-       aes(x = event, y = total_psite_count, fill = event)) + 
-  geom_col() +
-  facet_wrap(~ timing) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("Parasite Count") + 
-  xlab("Timing") + 
-  scale_fill_manual(
-  values = c("drought" = "#F28A8A", "flood" = "#1BB6AF", "control" = "#95C65C"), 
-  name = "",
-  labels = season_labels) 
-
-facet_labels2 <- c(
-  "drought" = "Drought",
-  "flood" = "Flood"
-)
-
-ggplot(drought_flood_df,
-       aes(x = season, y = psite_abundance, fill = ewe_type)) + 
-  geom_boxplot() + facet_wrap(~ci) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "darkgrey"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines")
-  ) +
-  ylab("Parasite Abundance") + 
-  xlab("Collection Date") +
-  scale_fill_manual(values = my_pal[1:5], name = '')
-```
-
-
-
-
-
-
-
-## primary
-drought/flood conditional
-```{r}
-# Drought/Flood Conditional Model Results
-df_conditional <- tribble(
-  ~Parasite_Type, ~Effect, ~Estimate, ~SE, ~p_value,
-  "Trematode", "Drought vs Baseline (Monogene)", 1.977, 1.0, 0.0406,
-  "Trematode_Metacercaria", "Flood vs Baseline (Monogene)", 2.771, 1.0, 0.00559,
-  "Trematode_Metacercaria", "Impact vs Control", 6.940, 1.0, 0.0001,
-  "Trematode_Metacercaria", "Flood Event vs None", 2.505, 1.0, 0.0123,
-  "Monogenean", "Baseline (Intercept)", -5.506, 1.0, 0.0001
-)
-
-ggplot(df_conditional, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_Type)) +
-  geom_col(width = 0.6) +
-  geom_errorbar(aes(ymin = Estimate - SE, ymax = Estimate + SE), width = 0.2) +
-  coord_flip() +
-  labs(
-    title = "Drought/Flood Effects on Parasite Abundance (Conditional Model)",
-    x = NULL,
-    y = "Model Estimate (log scale)"
-  ) +
-  scale_fill_brewer(palette = "Paired") +
-  theme_minimal(base_size = 13)
-
-```
-
-drought/flood zi
-```{r}
-# Drought/Flood Zero-Inflated Model Results
-df_zi <- tribble(
-  ~Parasite_Type, ~Effect, ~Estimate, ~SE, ~p_value,
-  "Trematode_Metacercaria", "Flood/Drought vs Monogene", -2.101, 1.0, 0.03564,
-  "Trematode", "Baseline Zero Inflation (vs Monogene)", 2.508, 1.0, 0.0122,
-  "Trematode_Metacercaria", "TMC Zero Counts", 3.037, 1.0, 0.00239,
-  "Trematode", "More Zeros under Drought", 2.401, 1.0, 0.01633,
-  "Drought_Event", "Zeros Decrease Under Drought", -1.977, 1.0, 0.04802,
-  "Monogenean", "Drought Event (Fewer Zeros)", -2.667, 1.0, 0.00765,
-  "Monogenean", "Baseline (Intercept)", -9.645, 1.0, 0.0001,
-  "All", "Overall High Zero Inflation", 3.096, 1.0, 0.00196,
-  "All", "Baseline Zero Inflation", 6.315, 1.0, 0.0001
-)
-
-# Clean up labeling if needed
-ggplot(df_zi, aes(x = reorder(Effect, Estimate), y = Estimate, fill = Parasite_Type)) +
-  geom_col(width = 0.6) +
-  geom_errorbar(aes(ymin = Estimate - SE, ymax = Estimate + SE), width = 0.2) +
-  coord_flip() +
-  labs(
-    title = "Drought/Flood Effects on Parasite Prevalence (Zero-Inflated Model)",
-    x = NULL,
-    y = "Model Estimate (log odds of zero abundance)"
-  ) +
-  scale_fill_brewer(palette = "Set3") +
-  theme_minimal(base_size = 13)
-
-```
-
-
-
-
-abundance:
+# PLOTS
+Setup plot aesthetics
 ```{r}
 # color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
 # trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
@@ -1657,13 +1337,13 @@ connor_theme <- theme(legend.position = "top",
         panel.spacing.y = unit(0, "lines"),
         axis.text = element_text(size = 8, color = "grey30"),
         axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+```
 
-# finding 3) metas are more abundant in drought
-# finding 4) metas are more abundant in flood
 
-md_1 <- ggpredict(dfa_nbinom2log, terms = c("psite_type"))
-
-md_1 <- md_1 %>%
+Trematode abundance was positively modulated by drought (estimate = 0.52793, p value = 0.04806). (A) Tremaode metacercaria were less abundant than other parasites at baseline conditions (estimate = -1.30291, p value = 0.03564), (A) but this relationship was modulated positively by both drought (estimate = 1.8602, p value < 0.001) and flood (estimate = 0.82453, p value = 0.00559). (A)
+```{r}
+df1a <- ggpredict(dfa_nbinom2log, terms = c("psite_type", "event"))
+df1a <- df1a %>%
   rename(
     psite_type = x,
     estimate = predicted,
@@ -1672,8 +1352,40 @@ md_1 <- md_1 %>%
     upper = conf.high,
     event = group)
 
-# finding 1) meta abundance is lower than reference
-ggplot(md_1,
+# add significance bars
+meta_sig_df <- data.frame(
+  group1 = c("control", "control", "control"),
+  group2 = c("drought", "drought", "flood"),
+  psite_type = c("trematode", "trematode_metacercaria", "trematode_metacercaria"),
+  y.position = c(6, 7, 8), 
+  p.value = c(0.04806, 0.0000000147, 0.00559) 
+)
+
+meta_sig_df <- meta_sig_df %>%
+  mutate(
+    stars = cut(p.value,
+                breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
+                labels = c("***", "**", "*", "ns"))
+  )
+
+dodge_offset <- 0.16
+
+meta_sig_df_dodged <- meta_sig_df %>%
+  filter(psite_type == "trematode_metacercaria") %>%
+  mutate(
+    xmin = as.numeric(factor(group1, levels = c("control", "drought", "flood"))) + dodge_offset,
+    xmax = as.numeric(factor(group2, levels = c("control", "drought", "flood"))) + dodge_offset
+  )
+
+meta_sig_df_nododge <- meta_sig_df %>%
+  filter(psite_type == "trematode") %>%
+  mutate(
+    xmin = as.numeric(factor(group1, levels = c("control", "drought", "flood"))),
+    xmax = as.numeric(factor(group2, levels = c("control", "drought", "flood")))
+  )
+
+# plot df1a
+df1ap <- ggplot(df1a,
        aes(x = event, y = estimate)) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
                 width = 0.05,
@@ -1683,78 +1395,59 @@ ggplot(md_1,
   geom_point(aes(fill = psite_type, group = psite_type),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79")) +
-  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
-  connor_theme
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme  + 
+  stat_pvalue_manual(
+    data = meta_sig_df_dodged,
+    label = "stars",
+    xmin = "xmin",
+    xmax = "xmax",
+    y.position = "y.position",
+    tip.length = 0.01
+  ) +
+  stat_pvalue_manual(
+    data = meta_sig_df_nododge,
+    label = "stars",
+    xmin = "xmin",
+    xmax = "xmax",
+    y.position = "y.position",
+    tip.length = 0.01
+  )
 
-# finding 2) trematode abundance in drought is higher than in control
-md_2 <- ggpredict(dfa_nbinom2log, terms = c("psite_type", "event"))
 
-md_2 <- md_2 %>%
+#### prevalence plot
+# Myxozoans were more prevalent at baseline conditions compared to under drought or flood (estimate = -6.0905, p value < 0.001). Myxozoan parasites were more marginally significantly abundant in the impact category (estimate =0.5444, p value = 0.0875).  
+df1p <- ggpredict(df_myxo, terms = c("event", "ci"))
+
+df1p <- df1p %>%
   rename(
-    psite_type = x,
+    event = x,
     estimate = predicted,
     se = std.error,
     lower = conf.low,
     upper = conf.high,
-    event = group)
+    ci = group)
 
-# remove trems from dataset:
-md_2 <- md_2 %>% 
-  filter(psite_type %in% c("trematode", "monogenean"))
-
-# finding 1) meta abundance is lower than reference
-ggplot(md_2,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+df1pp <- ggplot(df1p,
+       aes(x = ci, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
+  geom_line(aes(group = event, linetype = event),
             position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
+  geom_point(aes(fill = event, group = event),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79")) +
-  labs(x = "Event", y = "Estimate", fill = "Event", linetype = "Event") +
+  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) +
+  labs(x = "CI Category", y = "Estimate", fill = "Event", linetype = "Event") +
   connor_theme
 
-
-
-## still need to plot the ZIs 
-```
-
-```{r}
-library(emmeans)
-
-# Estimate marginal means
-emm <- emmeans(dfa_nbinom2log, ~ psite_type * event)
-
-# Pairwise comparisons (optional: by event or by psite_type)
-pairwise_tests <- contrast(emm, method = "pairwise", by = "event", adjust = "tukey")
-summary(pairwise_tests)
-```
-
-
-
-
-
-prevalence:
-```{r}
-
+df_plot <- ggarrange(df1ap, df1pp, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(df_plot)
 
 ## still need to plot the ZIs 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
 
 
