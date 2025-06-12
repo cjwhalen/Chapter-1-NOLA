@@ -990,7 +990,7 @@ residual_summaries %>%
 
 # this model is the best fit
 # all 3 parasites
-ha_nbinom2log <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+ha_nbinom2log3 <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
                                   (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
                                 ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
                                   (total_length_mm|fish_psite_combo), 
@@ -2310,6 +2310,8 @@ combine all plots
 ```{r}
 hurricane_plot <- ggarrange(a1ap, a1bp, a1cp, a1dp, a1ep, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E"))
 plot(hurricane_plot)
+
+# need to plot that trematodes are overall less abundant than other parasites 
 
 ## still need to plot the ZIs 
 ```
