@@ -130,6 +130,20 @@ full_data <- full_data %>%
     TRUE ~ NA
   ))
 
+# change fish names to shorthand
+full_data <- full_data %>%
+  mutate(fish_sp_x = case_when(
+    fish_sp_x == "Gambusia affinis" ~ "gamaff",
+    fish_sp_x == "Pimephales vigilax" ~ "pimvig",
+    fish_sp_x == "Percina vigil" ~ "pervig",
+    fish_sp_x == "Carpiodes velifer" ~ "carvel",
+    fish_sp_x == "Hybognathus nuchalis" ~ "hybnuc",
+    fish_sp_x == "Notropis atherinoides" ~ "notath",
+    fish_sp_x == "Ictalurus punctatus" ~ "ictpun",
+    TRUE ~ fish_sp_x
+  ))
+
+
 full_data <- full_data %>%
   mutate(date = as.Date(paste(year_collected, month_collected, day_collected, sep = "-"))) 
 
@@ -741,7 +755,7 @@ plot(hurricane_abundance_raw)
 ## Drop carvel and pervig from analysis since they do not have monos and metas consistently
 ```{r}
 hurricane_df_abundance_only_full <- hurricane_df_abundance %>% 
-  filter(!fish_sp_x %in% c("Percina vigil", "Carpiodes velifer"))
+  filter(!fish_sp_x %in% c("pervig", "carvel"))
 
 # plot new raw data
 # how many replicates are in each category--> this is just the number of occurrences, not abundance of parasites
@@ -1653,6 +1667,17 @@ ggplot(p1p,
   labs(x = "Event", y = "Estimated Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 ```
+
+PLot prevalence model and raw data together 
+```{r}
+
+```
+
+## Zero Inflated prevalence plots
+```{r}
+
+```
+
 
 # Estimating Biodiversity Changes
 Jackknife estimates - all parasites

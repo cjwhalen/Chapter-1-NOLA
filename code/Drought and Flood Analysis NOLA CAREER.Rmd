@@ -54,6 +54,23 @@ library(vistime)
 library(car)
 library(DHARMa)
 ```
+#### Set up aesthetic for plots
+```{r}
+# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
+connor_theme <- theme(legend.position = "top", 
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        strip.background = element_rect(fill = NA, color = NA),
+        panel.background = element_rect(fill = NA, color = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        panel.spacing.y = unit(0, "lines"),
+        axis.text = element_text(size = 8, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+```
+## Data prep and cleaning
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
 ```{r datasets and dataframe loading and general df clean and prep for analysis, echo=FALSE}
 full_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_physical_2024.09.25.csv") %>% 
@@ -140,30 +157,28 @@ full_data <- full_data %>%
   mutate(category = as.factor(category)) %>% 
   mutate(psite_type = as.factor(psite_type))
 
-```
-
-## Data Prep and Cleaning
-```{r filtering, eval = FALSE}
-# check how many observations are in each category
-# table(full_data$psite_type)
-# check how many of these are > 0 
-# full_data %>%
- # filter(psite_abundance > 0) %>%
- # count(psite_type)
-
+# change fish names to shorthand
+full_data <- full_data %>%
+  mutate(fish_sp_x = case_when(
+    fish_sp_x == "Gambusia affinis" ~ "gamaff",
+    fish_sp_x == "Pimephales vigilax" ~ "pimvig",
+    fish_sp_x == "Percina vigil" ~ "pervig",
+    fish_sp_x == "Carpiodes velifer" ~ "carvel",
+    fish_sp_x == "Hybognathus nuchalis" ~ "hybnuc",
+    fish_sp_x == "Notropis atherinoides" ~ "notath",
+    fish_sp_x == "Ictalurus punctatus" ~ "ictpun",
+    TRUE ~ fish_sp_x
+  ))
 
 # drop low replicate categories
 drought_flood_df <- full_data %>%
-  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean"))
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
+  mutate(psite_type = factor(psite_type, 
+                             levels = c("monogenean", "trematode", "trematode_metacercaria")))
 
 # filter out all remaining NAs from the psite_abundance column
 drought_flood_df_a <- drought_flood_df %>%
   filter(!is.na(psite_abundance))
-
-#relevel to drop the non-used categories
-drought_flood_df_a <- drought_flood_df %>%
-  mutate(psite_type = factor(psite_type, 
-                             levels = c("monogenean", "trematode", "trematode_metacercaria")))
 
 # create new category for myxos
 drought_flood_df_m <- full_data %>%
@@ -172,21 +187,799 @@ drought_flood_df_m <- full_data %>%
 # filter out all remaining NAs from the psite_prevalence column
 drought_flood_df_m <- drought_flood_df_m %>%
   filter(!is.na(psite_prevalence))
+```
 
-# filter each parasite type into their own df
-# dfam <- drought_flood_df %>% 
-#  filter(psite_type %in% c("monogenean"))
-# dfat <- drought_flood_df %>% 
-#  filter(psite_type %in% c("trematode"))
-# dfatm <- drought_flood_df %>% 
-#  filter(psite_type %in% c("trematode_metacercaria"))
+# Abundance
+## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
+```{r}
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+dfa.reps <- drought_flood_df_a %>% 
+  group_by(event, category, psite_type, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# plot how many of each category we have
+raw1 <- ggplot(dfa.reps,
+       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type
+dfa.bins1 <- drought_flood_df_a %>% 
+  group_by(event, category, psite_type) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw2 <- ggplot(dfa.bins1,
+       aes(x = event, y = avg.bin, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+dfa.bins2 <- drought_flood_df_a %>% 
+  group_by(event, category, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw3 <- ggplot(dfa.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+df_abundance_raw <- ggarrange(raw1, raw2, raw3, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C"))
+plot(df_abundance_raw)
+```
+
+## Drop carvel and pervig from analysis since they do not have monos and metas consistently
+```{r}
+drought_flood_df_a_only_full <- drought_flood_df_a %>% 
+  filter(!fish_sp_x %in% c("pervig", "carvel"))
+
+# plot new raw data
+# how many replicates are in each category--> this is just the number of occurrences, not abundance of parasites
+dfa.reps <- drought_flood_df_a_only_full %>% 
+  group_by(event, category, psite_type, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# plot how many of each category we have
+raw1_f <- ggplot(dfa.reps,
+       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type --> average abundances 
+dfa.bins1 <- drought_flood_df_a_only_full %>% 
+  group_by(event, category, psite_type) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw2_f <- ggplot(dfa.bins1,
+       aes(x = event, y = avg.bin, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Event", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+dfa.bins2 <- drought_flood_df_a_only_full %>% 
+  group_by(event, category, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw3_f <- ggplot(dfa.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+df_abundance_raw_only_full <- ggarrange(raw1_f, raw2_f, raw3_f, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C"))
+plot(df_abundance_raw_only_full)
+```
+## Seasonality influencing distribution of abundance
+```{r}
+# month against number of replicates
+dfa.season <- drought_flood_df_a_only_full %>% 
+  group_by(event, category, psite_type, fish_sp_x, season) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+ggplot(dfa.season,
+       aes(x = season, y = avg.bin, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Season", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = dfa.season)
+simulateResiduals(fittedModel = season_model, plot = TRUE)
+summary(season_model)
+plot(parameters(season_model))
+
+# season does not seem to have an effect on parasite abundance 
+```
+
+## Abundance Models
+### 3 parasite types
+```{r, eval=FALSE, echo=FALSE}
+# nbinom1 log
+
+nbinom1log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1, data = drought_flood_df_a_only_full)
+
+# nbinom1 sqrt
+
+nbinom1sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1(link = "sqrt"), data = drought_flood_df_a_only_full)
+
+# nbinom2 log
+
+nbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = drought_flood_df_a_only_full)
+
+# nbinom2 sqrt
+
+nbinom2sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2(link = "sqrt"), data = drought_flood_df_a_only_full)
+
+# nbinom12 log
+
+nbinom12log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12, data = drought_flood_df_a_only_full)
+
+#nbinom12 sqrt
+
+nbinom12sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12(link = "sqrt"), data = drought_flood_df_a_only_full)
+
+
+## offset
+
+# nbinom1 log
+
+nbinom1logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = drought_flood_df_a_only_full)
+
+# nbinom1 sqrt
+
+nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = drought_flood_df_a_only_full)
+
+# nbinom2 log
+
+nbinom2logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = drought_flood_df_a_only_full)
+
+# nbinom2 sqrt
+
+nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2(link = "sqrt"), data = drought_flood_df_a_only_full)
+
+# nbinom12 log
+
+nbinom12logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = drought_flood_df_a_only_full)
+
+#nbinom12 sqrt
+
+nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12(link = "sqrt"), data = drought_flood_df_a_only_full)
+
+
+# List of all model objects
+models <- list(
+  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
+  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
+  nbinom12logoff, nbinom12sqrtoff
+  )
+
+# Model names
+model_names <- c(
+  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
+  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
+  "nbinom12logoff", "nbinom12sqrtoff"
+)
+
+# Simulate residuals and extract diagnostics
+residual_summaries <- map2_df(models, model_names, function(model, name) {
+  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
+  data.frame(
+    model = name,
+    dispersion = testDispersion(sim)$p.value,
+    uniformity = testUniformity(sim)$p.value,
+    outliers = testOutliers(sim)$p.value,
+    AIC = AIC(model)
+  )
+})
+
+# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
+residual_summaries %>%
+  arrange(AIC) %>%
+  print()
+```
+
+## Final d/f abundance model 
+```{r}
+
+df_abundance_final <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = drought_flood_df_a_only_full)
+
+
+simulateResiduals(fittedModel = df_abundance_final, plot = TRUE)
+summary(df_abundance_final)
+plot(parameters(df_abundance_final))
+```
+# Plots - abundance
+```{r}
+df1a <- ggpredict(df_abundance_final, terms = c("psite_type", "event"))
+df1a <- df1a %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+# add significance bars
+meta_sig_df <- data.frame(
+  group1 = c("control", "control", "control"),
+  group2 = c("drought", "drought", "flood"),
+  psite_type = c("trematode", "trematode_metacercaria", "trematode_metacercaria"),
+  y.position = c(6, 7, 8), 
+  p.value = c(0.04806, 0.0000000147, 0.00559) 
+)
+
+meta_sig_df <- meta_sig_df %>%
+  mutate(
+    stars = cut(p.value,
+                breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
+                labels = c("***", "**", "*", "ns"))
+  )
+
+dodge_offset <- 0.16
+
+meta_sig_df_dodged <- meta_sig_df %>%
+  filter(psite_type == "trematode_metacercaria") %>%
+  mutate(
+    xmin = as.numeric(factor(group1, levels = c("control", "drought", "flood"))) + dodge_offset,
+    xmax = as.numeric(factor(group2, levels = c("control", "drought", "flood"))) + dodge_offset
+  )
+
+meta_sig_df_nododge <- meta_sig_df %>%
+  filter(psite_type == "trematode") %>%
+  mutate(
+    xmin = as.numeric(factor(group1, levels = c("control", "drought", "flood"))),
+    xmax = as.numeric(factor(group2, levels = c("control", "drought", "flood")))
+  )
+
+# plot df1a
+df1a <- ggplot(df1a,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme  + 
+  stat_pvalue_manual(
+    data = meta_sig_df_dodged,
+    label = "stars",
+    xmin = "xmin",
+    xmax = "xmax",
+    y.position = "y.position",
+    tip.length = 0.01
+  ) +
+  stat_pvalue_manual(
+    data = meta_sig_df_nododge,
+    label = "stars",
+    xmin = "xmin",
+    xmax = "xmax",
+    y.position = "y.position",
+    tip.length = 0.01
+  )
+```
+
+## Plot abundance model and raw data next to each other
+```{r}
+df_abundance_raw_and_model <- ggarrange(df1a, raw2_f, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(df_abundance_raw_and_model)
+
+# Why don't raw and modeled data look the same?
+
+# mono result is opposite the raw data
+# trem result is roughly the same, but control should be higher than drought in the raw
+# meta result is mostly fine, but flood should be higher than control in the raw
+
+# let's look again at our raw data from above 
+plot(raw3_f)
+
+# looks like hybnuc in both drought and flood have very high counts of monogenes, let's remove hybog from the raw data and see if it more closely matches the expected model result
+no_hybnuc <- drought_flood_df_a_only_full %>% 
+  group_by(event, category, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+no_hybnuc <- no_hybnuc %>% 
+  filter(!fish_sp_x %in% c("hybnuc"))
+
+no_hn <- ggplot(no_hybnuc,
+       aes(x = event, y = avg.bin, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Event", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# plot this no-hybnuc result next to the model plot
+
+df_abundance_raw_and_model_corrected <- ggarrange(df1a, no_hn, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(df_abundance_raw_and_model_corrected)
+
+# it helps, but does not fix the problem entirely, but maybe it is ok?
+```
+
+
+## Zero inflated results plotted - abundance
+```{r}
+#### A 
+azi1 <- ggemmeans(df_abundance_final, terms = c("psite_type", "event"), component = "zi")
+
+azi1 <- azi1 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi1p <- ggplot(azi1, aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
+                               "monogenean" = "#A6E000",
+                               "trematode" = "#c9ad79",
+                               "myxozoan" = "#07c3c5")) +
+  scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 10)) +
+  labs(x = "Event",
+       y = "Zero-Inflation Estimate",
+       fill = "Parasite Type",
+       linetype = "Parasite Type") +
+  connor_theme
+
+#### C
+azi3 <- ggemmeans(df_abundance_final, terms = c("psite_type", "event"), component = "zi")
+
+azi3 <- azi3 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi3 <- azi3 %>% 
+  filter(psite_type %in% c("trematode"))
+
+azi3p <- ggplot(azi3,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 10)) + 
+  labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### E
+azi5 <- ggemmeans(df_abundance_final, terms = c("psite_type", "event"), component = "zi")
+
+azi5 <- azi5 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi5 <- azi5 %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+azi5p <- ggplot(azi5,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# try to plot only monos
+azi6 <- ggemmeans(df_abundance_final, terms = c("psite_type", "event"), component = "zi")
+
+azi6 <- azi6 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi6 <- azi6 %>% 
+  filter(psite_type %in% c("monogenean"))
+
+azi6p <- ggplot(azi6,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) + 
+  labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_plot_zi <- ggarrange(azi1p, azi3p, azi5p, azi6p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E", "F"))
+plot(hurricane_abundance_plot_zi)
+```
+
+
+# Prevalence  
+Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
+```{r}
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+dfp.reps <- drought_flood_df_m %>% 
+  group_by(event, psite_type, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# plot how many of each category we have
+raw1p <- ggplot(dfp.reps,
+       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type
+dfp.bins1 <- drought_flood_df_m %>% 
+  group_by(event, psite_type) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+# use this as the raw plot of data
+raw2p <- ggplot(dfp.bins1,
+       aes(x = event, y = avg.bin, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+dfp.bins2 <- drought_flood_df_m %>% 
+  group_by(event, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+# use this as the raw plot of data
+raw3p <- ggplot(dfp.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+df_prevalence_raw <- ggarrange(raw1p, raw2p, raw3p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C"))
+plot(df_prevalence_raw)
+
+# no myxos in percina -- is already not in the database
+```
+
+## Seasonality influencing distribution - prevalence
+```{r}
+# month against number of replicates
+dfp.season <- drought_flood_df_m %>% 
+  group_by(event, psite_type, fish_sp_x, season) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+ggplot(dfp.season,
+       aes(x = season, y = avg.bin, fill = psite_type)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Season", y = "Average Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = dfp.season)
+simulateResiduals(fittedModel = season_model, plot = TRUE)
+summary(season_model)
+plot(parameters(season_model))
+
+# intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? 
+```
+## Prevalence model validation
+```{r}
+## normal
+
+# nbinom1 log
+
+nbinom1log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = nbinom1, data = drought_flood_df_m)
+
+# nbinom1 sqrt
+
+nbinom1sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
+
+# nbinom2 log
+
+nbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = nbinom2, data = drought_flood_df_m)
+
+# nbinom2 sqrt
+
+nbinom2sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = nbinom2(link = "sqrt"), data = drought_flood_df_m)
+
+# nbinom12 log
+
+nbinom12log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = nbinom12, data = drought_flood_df_m)
+
+#nbinom12 sqrt
+
+nbinom12sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = nbinom12(link = "sqrt"), data = drought_flood_df_m)
+
+## offset
+
+# nbinom1 log
+
+nbinom1logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = drought_flood_df_m)
+
+# nbinom1 sqrt
+
+nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
+
+# nbinom2 log
+
+nbinom2logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = drought_flood_df_m)
+
+# nbinom2 sqrt
+
+nbinom2sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2(link = "sqrt"), data = drought_flood_df_m)
+
+# nbinom12 log
+
+nbinom12logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = drought_flood_df_m)
+
+#nbinom12 sqrt
+
+nbinom12sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12(link = "sqrt"), data = drought_flood_df_m)
+
+
+# List of all model objects
+models <- list(
+  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
+  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
+  nbinom12logoff, nbinom12sqrtoff
+)
+
+# Model names
+model_names <- c(
+  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
+  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
+  "nbinom12logoff", "nbinom12sqrtoff")
+
+# Simulate residuals and extract diagnostics
+residual_summaries <- map2_df(models, model_names, function(model, name) {
+  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
+  data.frame(
+    model = name,
+    dispersion = testDispersion(sim)$p.value,
+    uniformity = testUniformity(sim)$p.value,
+    outliers = testOutliers(sim)$p.value,
+    AIC = AIC(model)
+  )
+})
+
+# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
+residual_summaries %>%
+  arrange(AIC) %>%
+  print()
+```
+
+## Final prevalence model drought/flood
+```{r}
+# this model is the best fit 
+
+df_prevalence_final <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = drought_flood_df_m)
+
+simulateResiduals(fittedModel = df_prevalence_final, plot = TRUE)
+summary(df_prevalence_final)
+plot(parameters(df_prevalence_final))
 
 ```
 
-Visualization and checking of data frame.
-```{r head}
-head(drought_flood_df)
-table(drought_flood_df$event)
+## Plots -- d/f prevalence
+```{r}
+#### prevalence plot
+df1p <- ggpredict(df_prevalence_final, terms = c("event"))
+
+df1p <- df1p %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high)
+
+df_f <- ggplot(df1p,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = event, linetype = event),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = event, group = event),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) +
+  labs(x = "CI Category", y = "Estimate", fill = "Event", linetype = "Event") +
+  connor_theme
+
+```
+
+PLot prevalence model and raw data together 
+```{r}
+df_prevalence_raw_and_model <- ggarrange(df_f, raw2p, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(df_prevalence_raw_and_model)
+
+# control and flood do not match raw estimate to predicted (should be flipped)
+
+# let's look again at our raw data from above 
+plot(raw1p)
+
+# looks like hybnuc and carvel in control have very high counts of myxos, let's remove hybog from the raw data and see if it more closely matches the expected model result
+no_hybnuc <- drought_flood_df_m %>% 
+  group_by(event, category, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+no_hybnuc <- no_hybnuc %>% 
+  filter(!fish_sp_x %in% c("hybnuc", "carvel"))
+
+no_hn <- ggplot(no_hybnuc,
+       aes(x = event, y = avg.bin, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Event", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# plot this no-hybnuc result next to the model plot
+
+df_prevalence_raw_and_model_corrected <- ggarrange(df_f, no_hn, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(df_prevalence_raw_and_model_corrected)
+
+# the data is now technically correct and matches
+```
+
+## Zero Inflated prevalence plots
+```{r}
+
 ```
 
 # Estimating Biodiversity Changes
@@ -256,8 +1049,6 @@ for (i in 1:nrow(group_combos)) {
 
 
 
-
-
 # prelim plot
 ggplot(hurricane_diveristy,
        aes(x = psite_spp_id, y = psite_count, fill = timing)) + 
@@ -280,1184 +1071,5 @@ ggplot(hurricane_diveristy,
 ```
 
 
-# Models -- testing which model is the best fit for the data
-## Abundance
-### 3 parasite types
-```{r}
-## normal
 
-# nbinom1 log
-
-nbinom1log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom1, data = drought_flood_df_a)
-
-# nbinom1 sqrt
-
-nbinom1sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom1(link = "sqrt"), data = drought_flood_df_a)
-
-# nbinom2 log
-
-nbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = drought_flood_df_a)
-
-# nbinom2 sqrt
-
-nbinom2sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom2(link = "sqrt"), data = drought_flood_df_a)
-
-# nbinom12 log
-
-nbinom12log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom12, data = drought_flood_df_a)
-
-#nbinom12 sqrt
-
-nbinom12sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom12(link = "sqrt"), data = drought_flood_df_a)
-
-# truncated_nbinom1 log
-
-tnbinom1log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = truncated_nbinom1, data = drought_flood_df_a)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = truncated_nbinom1(link = "sqrt"), data = drought_flood_df_a)
-
-# truncated_nbinom2 log
-
-tnbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = truncated_nbinom2, data = drought_flood_df_a)
-
-# truncated_nbinom2 sqrt
-
-tnbinom12sqrt <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = truncated_nbinom2(link = "sqrt"), data = drought_flood_df_a)
-
-
-## offset
-
-# nbinom1 log
-
-nbinom1logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = drought_flood_df_a)
-
-# nbinom1 sqrt
-
-nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = drought_flood_df_a)
-
-# nbinom2 log
-
-nbinom2logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = drought_flood_df_a)
-
-# nbinom2 sqrt
-
-nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2(link = "sqrt"), data = drought_flood_df_a)
-
-# nbinom12 log
-
-nbinom12logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12, data = drought_flood_df_a)
-
-#nbinom12 sqrt
-
-nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12(link = "sqrt"), data = drought_flood_df_a)
-
-# truncated_nbinom1 log
-
-tnbinom1logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1, data = drought_flood_df_a)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1(link = "sqrt"), data = drought_flood_df_a)
-
-# truncated_nbinom2 log
-
-tnbinom2logoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2, data = drought_flood_df_a)
-
-# truncated_nbinom2 sqrt
-
-tnbinom2sqrtoff <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2(link = "sqrt"), data = drought_flood_df_a)
-
-
-# List of all model objects
-models <- list(
-  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
-  tnbinom1log, tnbinom1sqrt, tnbinom2log, tnbinom12sqrt,
-  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
-  nbinom12logoff, nbinom12sqrtoff, tnbinom1logoff, tnbinom1sqrtoff,
-  tnbinom2logoff, tnbinom2sqrtoff
-)
-
-# Model names
-model_names <- c(
-  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
-  "tnbinom1log", "tnbinom1sqrt", "tnbinom2log", "tnbinom12sqrt",
-  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
-  "nbinom12logoff", "nbinom12sqrtoff", "tnbinom1logoff", "tnbinom1sqrtoff",
-  "tnbinom2logoff", "tnbinom2sqrtoff"
-)
-
-# Simulate residuals and extract diagnostics
-residual_summaries <- map2_df(models, model_names, function(model, name) {
-  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
-  data.frame(
-    model = name,
-    dispersion = testDispersion(sim)$p.value,
-    uniformity = testUniformity(sim)$p.value,
-    outliers = testOutliers(sim)$p.value,
-    AIC = AIC(model)
-  )
-})
-
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
-residual_summaries %>%
-  arrange(AIC) %>%
-  print()
-
-# this model is the best fit
-
-dfa_nbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = drought_flood_df)
-
-simulateResiduals(fittedModel = dfa_nbinom2log, plot = TRUE)
-summary(dfa_nbinom2log)
-plot(parameters(dfa_nbinom2log))
-```
-
-### Monogene Abundance
-```{r}
-## normal
-
-# nbinom1 log
-
-nbinom1log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1, data = dfam)
-
-# nbinom1 sqrt
-
-nbinom1sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1(link = "sqrt"), data = dfam)
-
-# nbinom2 log
-
-nbinom2log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = dfam)
-
-# nbinom2 sqrt
-
-nbinom2sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom2(link = "sqrt"), data = dfam)
-
-# nbinom12 log
-
-nbinom12log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom12, data = dfam)
-
-#nbinom12 sqrt
-
-nbinom12sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom12(link = "sqrt"), data = dfam)
-
-# truncated_nbinom1 log
-
-tnbinom1log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom1, data = dfam)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom1(link = "sqrt"), data = dfam)
-
-# truncated_nbinom2 log
-
-tnbinom2log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom2, data = dfam)
-
-# truncated_nbinom2 sqrt
-
-tnbinom12sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom2(link = "sqrt"), data = dfam)
-
-
-## offset
-
-# nbinom1 log
-
-nbinom1logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = dfam)
-
-# nbinom1 sqrt
-
-nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = dfam)
-
-# nbinom2 log
-
-nbinom2logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = dfam)
-
-# nbinom2 sqrt
-
-nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2(link = "sqrt"), data = dfam)
-
-# nbinom12 log
-
-nbinom12logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12, data = dfam)
-
-#nbinom12 sqrt
-
-nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12(link = "sqrt"), data = dfam)
-
-# truncated_nbinom1 log
-
-tnbinom1logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1, data = dfam)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),  
-                                family = truncated_nbinom1(link = "sqrt"), data = dfam)
-
-# truncated_nbinom2 log
-
-tnbinom2logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2, data = dfam)
-
-# truncated_nbinom2 sqrt
-
-tnbinom2sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),
-                                family = truncated_nbinom2(link = "sqrt"), data = dfam)
-
-# List of all model objects
-models <- list(
-  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
-  tnbinom1log, tnbinom1sqrt, tnbinom2log, tnbinom12sqrt,
-  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
-  nbinom12logoff, nbinom12sqrtoff, tnbinom1logoff, tnbinom1sqrtoff,
-  tnbinom2logoff, tnbinom2sqrtoff
-)
-
-# Model names
-model_names <- c(
-  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
-  "tnbinom1log", "tnbinom1sqrt", "tnbinom2log", "tnbinom12sqrt",
-  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
-  "nbinom12logoff", "nbinom12sqrtoff", "tnbinom1logoff", "tnbinom1sqrtoff",
-  "tnbinom2logoff", "tnbinom2sqrtoff"
-)
-
-# Simulate residuals and extract diagnostics
-residual_summaries <- map2_df(models, model_names, function(model, name) {
-  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
-  data.frame(
-    model = name,
-    dispersion = testDispersion(sim)$p.value,
-    uniformity = testUniformity(sim)$p.value,
-    outliers = testOutliers(sim)$p.value,
-    AIC = AIC(model)
-  )
-})
-
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
-residual_summaries %>%
-  arrange(AIC) %>%
-  print()
-
-# this is best model 
-mono_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = dfam)
-
-simulateResiduals(fittedModel = mono_final_df, plot = TRUE)
-summary(mono_final_df)
-plot(parameters(mono_final_df))
-
-
-```
- needs updating
-### Trematode Abundance
-```{r}
-## normal
-
-# nbinom1 log
-
-nbinom1log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1, data = dfat)
-
-# nbinom1 sqrt
-
-nbinom1sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1(link = "sqrt"), data = dfat)
-
-# nbinom2 log
-
-nbinom2log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = dfat)
-
-# nbinom2 sqrt
-
-nbinom2sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom2(link = "sqrt"), data = dfat)
-
-# nbinom12 log
-
-nbinom12log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom12, data = dfat)
-
-#nbinom12 sqrt
-
-nbinom12sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom12(link = "sqrt"), data = dfat)
-
-# truncated_nbinom1 log
-
-tnbinom1log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom1, data = dfat)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom1(link = "sqrt"), data = dfat)
-
-# truncated_nbinom2 log
-
-tnbinom2log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom2, data = dfat)
-
-# truncated_nbinom2 sqrt
-
-tnbinom12sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom2(link = "sqrt"), data = dfat)
-
-
-## offset
-
-# nbinom1 log
-
-nbinom1logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = dfat)
-
-# nbinom1 sqrt
-
-nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = dfat)
-
-# nbinom2 log
-
-nbinom2logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = dfat)
-
-# nbinom2 sqrt
-
-nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2(link = "sqrt"), data = dfat)
-
-# nbinom12 log
-
-nbinom12logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12, data = dfat)
-
-#nbinom12 sqrt
-
-nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12(link = "sqrt"), data = dfat)
-
-# truncated_nbinom1 log
-
-tnbinom1logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1, data = dfat)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),  
-                                family = truncated_nbinom1(link = "sqrt"), data = dfat)
-
-# truncated_nbinom2 log
-
-tnbinom2logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2, data = dfat)
-
-# truncated_nbinom2 sqrt
-
-tnbinom2sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),
-                                family = truncated_nbinom2(link = "sqrt"), data = dfat)
-
-# List of all model objects
-models <- list(
-  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
-  tnbinom1log, tnbinom1sqrt, tnbinom2log, tnbinom12sqrt,
-  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
-  nbinom12logoff, nbinom12sqrtoff, tnbinom1logoff, tnbinom1sqrtoff,
-  tnbinom2logoff, tnbinom2sqrtoff
-)
-
-# Model names
-model_names <- c(
-  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
-  "tnbinom1log", "tnbinom1sqrt", "tnbinom2log", "tnbinom12sqrt",
-  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
-  "nbinom12logoff", "nbinom12sqrtoff", "tnbinom1logoff", "tnbinom1sqrtoff",
-  "tnbinom2logoff", "tnbinom2sqrtoff"
-)
-
-# Simulate residuals and extract diagnostics
-residual_summaries <- map2_df(models, model_names, function(model, name) {
-  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
-  data.frame(
-    model = name,
-    dispersion = testDispersion(sim)$p.value,
-    uniformity = testUniformity(sim)$p.value,
-    outliers = testOutliers(sim)$p.value,
-    AIC = AIC(model)
-  )
-})
-
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
-residual_summaries %>%
-  arrange(AIC) %>%
-  print()
-
-# this is best model (none of them fit super well)
-trem_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = dfat)
-
-simulateResiduals(fittedModel = trem_final_df, plot = TRUE)
-summary(trem_final_df)
-plot(parameters(trem_final_df))
-
-
-```
-
- needs updating
-### Trematode Metacercaria Abundance
-```{r}
-## normal
-
-# nbinom1 log
-
-nbinom1log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1, data = dfatm)
-
-# nbinom1 sqrt
-
-nbinom1sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1(link = "sqrt"), data = dfatm)
-
-# nbinom2 log
-
-nbinom2log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = dfatm)
-
-# nbinom2 sqrt
-
-nbinom2sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom2(link = "sqrt"), data = dfatm)
-
-# nbinom12 log
-
-nbinom12log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom12, data = dfatm)
-
-#nbinom12 sqrt
-
-nbinom12sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom12(link = "sqrt"), data = dfatm)
-
-# truncated_nbinom1 log
-
-tnbinom1log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom1, data = dfatm)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom1(link = "sqrt"), data = dfatm)
-
-# truncated_nbinom2 log
-
-tnbinom2log <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom2, data = dfatm)
-
-# truncated_nbinom2 sqrt
-
-tnbinom12sqrt <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = truncated_nbinom2(link = "sqrt"), data = dfatm)
-
-
-## offset
-
-# nbinom1 log
-
-nbinom1logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = dfatm)
-
-# nbinom1 sqrt
-
-nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = dfatm)
-
-# nbinom2 log
-
-nbinom2logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = dfatm)
-
-# nbinom2 sqrt
-
-nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2(link = "sqrt"), data = dfatm)
-
-# nbinom12 log
-
-nbinom12logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12, data = dfatm)
-
-#nbinom12 sqrt
-
-nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12(link = "sqrt"), data = dfatm)
-
-# truncated_nbinom1 log
-
-tnbinom1logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1, data = dfatm)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),  
-                                family = truncated_nbinom1(link = "sqrt"), data = dfatm)
-
-# truncated_nbinom2 log
-
-tnbinom2logoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2, data = dfatm)
-
-# truncated_nbinom2 sqrt
-
-tnbinom2sqrtoff <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) +
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)),
-                                family = truncated_nbinom2(link = "sqrt"), data = dfatm)
-
-# List of all model objects
-models <- list(
-  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
-  tnbinom1log, tnbinom1sqrt, tnbinom2log, tnbinom12sqrt,
-  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
-  nbinom12logoff, nbinom12sqrtoff, tnbinom1logoff, tnbinom1sqrtoff,
-  tnbinom2logoff, tnbinom2sqrtoff
-)
-
-# Model names
-model_names <- c(
-  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
-  "tnbinom1log", "tnbinom1sqrt", "tnbinom2log", "tnbinom12sqrt",
-  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
-  "nbinom12logoff", "nbinom12sqrtoff", "tnbinom1logoff", "tnbinom1sqrtoff",
-  "tnbinom2logoff", "tnbinom2sqrtoff"
-)
-
-# Simulate residuals and extract diagnostics
-residual_summaries <- map2_df(models, model_names, function(model, name) {
-  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
-  data.frame(
-    model = name,
-    dispersion = testDispersion(sim)$p.value,
-    uniformity = testUniformity(sim)$p.value,
-    outliers = testOutliers(sim)$p.value,
-    AIC = AIC(model)
-  )
-})
-
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
-residual_summaries %>%
-  arrange(AIC) %>%
-  print()
-
-# this is best model -- not the lowest AIC but the best fit of all parameters and isnt
-meta_final_df <- glmmTMB(psite_abundance ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1(link = "sqrt"), data = dfatm)
-
-
-simulateResiduals(fittedModel = meta_final_df, plot = TRUE)
-summary(meta_final_df)
-plot(parameters(meta_final_df))
-```
- needs updating
-## Prevalence  
-```{r}
-## normal
-
-# nbinom1 log
-
-nbinom1log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom1, data = drought_flood_df_m)
-
-# nbinom1 sqrt
-
-nbinom1sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
-
-# nbinom2 log
-
-nbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2, data = drought_flood_df_m)
-
-# nbinom2 sqrt
-
-nbinom2sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom2(link = "sqrt"), data = drought_flood_df_m)
-
-# nbinom12 log
-
-nbinom12log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom12, data = drought_flood_df_m)
-
-#nbinom12 sqrt
-
-nbinom12sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = nbinom12(link = "sqrt"), data = drought_flood_df_m)
-
-# truncated_nbinom1 log
-
-tnbinom1log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = truncated_nbinom1, data = drought_flood_df_m)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = truncated_nbinom1(link = "sqrt"), data = drought_flood_df_m)
-
-# truncated_nbinom2 log
-
-tnbinom2log <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = truncated_nbinom2, data = drought_flood_df_m)
-
-# truncated_nbinom2 sqrt
-
-tnbinom12sqrt <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
-                                family = truncated_nbinom2(link = "sqrt"), data = drought_flood_df_m)
-
-
-## offset
-
-# nbinom1 log
-
-nbinom1logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1, data = drought_flood_df_m)
-
-# nbinom1 sqrt
-
-nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
-
-# nbinom2 log
-
-nbinom2logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = drought_flood_df_m)
-
-# nbinom2 sqrt
-
-nbinom2sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom2(link = "sqrt"), data = drought_flood_df_m)
-
-# nbinom12 log
-
-nbinom12logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12, data = drought_flood_df_m)
-
-#nbinom12 sqrt
-
-nbinom12sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom12(link = "sqrt"), data = drought_flood_df_m)
-
-# truncated_nbinom1 log
-
-tnbinom1logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1, data = drought_flood_df_m)
-
-# truncated_nbinom1 sqrt
-
-tnbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom1(link = "sqrt"), data = drought_flood_df_m)
-
-# truncated_nbinom2 log
-
-tnbinom2logoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2, data = drought_flood_df_m)
-
-# truncated_nbinom2 sqrt
-
-tnbinom2sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = truncated_nbinom2(link = "sqrt"), data = drought_flood_df_m)
-
-
-# List of all model objects
-models <- list(
-  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
-  tnbinom1log, tnbinom1sqrt, tnbinom2log, tnbinom12sqrt,
-  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
-  nbinom12logoff, nbinom12sqrtoff, tnbinom1logoff, tnbinom1sqrtoff,
-  tnbinom2logoff, tnbinom2sqrtoff
-)
-
-# Model names
-model_names <- c(
-  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
-  "tnbinom1log", "tnbinom1sqrt", "tnbinom2log", "tnbinom12sqrt",
-  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
-  "nbinom12logoff", "nbinom12sqrtoff", "tnbinom1logoff", "tnbinom1sqrtoff",
-  "tnbinom2logoff", "tnbinom2sqrtoff"
-)
-
-# Simulate residuals and extract diagnostics
-residual_summaries <- map2_df(models, model_names, function(model, name) {
-  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
-  data.frame(
-    model = name,
-    dispersion = testDispersion(sim)$p.value,
-    uniformity = testUniformity(sim)$p.value,
-    outliers = testOutliers(sim)$p.value,
-    AIC = AIC(model)
-  )
-})
-
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
-residual_summaries %>%
-  arrange(AIC) %>%
-  print()
-
-# this model is the best fit 
-
-nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
-
-simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
-summary(nbinom1sqrtoff)
-plot(parameters(nbinom1sqrtoff))
-
-```
-
-
-
-
-
-# Prelim plots
-```{r}
-prelim1 <- ggplot(drought_flood_df_a,
-       aes(x = event, y = psite_abundance, fill = psite_type)) + 
-  geom_col(position = "dodge") + 
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Event", y = "Parasite Count", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-prelim2 <- ggplot(drought_flood_df_m,
-         aes(x = ci, y = psite_prevalence)) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("myxozoan" = "#07c3c5")) +
-  labs(x = "CI Category", y = "Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme 
-
-df_prelim_plot <- ggarrange(prelim1, prelim2, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
-plot(df_prelim_plot)
-
-```
-
-# Final Models Summary
-```{r}
-# abundance 3 types
-dfa_nbinom2log <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
-                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
-                                  (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = drought_flood_df_a)
-
-simulateResiduals(fittedModel = dfa_nbinom2log, plot = TRUE)
-summary(dfa_nbinom2log)
-plot(parameters(dfa_nbinom2log))
-
-### prevalence nbinom1sqrtoff
-nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event + ci + (1|catalog_number) + (1|year_collected/season) + 
-                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
-                                ziformula = ~ event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
-                                  offset(sqrt(total_length_mm)), 
-                                family = nbinom1(link = "sqrt"), data = drought_flood_df_m)
-
-simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
-summary(nbinom1sqrtoff)
-plot(parameters(nbinom1sqrtoff))
-
-
-```
-
-# PLOTS
-Setup plot aesthetics
-```{r}
-# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
-# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
-connor_theme <- theme(legend.position = "top", 
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 14),
-        strip.background = element_rect(fill = NA, color = NA),
-        panel.background = element_rect(fill = NA, color = "white"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.spacing.x = unit(0, "lines"),
-        panel.spacing.y = unit(0, "lines"),
-        axis.text = element_text(size = 8, color = "grey30"),
-        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
-```
-
-
-Trematode abundance was positively modulated by drought (estimate = 0.52793, p value = 0.04806). (A) Tremaode metacercaria were less abundant than other parasites at baseline conditions (estimate = -1.30291, p value = 0.03564), (A) but this relationship was modulated positively by both drought (estimate = 1.8602, p value < 0.001) and flood (estimate = 0.82453, p value = 0.00559). (A)
-```{r}
-df1a <- ggpredict(dfa_nbinom2log, terms = c("psite_type", "event"))
-df1a <- df1a %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group)
-
-# add significance bars
-meta_sig_df <- data.frame(
-  group1 = c("control", "control", "control"),
-  group2 = c("drought", "drought", "flood"),
-  psite_type = c("trematode", "trematode_metacercaria", "trematode_metacercaria"),
-  y.position = c(6, 7, 8), 
-  p.value = c(0.04806, 0.0000000147, 0.00559) 
-)
-
-meta_sig_df <- meta_sig_df %>%
-  mutate(
-    stars = cut(p.value,
-                breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
-                labels = c("***", "**", "*", "ns"))
-  )
-
-dodge_offset <- 0.16
-
-meta_sig_df_dodged <- meta_sig_df %>%
-  filter(psite_type == "trematode_metacercaria") %>%
-  mutate(
-    xmin = as.numeric(factor(group1, levels = c("control", "drought", "flood"))) + dodge_offset,
-    xmax = as.numeric(factor(group2, levels = c("control", "drought", "flood"))) + dodge_offset
-  )
-
-meta_sig_df_nododge <- meta_sig_df %>%
-  filter(psite_type == "trematode") %>%
-  mutate(
-    xmin = as.numeric(factor(group1, levels = c("control", "drought", "flood"))),
-    xmax = as.numeric(factor(group2, levels = c("control", "drought", "flood")))
-  )
-
-# plot df1a
-df1ap <- ggplot(df1a,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
-  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme  + 
-  stat_pvalue_manual(
-    data = meta_sig_df_dodged,
-    label = "stars",
-    xmin = "xmin",
-    xmax = "xmax",
-    y.position = "y.position",
-    tip.length = 0.01
-  ) +
-  stat_pvalue_manual(
-    data = meta_sig_df_nododge,
-    label = "stars",
-    xmin = "xmin",
-    xmax = "xmax",
-    y.position = "y.position",
-    tip.length = 0.01
-  )
-
-
-#### prevalence plot
-# Myxozoans were more prevalent at baseline conditions compared to under drought or flood (estimate = -6.0905, p value < 0.001). Myxozoan parasites were more marginally significantly abundant in the impact category (estimate =0.5444, p value = 0.0875).  
-df1p <- ggpredict(nbinom1sqrtoff, terms = c("event", "ci"))
-
-df1p <- df1p %>%
-  rename(
-    event = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    ci = group)
-
-df1pp <- ggplot(df1p,
-       aes(x = ci, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = event, linetype = event),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = event, group = event),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) +
-  labs(x = "CI Category", y = "Estimate", fill = "Event", linetype = "Event") +
-  connor_theme
-
-df_plot <- ggarrange(df1ap, df1pp, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
-plot(df_plot)
-
-## still need to plot the ZIs 
-```
-
-
+What about overlaying drought flood with hurricane occurances? maybe on some sort of map?
