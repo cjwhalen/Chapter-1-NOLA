@@ -1,5 +1,5 @@
 ---
-title: "Hurricanes NOLA: CAREER Project"
+title: "Chapter 1 Hurricane NOLA CAREER"
 author: "Connor Whalen"
 date: "2025-02-18"
 output:
