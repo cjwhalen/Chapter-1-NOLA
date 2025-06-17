@@ -1,0 +1,2109 @@
+---
+title: "Hurricanes NOLA: CAREER Project"
+author: "Connor Whalen"
+date: "2025-02-18"
+output:
+  html_document:
+    theme: readable
+    highlight: textmate
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introduction
+This file contains all code pertaining to the CAREER project in NOLA's hurricane analysis. 
+
+# Setup
+#### Install packages.
+```{r package install, eval=FALSE, echo=FALSE}
+install.packages("tidyverse")
+install.packages("janitor")
+install.packages("ggeffects")
+install.packages("ggpubr")
+install.packages("glmmTMB")
+install.packages("devtools")
+devtools::install_github("johannesbjork/LaCroixColoR")
+install.packages("patchwork")
+install.packages("ggh4x")
+install.packages("vistime")
+install.packages("DHARMa")
+install.packages("bbmle")
+install.packages("reghelper")
+```
+
+#### Load packages.
+```{r package load, echo=FALSE}
+library(ggpubr) 
+library(ggeffects)
+library(tidyverse)
+library(readr)
+library(dbplyr)
+library(lubridate)
+library(ggplot2)
+library(stringr)
+library(glmmTMB)
+library(lme4)
+library(patchwork)
+library(ggh4x)
+library(vistime)
+library(car)
+library(DHARMa)
+library(sjPlot)
+library(performance)
+library(parameters)
+library(tidyverse)
+library(corrplot)
+library(bbmle) 
+library(lmtest)
+library(purrr)
+library(vegan)
+library(reghelper)
+```
+#### Set up aesthetic for plots
+```{r}
+# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
+connor_theme <- theme(legend.position = "top", 
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        strip.background = element_rect(fill = NA, color = NA),
+        panel.background = element_rect(fill = NA, color = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        panel.spacing.y = unit(0, "lines"),
+        axis.text = element_text(size = 8, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+```
+
+#### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
+```{r datasets and dataframe loading and general df clean and prep for analysis, echo=FALSE}
+full_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_physical_2024.09.25.csv") %>% 
+  janitor::clean_names()
+
+SPI_data <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/SPI data - Sheet1.csv") %>% 
+  janitor::clean_names()
+
+# Prep all data for analysis, inclduing assigning parasite type categories, abundance and prevalence counts, and establishing correct column date structure
+full_data <- full_data %>%
+  mutate(psite_type = case_when(
+    str_detect(fish_psite_combo, "ACAN") ~ "acanthocephalan",
+    str_detect(fish_psite_combo, "ACANTH") ~ "acanthocephalan",
+    str_detect(fish_psite_combo, "CEST") ~ "cestode",
+    str_detect(fish_psite_combo, "CILI") ~ "ciliate",
+    str_detect(fish_psite_combo, "COPE") ~ "copepod",
+    str_detect(fish_psite_combo, "LEECH") ~ "leech",
+    str_detect(fish_psite_combo, "META") ~ "trematode_metacercaria",
+    str_detect(fish_psite_combo, "MONO") ~ "monogenean",
+    str_detect(fish_psite_combo, "MYX") ~ "myxozoan",
+    str_detect(fish_psite_combo, "MYXO") ~ "myxozoan",
+    str_detect(fish_psite_combo, "NEM") ~ "nematode",
+    str_detect(fish_psite_combo, "NMORPH") ~ "nematomorph",
+    str_detect(fish_psite_combo, "TREM") ~ "trematode",
+    TRUE ~ NA
+  ))
+
+full_data <- full_data %>%
+  mutate(psite_abundance = case_when(
+    str_detect(fish_psite_combo, "ACAN") ~ psite_count,
+    str_detect(fish_psite_combo, "ACANTH") ~ psite_count,
+    str_detect(fish_psite_combo, "CEST") ~ psite_count,
+    str_detect(fish_psite_combo, "CILI") ~ psite_count,
+    str_detect(fish_psite_combo, "COPE") ~ psite_count,
+    str_detect(fish_psite_combo, "LEECH") ~ psite_count,
+    str_detect(fish_psite_combo, "META") ~ psite_count,
+    str_detect(fish_psite_combo, "MONO") ~ psite_count,
+    str_detect(fish_psite_combo, "NEM") ~ psite_count,
+    str_detect(fish_psite_combo, "NMORPH") ~ psite_count,
+    str_detect(fish_psite_combo, "TREM") ~ psite_count,
+    TRUE ~ NA
+  ))
+
+full_data <- full_data %>%
+  mutate(psite_prevalence = case_when(
+    str_detect(fish_psite_combo, "MYX") ~ psite_count,
+    str_detect(fish_psite_combo, "MYXO") ~ psite_count,
+    TRUE ~ NA
+  ))
+
+full_data <- full_data %>%
+  mutate(date = as.Date(paste(year_collected, month_collected, day_collected, sep = "-"))) 
+
+SPI_data <- SPI_data %>% 
+  mutate(date = as.Date(date))
+
+full_data <- full_data %>% 
+  mutate(psite_prevalence = as.integer(psite_prevalence))
+
+full_data <- full_data %>% 
+  left_join(SPI_data, by = "date")
+
+full_data <- full_data %>% 
+  mutate(psite_type = as.factor(psite_type))
+
+## assign control and flood categories to the different SPI value categories 
+# category = average = true control
+# category = abnormally wet / dry = marginal control 
+# category = exceptionally wet / dry = full drought/flood
+
+full_data <- full_data %>%
+  mutate(df_event = case_when(
+    str_detect(category, "exceptionally wet") ~ "flood",
+    str_detect(category, "extremely wet") ~ "flood",
+    str_detect(category, "severely wet") ~ "flood",
+    str_detect(category, "moderately wet") ~ "flood",
+    str_detect(category, "exceptionally dry") ~ "drought",
+    str_detect(category, "extremely dry") ~ "drought",
+    str_detect(category, "severely dry") ~ "drought",
+    str_detect(category, "moderately dry") ~ "drought",
+    str_detect(category, "abnormally wet") ~ "control",
+    str_detect(category, "abnormally dry") ~ "control",
+    str_detect(category, "average") ~ "control", # there are no parasites collected in the "average" grouping
+    TRUE ~ "marginal"
+  )) %>% 
+  mutate(df_event = as.factor(df_event)) %>% 
+  mutate(category = as.factor(category)) %>% 
+  mutate(psite_type = as.factor(psite_type))
+
+```
+
+# Data Prep and Cleaning
+### Controls 
+Find the average date of a hurricane, so that we can identify when the average hurricane starts and stops and how long it lasts -- this will be used to assign a period of time to our hurricane controls. [This code was used to identify these information, but no longer needs to be run for the analysis to work]. Then, pick out the years in which there was no hurricane, so that we can identify which years to assign as control in our hurricane analysis. 
+```{r control assignment to dataframe, eval=FALSE, echo=TRUE}
+average_hurr <- hurricane_df6 %>%
+  filter(str_detect(ewe_type, "hurricane")) %>%
+  mutate(
+    month = month(date),
+    day = day(date)
+  ) %>%
+  summarise(
+    average_month = mean(month),
+    average_day = mean(day)
+  )
+# average hurricane happens on 9/18 each year
+# find average duration of hurricane event
+# Define date ranges for hurricane events
+hurricane_events <- data.frame(
+  start_date = as.Date(c("1969-08-14", "1971-09-05", "1988-09-08", 
+                         "1992-08-16", "2004-09-02", "1964-09-28", 
+                         "1965-08-27", "1974-08-29", "1995-09-27", 
+                         "1998-09-15", "2002-09-21", "1985-08-28", 
+                         "2004-09-14", "1979-07-09", "1985-08-12", 
+                         "1985-10-26", "1988-09-07", "1997-07-16")),
+  end_date = as.Date(c("1969-08-22", "1971-09-15", "1988-09-19", 
+                       "1992-08-19", "2004-09-25", "1964-10-05", 
+                       "1965-09-13", "1974-09-10", "1995-10-06", 
+                       "1998-10-01", "2002-10-04", "1985-09-04", 
+                       "2004-09-27", "1979-07-16", "1985-08-20", 
+                       "1985-11-03", "1988-09-11", "1997-07-27"))
+)
+
+# Calculate durations of each hurricane event
+hurricane_events$duration <- as.numeric(hurricane_events$end_date - hurricane_events$start_date)
+# Calculate the average duration
+average_duration <- mean(hurricane_events$duration)
+# Print result
+average_duration
+# average is 10 days
+# years in which there was no hurricane: 1963, 1966, 1967, 1968, 1970, 1972, 1973, 1975, 1976, 1977, 1978, 1980, 1981, 1982, 1983, 1984, 1986, 1987, 1989, 1990, 1991, 1993, 1994, 1999, 2000, 2003
+
+# new method 6/11/25
+# Create a table of all labeled date ranges
+
+# Create the storm date ranges
+storm_ranges <- tribble(
+  ~label,                ~start,              ~end,
+  
+  # hurricane_5
+  "hurricane_5", as.Date("1969-08-14"), as.Date("1969-08-22"),  # Camille
+  "hurricane_5", as.Date("1971-09-05"), as.Date("1971-09-15"),  # Edith
+  "hurricane_5", as.Date("1992-08-16"), as.Date("1992-08-19"),  # Andrew
+  "hurricane_5", as.Date("2004-09-02"), as.Date("2004-09-25"),  # Ivan
+  
+  # hurricane_4
+  "hurricane_4", as.Date("1964-09-28"), as.Date("1964-10-05"),  # Hilda
+  "hurricane_4", as.Date("1965-08-27"), as.Date("1965-09-13"),  # Betsy
+  "hurricane_4", as.Date("1974-08-29"), as.Date("1974-09-10"),  # Carmen
+  "hurricane_4", as.Date("1998-09-15"), as.Date("1998-10-01"),  # Georges
+  "hurricane_4", as.Date("2002-09-21"), as.Date("2002-10-04"),  # Lili
+  
+  # hurricane_3
+  "hurricane_3", as.Date("1985-08-28"), as.Date("1985-09-04"),  # Elena
+  "hurricane_3", as.Date("2002-09-14"), as.Date("2002-09-27"),  # Isidore
+  
+  # hurricane_1
+  "hurricane_1", as.Date("1979-07-09"), as.Date("1979-07-16"),  # Bob
+  "hurricane_1", as.Date("1985-08-12"), as.Date("1985-08-20"),  # Danny
+  "hurricane_1", as.Date("1985-10-26"), as.Date("1985-11-03"),  # Juan
+  "hurricane_1", as.Date("1988-09-07"), as.Date("1988-09-11"),  # Florence
+  "hurricane_1", as.Date("1997-07-16"), as.Date("1997-07-27"),  # Danny
+  
+  # tropical_storm
+  "tropical_storm", as.Date("1988-08-08"), as.Date("1988-08-10"), # Beryl
+  "tropical_storm", as.Date("1998-09-27"), as.Date("1998-09-30"), # Hermine
+  "tropical_storm", as.Date("2001-06-05"), as.Date("2001-06-20"), # Allison
+  "tropical_storm", as.Date("2002-08-04"), as.Date("2002-08-09"), # Bertha
+  "tropical_storm", as.Date("2002-09-12"), as.Date("2002-09-15"), # Hanna
+  "tropical_storm", as.Date("2003-06-28"), as.Date("2003-07-03"), # Bill
+  "tropical_storm", as.Date("1965-09-24"), as.Date("1965-09-30"), # Debbie
+  
+  # hurricane_double
+  "hurricane_double", as.Date("1995-07-31"), as.Date("1995-10-06")  # Opal + Erin
+)
+
+
+hurricane_events <- storm_ranges
+
+# Calculate durations of each hurricane event
+hurricane_events$duration <- as.numeric(hurricane_events$end - hurricane_events$start)
+# Calculate the average duration
+average_duration <- mean(hurricane_events$duration)
+# Print result
+average_duration
+# average is 12 days
+
+all_years <- 1963:2005
+
+event_years <- unique(unlist(lapply(1:nrow(storm_ranges), function(i) {
+  seq(year(storm_ranges$start[i]), year(storm_ranges$end[i]))
+})))
+
+no_event_years <- setdiff(all_years, event_years)
+
+print(no_event_years)
+# years in which there was no hurricane: 1963 1966 1967 1968 1970 1972 1973 1975 1976 1977 1978 1980 1981 1982 1983 1984 1986 1987 1989 1990 1991 1993 1994 1996 1999 2000 2005
+
+# assign a random number between 1 and 24 for each of these no event years:
+shuffled_years <- sample(no_event_years)
+
+random_values <- c(sample(1:24), rep(NA, length(no_event_years) - 24))
+
+no_event_df <- data.frame(
+  control_year = shuffled_years,
+  random_value = random_values
+)
+
+n_events <- nrow(hurricane_events)
+
+if (n_events > 24) {
+  stop("Too many events: can't assign unique numbers from 1 to 24 without repeats.")
+}
+
+hurricane_events$random_value <- sample(1:24, n_events, replace = FALSE)
+
+combined_by_random <- full_join(hurricane_events, no_event_df, by = "random_value", suffix = c("_event", "_noevent"))
+
+```
+
+
+
+### Hurricane events and Controls Mapping
+Add actual hurricane timeline parameters for 6 month (6 month meaning a buffer period of 6 months before a hurricane [denoted as pre] and 6 months after a hurricane [denoted post]). These dates for hurricane occurance are taken from the [NOAA hurricane watch website](https://coast.noaa.gov/hurricanes/#map=3.51/28.21/-61.45&search=eyJzZWFyY2hTdHJpbmciOiJDdXN0b20gUG9seWdvbiIsInNlYXJjaFR5cGUiOiJzdG9ybWlkcyIsIm1hdGNoIjoiZXhhY3QiLCJnZW9qc29uIjp7ImNvb3JkaW5hdGVzIjpbW1stOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XSxbLTg5LjczNjQxMjIzNjkyMjIzLDMyLjY4MjYxNzc1MzAyNTk0XSxbLTg5LjgwMDMxMjgwNjE3MjkxLDMyLjM0MDI4MTk4MzQ0Ml0sWy05MC4xNTAwNDYyNzQ3OTAwOSwzMi4xMjY0MTg3MzIxMjk1NjVdLFstOTAuMTk0NjE1NjY2MTQ5MTIsMzEuOTk0Nzc1ODU5NjQ5MTY3XSxbLTkwLjEwMDU4OTYzNDE1NDEsMzEuODQ3OTM4MTYwODc0MzA3XSxbLTkwLjA3NDUxMjEwNDYyOTI2LDMxLjczMDE4Mjc4MjkwMTY1XSxbLTg5LjkzMjI1OTI0MjQ0NDA1LDMxLjQ0NDMwNDgzOTgzOTg0NV0sWy04OS42MDA1MzcyMzEwMTc4NywzMS4xOTc0MzE2MzgyMDY2OF0sWy04OS41NDc3OTkyNzQ4MTE3OCwzMC44MDg0MTE1ODI1MTE3NjZdLFstODkuNjIxNjEyODU0ODEwMjUsMzAuNTQxODk1NzUyOTE2NDE3XSxbLTg5LjQyNDIxMDQ5NjQ3NjA5LDMwLjM0NTk0NzA5MDY1NDczMl0sWy04OS40Nzg5MDc3MDY4NDM0NywyOS42Nzk3MzQxNjA2MzEyNF0sWy04OS45OTU0NzQ5OTM4NDQ1NCwyOS45Mzk2ODk1MTk2MDU3OF0sWy04OS45ODA4NzM0MTcwNTYwMywzMC42NzcwOTM2NzYwOTQzNl0sWy05MC4wNDQ3ODc0NTQwMzA0MywzMS4xOTc3OTA4OTU5OTE2MDJdLFstOTAuMzA0MzcwOTI0NTk1NCwzMS42MDE3OTE3MTUzMjUxOV0sWy05MC4zNDY1MTc2NjAzMjcyNywzMS45Nzc0ODI4MDMzNDQ3XSxbLTkwLjMzMDI0MzQ0ODM4NTIsMzIuMjUzMTI4MDg4MDQ4NDRdLFstOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XV1dLCJ0eXBlIjoiUG9seWdvbiJ9LCJjYXRlZ29yaWVzIjpbIkg1IiwiSDQiLCJIMyIsIkgyIiwiSDEiLCJUUyIsIlREIiwiRVQiXSwieWVhcnMiOltdLCJtb250aHMiOltdLCJlbnNvIjpbXSwicHJlc3N1cmUiOnsicmFuZ2UiOlswLDEwMzBdLCJpbmNsdWRlVW5rbm93blByZXNzdXJlIjp0cnVlfSwic3Rvcm1JRHMiOiIyMDAzMTc5TjIwMjcxLDIwMDIyNThOMTAzMDAsMjAwMjI1NU4yNjI3MywyMDAyMjE3TjI5MjcyLDIwMDExNTdOMjgyNjUsMTk5ODI2MU4yNzI3MCwxOTk4MjU5TjEwMzM1LDE5OTcxOThOMjcyNjcsMTk5NTIxMk4yMjI4NywxOTkyMjMwTjExMzI1LDE5ODgyNTFOMjMyNjgsMTk4ODIyMU4zMDI3MCwxOTg1Mjk5TjI1MjcwLDE5ODUyNDBOMjAyODYsMTk3OTE5MU4yMjI2NCwxOTcxMjQ5TjExMzAyLDE5NjkyMjZOMTgyODAsMTk2NTI2OE4xNzI3NSwxOTY1MjM5TjExMzEwLDE5NjQyNzNOMjEyODAiLCJ0YWJJbmRleCI6MSwiYnVmZmVyVW5pdCI6WyJNaWxlcyJdLCJzb3J0U2VsZWN0aW9uIjp7InZhbHVlIjoieWVhcnNfbmV3ZXN0IiwibGFiZWwiOiJZZWFyIChOZXdlc3QpIn0sImFwcGx5VG9BT0kiOmZhbHNlLCJpc1N0b3JtTGFiZWxzVmlzaWJsZSI6dHJ1ZX0=) and represent all hurricane events that crossed a 50 mile boundary of the Pearl River from source to sea. 
+```{r hurricane event assignment to df}
+hurricane_df6 <- full_data %>%
+  mutate(ewe_type = case_when(
+    date >= as.Date("1969-02-14") & date <= as.Date("1969-08-14") ~ "pre_5",
+    date >= as.Date("1969-08-14") & date <= as.Date("1969-08-22") ~ "hurricane_5", #camille
+    date >= as.Date("1969-08-22") & date <= as.Date("1970-02-22") ~ "post_5",
+    date >= as.Date("1971-03-05") & date <= as.Date("1971-09-05") ~ "pre_5",
+    date >= as.Date("1971-09-05") & date <= as.Date("1971-09-15") ~ "hurricane_5", #edith
+    date >= as.Date("1971-09-15") & date <= as.Date("1972-03-15") ~ "post_5",
+    date >= as.Date("1992-02-16") & date <= as.Date("1992-08-16") ~ "pre_5",
+    date >= as.Date("1992-08-16") & date <= as.Date("1992-08-19") ~ "hurricane_5", #andrew
+    date >= as.Date("1992-08-19") & date <= as.Date("1993-03-19") ~ "post_5",
+    date >= as.Date("2004-03-02") & date <= as.Date("2004-09-02") ~ "pre_5",
+    date >= as.Date("2004-09-02") & date <= as.Date("2004-09-25") ~ "hurricane_5", #ivan -- external
+    date >= as.Date("2004-09-25") & date <= as.Date("2005-03-25") ~ "post_5",
+    date >= as.Date("1964-03-28") & date <= as.Date("1964-09-28") ~ "pre_4",
+    date >= as.Date("1964-09-28") & date <= as.Date("1964-10-05") ~ "hurricane_4", #hilda
+    date >= as.Date("1964-10-05") & date <= as.Date("1965-04-05") ~ "post_4",
+    date >= as.Date("1965-02-27") & date <= as.Date("1965-08-27") ~ "pre_4",
+    date >= as.Date("1965-08-27") & date <= as.Date("1965-09-13") ~ "hurricane_4", #betsy
+    date >= as.Date("1965-09-13") & date <= as.Date("1966-03-13") ~ "post_4",
+    date >= as.Date("1974-02-28") & date <= as.Date("1974-08-29") ~ "pre_4",
+    date >= as.Date("1974-08-29") & date <= as.Date("1974-09-10") ~ "hurricane_4", #carmen -- external
+    date >= as.Date("1974-09-10") & date <= as.Date("1975-03-10") ~ "post_4",
+    date >= as.Date("1998-03-15") & date <= as.Date("1998-09-15") ~ "pre_4",
+    date >= as.Date("1998-09-15") & date <= as.Date("1998-10-01") ~ "hurricane_4", #georges
+    date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_4",
+    date >= as.Date("2002-03-21") & date <= as.Date("2002-09-21") ~ "pre_4",
+    date >= as.Date("2002-09-21") & date <= as.Date("2002-10-04") ~ "hurricane_4", #lili -- external 
+    date >= as.Date("2002-10-04") & date <= as.Date("2003-04-04") ~ "post_4",
+    date >= as.Date("1985-02-28") & date <= as.Date("1985-08-28") ~ "pre_3",
+    date >= as.Date("1985-08-28") & date <= as.Date("1985-09-04") ~ "hurricane_3", #elena
+    date >= as.Date("1985-09-04") & date <= as.Date("1986-03-04") ~ "post_3",
+    date >= as.Date("2002-03-14") & date <= as.Date("2002-09-14") ~ "pre_3",
+    date >= as.Date("2002-09-14") & date <= as.Date("2002-09-27") ~ "hurricane_3", #isidore 
+    date >= as.Date("2002-09-27") & date <= as.Date("2003-03-27") ~ "post_3",
+    date >= as.Date("1979-01-09") & date <= as.Date("1979-07-09") ~ "pre_1",
+    date >= as.Date("1979-07-09") & date <= as.Date("1979-07-16") ~ "hurricane_1", #bob
+    date >= as.Date("1979-07-16") & date <= as.Date("1980-01-16") ~ "post_1",
+    date >= as.Date("1985-02-12") & date <= as.Date("1985-08-12") ~ "pre_1",
+    date >= as.Date("1985-08-12") & date <= as.Date("1985-08-20") ~ "hurricane_1", #danny -- external
+    date >= as.Date("1985-08-20") & date <= as.Date("1986-02-20") ~ "post_1",
+    date >= as.Date("1985-04-26") & date <= as.Date("1985-10-26") ~ "pre_1",
+    date >= as.Date("1985-10-26") & date <= as.Date("1985-11-03") ~ "hurricane_1", #juan
+    date >= as.Date("1985-11-03") & date <= as.Date("1986-05-03") ~ "post_1",
+    date >= as.Date("1988-03-07") & date <= as.Date("1988-09-07") ~ "pre_1",
+    date >= as.Date("1988-09-07") & date <= as.Date("1988-09-11") ~ "hurricane_1", #florence
+    date >= as.Date("1988-09-11") & date <= as.Date("1989-03-11") ~ "post_1",
+    date >= as.Date("1997-01-16") & date <= as.Date("1997-07-16") ~ "pre_1",
+    date >= as.Date("1997-07-16") & date <= as.Date("1997-07-27") ~ "hurricane_1", #danny
+    date >= as.Date("1997-07-27") & date <= as.Date("1998-01-27") ~ "post_1",
+    date >= as.Date("1988-02-07") & date <= as.Date("1988-08-07") ~ "pre_ts",
+    date >= as.Date("1988-08-08") & date <= as.Date("1988-08-10") ~ "tropical_storm", #beryl
+    date >= as.Date("1988-08-11") & date <= as.Date("1989-02-11") ~ "post_ts",
+    date >= as.Date("1998-03-26") & date <= as.Date("1998-09-26") ~ "pre_ts",
+    date >= as.Date("1998-09-27") & date <= as.Date("1998-09-30") ~ "tropical_storm", #hermine
+    date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_ts",
+    date >= as.Date("2000-12-05") & date <= as.Date("2001-06-05") ~ "pre_ts",
+    date >= as.Date("2001-06-05") & date <= as.Date("2001-06-20") ~ "tropical_storm", #allison
+    date >= as.Date("2001-06-20") & date <= as.Date("2001-12-20") ~ "post_ts",
+    date >= as.Date("2002-02-04") & date <= as.Date("2002-08-04") ~ "pre_ts",
+    date >= as.Date("2002-08-04") & date <= as.Date("2002-08-09") ~ "tropical_storm", #bertha
+    date >= as.Date("2002-08-09") & date <= as.Date("2003-02-09") ~ "post_ts",
+    date >= as.Date("2002-03-12") & date <= as.Date("2002-09-12") ~ "pre_ts",
+    date >= as.Date("2002-09-12") & date <= as.Date("2002-09-15") ~ "tropical_storm", #hanna
+    date >= as.Date("2002-09-15") & date <= as.Date("2003-03-15") ~ "post_ts",
+    date >= as.Date("2002-12-27") & date <= as.Date("2003-06-27") ~ "pre_ts",
+    date >= as.Date("2003-06-28") & date <= as.Date("2003-07-03") ~ "tropical_storm", #bill
+    date >= as.Date("2003-07-04") & date <= as.Date("2004-01-04") ~ "post_ts",
+    date >= as.Date("1965-03-23") & date <= as.Date("1965-09-23") ~ "pre_ts",
+    date >= as.Date("1965-09-24") & date <= as.Date("1965-09-30") ~ "tropical_storm", #debbie
+    date >= as.Date("1965-10-01") & date <= as.Date("1966-04-01") ~ "post_ts",
+    date >= as.Date("1995-01-30") & date <= as.Date("1995-07-30") ~ "pre_double",
+    date >= as.Date("1995-07-31") & date <= as.Date("1995-10-06") ~ "hurricane_double", #opal (4) and erin (2) combined
+    date >= as.Date("1995-10-07") & date <= as.Date("1996-04-07") ~ "post_double",
+    TRUE ~ "no event"
+  ))
+
+
+# make a new column for storm intensity
+
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(storm_intensity = case_when(
+    str_detect(ewe_type, "1") ~ "one",
+    str_detect(ewe_type, "2") ~ "two",
+    str_detect(ewe_type, "3") ~ "three",
+    str_detect(ewe_type, "4") ~ "four",
+    str_detect(ewe_type, "5") ~ "five",
+    str_detect(ewe_type, "ts") ~ "ts",
+    str_detect(ewe_type, "double") ~ "double",
+    TRUE ~ "no event"
+  ))
+
+# new control assignment, randomly assign a year to each of the actual hurricane periods according to the combined_by_random df, so that they flow sequentially. For example, if the random number 1 corresponds to the year 1966, then assign the first control to be that year on the first sequential hurricane in the list, so hurricane camille becomes 1966
+
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(control = case_when(
+    date >= as.Date("1966-02-14") & date <= as.Date("1966-08-14") ~ "pre_control",
+    date >= as.Date("1966-08-14") & date <= as.Date("1966-08-22") ~ "control", #camille
+    date >= as.Date("1966-08-22") & date <= as.Date("1967-02-22") ~ "post_control",
+    date >= as.Date("1993-03-05") & date <= as.Date("1993-09-05") ~ "pre_control",
+    date >= as.Date("1993-09-05") & date <= as.Date("1993-09-15") ~ "control", #edith
+    date >= as.Date("1993-09-15") & date <= as.Date("1994-03-15") ~ "post_control",
+    date >= as.Date("1981-02-16") & date <= as.Date("1981-08-16") ~ "pre_control",
+    date >= as.Date("1981-08-16") & date <= as.Date("1981-08-19") ~ "control", #andrew
+    date >= as.Date("1981-08-19") & date <= as.Date("1982-03-19") ~ "post_control",
+    date >= as.Date("1976-03-02") & date <= as.Date("1976-09-02") ~ "pre_control",
+    date >= as.Date("1976-09-02") & date <= as.Date("1976-09-25") ~ "control", #ivan -- external
+    date >= as.Date("1976-09-25") & date <= as.Date("1977-03-25") ~ "post_control",
+    date >= as.Date("1975-02-27") & date <= as.Date("1975-08-27") ~ "pre_control",
+    date >= as.Date("1975-08-27") & date <= as.Date("1975-09-13") ~ "control", #betsy
+    date >= as.Date("1975-09-13") & date <= as.Date("1976-03-13") ~ "post_control",
+    date >= as.Date("1989-02-28") & date <= as.Date("1989-08-29") ~ "pre_control",
+    date >= as.Date("1989-08-29") & date <= as.Date("1989-09-10") ~ "control", #carmen -- external
+    date >= as.Date("1989-09-10") & date <= as.Date("1990-03-10") ~ "post_control",
+    date >= as.Date("1991-03-15") & date <= as.Date("1991-09-15") ~ "pre_control",
+    date >= as.Date("1991-09-15") & date <= as.Date("1991-10-01") ~ "control", #georges
+    date >= as.Date("1991-10-01") & date <= as.Date("1992-04-01") ~ "post_control",
+    date >= as.Date("1986-03-21") & date <= as.Date("1986-09-21") ~ "pre_control",
+    date >= as.Date("1986-09-21") & date <= as.Date("1986-10-04") ~ "control", #lili -- external 
+    date >= as.Date("1986-10-04") & date <= as.Date("1987-04-04") ~ "post_control",
+    date >= as.Date("1987-02-28") & date <= as.Date("1987-08-28") ~ "pre_control",
+    date >= as.Date("1987-08-28") & date <= as.Date("1987-09-04") ~ "control", #elena
+    date >= as.Date("1987-09-04") & date <= as.Date("1988-03-04") ~ "post_control",
+    date >= as.Date("1973-03-14") & date <= as.Date("1973-09-14") ~ "pre_control",
+    date >= as.Date("1973-09-14") & date <= as.Date("1973-09-27") ~ "control", #isidore 
+    date >= as.Date("1973-09-27") & date <= as.Date("1974-03-27") ~ "post_control",
+    date >= as.Date("1978-01-09") & date <= as.Date("1978-07-09") ~ "pre_control",
+    date >= as.Date("1978-07-09") & date <= as.Date("1978-07-16") ~ "control", #bob
+    date >= as.Date("1978-07-16") & date <= as.Date("1979-01-16") ~ "post_control",
+    date >= as.Date("1982-02-12") & date <= as.Date("1982-08-12") ~ "pre_control",
+    date >= as.Date("1982-08-12") & date <= as.Date("1982-08-20") ~ "control", #danny -- external
+    date >= as.Date("1982-08-20") & date <= as.Date("1983-02-20") ~ "post_control",
+    date >= as.Date("1984-04-26") & date <= as.Date("1984-10-26") ~ "pre_control",
+    date >= as.Date("1984-10-26") & date <= as.Date("1984-11-03") ~ "control", #juan
+    date >= as.Date("1984-11-03") & date <= as.Date("1985-05-03") ~ "post_control",
+    date >= as.Date("1994-03-07") & date <= as.Date("1994-09-07") ~ "pre_control",
+    date >= as.Date("1994-09-07") & date <= as.Date("1994-09-11") ~ "control", #florence
+    date >= as.Date("1994-09-11") & date <= as.Date("1995-03-11") ~ "post_control",
+    date >= as.Date("1990-01-16") & date <= as.Date("1990-07-16") ~ "pre_control",
+    date >= as.Date("1990-07-16") & date <= as.Date("1990-07-27") ~ "control", #danny
+    date >= as.Date("1990-07-27") & date <= as.Date("1991-01-27") ~ "post_control",
+    date >= as.Date("1999-02-07") & date <= as.Date("1999-08-07") ~ "pre_control",
+    date >= as.Date("1999-08-08") & date <= as.Date("1999-08-10") ~ "control", #beryl
+    date >= as.Date("1999-08-11") & date <= as.Date("2000-02-11") ~ "post_control",
+    date >= as.Date("1983-03-26") & date <= as.Date("1983-09-26") ~ "pre_control",
+    date >= as.Date("1983-09-27") & date <= as.Date("1983-09-30") ~ "control", #hermine
+    date >= as.Date("1983-10-01") & date <= as.Date("1984-04-01") ~ "post_control",
+    date >= as.Date("1980-02-04") & date <= as.Date("1980-08-04") ~ "pre_control",
+    date >= as.Date("1980-08-04") & date <= as.Date("1980-08-09") ~ "control", #bertha
+    date >= as.Date("1980-08-09") & date <= as.Date("1981-02-09") ~ "post_control",
+    date >= as.Date("1972-03-12") & date <= as.Date("1972-09-12") ~ "pre_control",
+    date >= as.Date("1972-09-12") & date <= as.Date("1972-09-15") ~ "control", #hanna
+    date >= as.Date("1972-09-15") & date <= as.Date("1973-03-15") ~ "post_control",
+    date >= as.Date("1996-12-27") & date <= as.Date("1996-06-27") ~ "pre_control",
+    date >= as.Date("1996-06-28") & date <= as.Date("1996-07-03") ~ "control", #bill
+    date >= as.Date("1996-07-04") & date <= as.Date("1997-01-04") ~ "post_control",
+    date >= as.Date("1977-03-23") & date <= as.Date("1977-09-23") ~ "pre_control",
+    date >= as.Date("1977-09-24") & date <= as.Date("1977-09-30") ~ "control", #debbie
+    date >= as.Date("1977-10-01") & date <= as.Date("1978-04-01") ~ "post_control",
+    date >= as.Date("1963-01-30") & date <= as.Date("1963-07-30") ~ "pre_control",
+    date >= as.Date("1963-07-31") & date <= as.Date("1963-10-06") ~ "control", #opal (4) and erin (2) combined
+    date >= as.Date("1963-10-07") & date <= as.Date("1964-04-07") ~ "post_control",
+    TRUE ~ "no event"
+  ))
+
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(event = case_when(
+    ewe_type == "pre_5" ~ "hurricane",
+    ewe_type == "post_5" ~ "hurricane",
+    ewe_type == "pre_4" ~ "hurricane",
+    ewe_type == "post_4" ~ "hurricane",
+    ewe_type == "pre_3" ~ "hurricane",
+    ewe_type == "post_3" ~ "hurricane",
+    ewe_type == "pre_2" ~ "hurricane",
+    ewe_type == "post_2" ~ "hurricane",
+    ewe_type == "pre_1" ~ "hurricane",
+    ewe_type == "post_1" ~ "hurricane",
+    ewe_type == "pre_ts" ~ "hurricane",
+    ewe_type == "post_ts" ~ "hurricane",
+    ewe_type == "pre_double" ~ "hurricane",
+    ewe_type == "post_double" ~ "hurricane",
+    ewe_type == "no event" & control == "pre_control" ~ "control",
+    ewe_type == "no event" & control == "post_control" ~ "control",
+    TRUE ~ "NA"
+  )) %>%
+  filter(event != "NA")
+
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(timing = case_when(
+    ewe_type == "pre_5" ~ "pre",
+    ewe_type == "post_5" ~ "post",
+    ewe_type == "pre_4" ~ "pre",
+    ewe_type == "post_4" ~ "post",
+    ewe_type == "pre_3" ~ "pre",
+    ewe_type == "post_3" ~ "post",
+    ewe_type == "pre_2" ~ "pre",
+    ewe_type == "post_2" ~ "post",
+    ewe_type == "pre_1" ~ "pre",
+    ewe_type == "post_1" ~ "post",
+    ewe_type == "pre_ts" ~ "pre",
+    ewe_type == "post_ts" ~ "post",
+    ewe_type == "pre_double" ~ "pre",
+    ewe_type == "post_double" ~ "post",
+    control == "pre_control" ~ "pre",
+    control == "post_control" ~ "post",
+    ewe_type == "hurricane_4" ~ "during",
+    TRUE ~ "NA"
+  )) %>% 
+  filter(timing != "NA")
+
+
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
+  mutate(timing = relevel(timing, ref = "pre")) %>% 
+  mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
+  mutate(event = relevel(event, ref = "control")) 
+
+# ===== filtering for abundance analysis ===== #
+# drop low replicate categories
+hurricane_df_abundance <- hurricane_df6 %>%
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
+  dplyr::mutate(psite_type = droplevels(psite_type))
+
+# filter out all remaining NAs from the psite_abundance column --> there are some but shouldn't be 
+hurricane_df_abundance <- hurricane_df_abundance %>%
+  filter(!is.na(psite_abundance))
+
+# ===== filtering for prevalence analysis ===== #
+# drop low replicate categories
+hurricane_df_prevalence <- hurricane_df6 %>%
+  filter(psite_type %in% c("myxozoan"))
+
+# filter out all remaining NAs from the psite_prevalence column --> there are none
+hurricane_df_prevalence <- hurricane_df_prevalence %>%
+  filter(!is.na(psite_prevalence))
+
+```
+
+Control troubleshooting
+```{r control troubleshooting, eval=FALSE, echo=TRUE}
+# check for overlapping dates in control and hurricane events
+control_dates_df <- data.frame(
+  Start_Date = c(
+    "1966-02-14", "1966-08-14", "1966-08-22",
+    "1993-03-05", "1993-09-05", "1993-09-15",
+    "1981-02-16", "1981-08-16", "1981-08-19",
+    "1976-03-02", "1976-09-02", "1976-09-25",
+    "2000-03-28", "2000-09-28", "2000-10-05",
+    "1975-02-27", "1975-08-27", "1975-09-13",
+    "1989-02-28", "1989-08-29", "1989-09-10",
+    "1991-03-15", "1991-09-15", "1991-10-01",
+    "1986-03-21", "1986-09-21", "1986-10-04",
+    "1987-02-28", "1987-08-28", "1987-09-04",
+    "1973-03-14", "1973-09-14", "1973-09-27",
+    "1978-01-09", "1978-07-09", "1978-07-16",
+    "1982-02-12", "1982-08-12", "1982-08-20",
+    "1984-04-26", "1984-10-26", "1984-11-03",
+    "1994-03-07", "1994-09-07", "1994-09-11",
+    "1990-01-16", "1990-07-16", "1990-07-27",
+    "1999-02-07", "1999-08-08", "1999-08-11",
+    "1983-03-26", "1983-09-27", "1983-10-01",
+    "1969-12-05", "1970-06-05", "1970-06-20",
+    "1980-02-04", "1980-08-04", "1980-08-09",
+    "1972-03-12", "1972-09-12", "1972-09-15",
+    "1996-12-27", "1996-06-28", "1996-07-04",
+    "1977-03-23", "1977-09-24", "1977-10-01",
+    "1963-01-30", "1963-07-31", "1963-10-07"
+  ),
+  End_Date = c(
+    "1996-08-14", "1966-08-22", "1967-02-22",
+    "1993-09-05", "1993-09-15", "1994-03-15",
+    "1981-08-16", "1981-08-19", "1982-03-19",
+    "1976-09-02", "1976-09-25", "1977-03-25",
+    "2000-09-28", "2000-10-05", "2001-04-05",
+    "1975-08-27", "1975-09-13", "1976-03-13",
+    "1989-08-29", "1989-09-10", "1990-03-10",
+    "1991-09-15", "1991-10-01", "1992-04-01",
+    "1986-09-21", "1986-10-04", "1987-04-04",
+    "1987-08-28", "1987-09-04", "1988-03-04",
+    "1973-09-14", "1973-09-27", "1974-03-27",
+    "1978-07-09", "1978-07-16", "1979-01-16",
+    "1982-08-12", "1982-08-20", "1983-02-20",
+    "1984-10-26", "1984-11-03", "1985-05-03",
+    "1994-09-07", "1994-09-11", "1995-03-11",
+    "1990-07-16", "1990-07-27", "1991-01-27",
+    "1999-08-07", "1999-08-10", "2000-02-11",
+    "1983-09-26", "1983-09-30", "1984-04-01",
+    "1970-06-05", "1970-06-20", "1971-12-20",
+    "1980-08-04", "1980-08-09", "1981-02-09",
+    "1972-09-12", "1972-09-15", "1973-03-15",
+    "1996-06-27", "1996-07-03", "1997-01-04",
+    "1977-09-23", "1977-09-30", "1978-04-01",
+    "1963-07-30", "1963-10-06", "1964-04-07"
+  ),
+  stringsAsFactors = FALSE
+)
+
+hurricane_dates_df <- data.frame(
+  Start_Date = as.Date(c(
+    "1969-02-14", "1969-08-14", "1969-08-22",
+    "1971-03-05", "1971-09-05", "1971-09-15",
+    "1992-02-16", "1992-08-16", "1992-08-19",
+    "2004-03-02", "2004-09-02", "2004-09-25",
+    "1964-03-28", "1964-09-28", "1964-10-05",
+    "1965-02-27", "1965-08-27", "1965-09-13",
+    "1974-02-28", "1974-08-29", "1974-09-10",
+    "1998-03-15", "1998-09-15", "1998-10-01",
+    "2002-03-21", "2002-09-21", "2002-10-04",
+    "1985-02-28", "1985-08-28", "1985-09-04",
+    "2002-03-14", "2002-09-14", "2002-09-27",
+    "1979-01-09", "1979-07-09", "1979-07-16",
+    "1985-02-12", "1985-08-12", "1985-08-20",
+    "1985-04-26", "1985-10-26", "1985-11-03",
+    "1988-03-07", "1988-09-07", "1988-09-11",
+    "1997-01-16", "1997-07-16", "1997-07-27",
+    "1988-02-07", "1988-08-08", "1988-08-11",
+    "1998-03-26", "1998-09-27", "1998-10-01",
+    "2000-12-05", "2001-06-05", "2001-06-20",
+    "2002-02-04", "2002-08-04", "2002-08-09",
+    "2002-03-12", "2002-09-12", "2002-09-15",
+    "2002-09-15", "2002-12-27", "2003-06-28",
+    "2003-07-04", "1965-03-23", "1965-09-24",
+    "1965-10-01", "1995-01-30", "1995-07-31",
+    "1995-10-07"
+  )),
+  End_Date = as.Date(c(
+    "1969-08-14", "1969-08-22", "1970-02-22",
+    "1971-09-05", "1971-09-15", "1972-03-15",
+    "1992-08-16", "1992-08-19", "1993-03-19",
+    "2004-09-02", "2004-09-25", "2005-03-25",
+    "1964-09-28", "1964-10-05", "1965-04-05",
+    "1965-08-27", "1965-09-13", "1966-03-13",
+    "1974-08-29", "1974-09-10", "1975-03-10",
+    "1998-09-15", "1998-10-01", "1999-04-01",
+    "2002-09-21", "2002-10-04", "2003-04-04",
+    "1985-08-28", "1985-09-04", "1986-03-04",
+    "2002-09-14", "2002-09-27", "2003-03-27",
+    "1979-07-09", "1979-07-16", "1980-01-16",
+    "1985-08-12", "1985-08-20", "1986-02-20",
+    "1985-10-26", "1985-11-03", "1986-05-03",
+    "1988-09-07", "1988-09-11", "1989-03-11",
+    "1997-07-16", "1997-07-27", "1998-01-27",
+    "1988-08-07", "1988-08-10", "1989-02-11",
+    "1998-09-26", "1998-09-30", "1999-04-01",
+    "2001-06-05", "2001-06-20", "2001-12-20",
+    "2002-08-04", "2002-08-09", "2003-02-09",
+    "2002-09-12", "2002-09-15", "2003-03-15",
+    "2002-12-27", "2003-06-27", "2003-07-03",
+    "2004-01-04", "1965-09-23", "1965-09-30",
+    "1966-04-01", "1995-07-30", "1995-10-06",
+    "1996-04-07"
+  ))
+)
+
+
+# Convert Start_Date and End_Date to Date class if not already
+control_dates_df <- control_dates_df %>%
+  mutate(
+    Start_Date = as.Date(Start_Date),
+    End_Date = as.Date(End_Date),
+    Year = year(Start_Date),
+    Type = "control"
+  )
+
+hurricane_dates_df <- hurricane_dates_df %>%
+  mutate(
+    Year = year(Start_Date),
+    Type = "hurricane"
+  )
+
+combined_df <- bind_rows(control_dates_df, hurricane_dates_df)
+
+control_years <- combined_df %>% filter(Type == "control") %>% pull(Year) %>% unique()
+hurricane_years <- combined_df %>% filter(Type == "hurricane") %>% pull(Year) %>% unique()
+
+overlap_years <- intersect(control_years, hurricane_years)
+
+overlap_df <- combined_df %>%
+  filter(Year %in% overlap_years)
+
+# years where hurricane and control events overlap: 1969, 2000 --> eliminate these from the control category (done up above)
+```
+Is there any way to make a psite_type reference category like we do for control? make some sort of average control parasite type?
+
+# Abundance
+## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
+```{r}
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+ha.reps <- hurricane_df_abundance %>% 
+  group_by(event, timing, psite_type, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# plot how many of each category we have
+raw1 <- ggplot(ha.reps,
+       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type
+ha.bins1 <- hurricane_df_abundance %>% 
+  group_by(event, timing, psite_type) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw2 <- ggplot(ha.bins1,
+       aes(x = timing, y = avg.bin, fill = psite_type)) +
+  facet_wrap( ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+ha.bins2 <- hurricane_df_abundance %>% 
+  group_by(event, timing, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw3 <- ggplot(ha.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_raw <- ggarrange(raw1, raw2, raw3, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C"))
+plot(hurricane_abundance_raw)
+```
+
+## Drop carvel and pervig from analysis since they do not have monos and metas consistently
+```{r}
+hurricane_df_abundance_only_full <- hurricane_df_abundance %>% 
+  filter(!fish_sp_x %in% c("Percina vigil", "Carpiodes velifer"))
+
+# plot new raw data
+# how many replicates are in each category--> this is just the number of occurrences, not abundance of parasites
+ha.reps <- hurricane_df_abundance_only_full %>% 
+  group_by(event, timing, psite_type, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# plot how many of each category we have
+raw1_f <- ggplot(ha.reps,
+       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type --> average abundances 
+ha.bins1 <- hurricane_df_abundance_only_full %>% 
+  group_by(event, timing, psite_type) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw2_f <- ggplot(ha.bins1,
+       aes(x = timing, y = avg.bin, fill = psite_type)) +
+  facet_wrap( ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Timing", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+ha.bins2 <- hurricane_df_abundance_only_full %>% 
+  group_by(event, timing, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+raw3_f <- ggplot(ha.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_raw_only_full <- ggarrange(raw1_f, raw2_f, raw3_f, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C"))
+plot(hurricane_abundance_raw_only_full)
+```
+## Seasonality influencing distribution of abundance
+```{r}
+# month against number of replicates
+ha.season <- hurricane_df_abundance_only_full %>% 
+  group_by(event, timing, psite_type, fish_sp_x, season) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+ggplot(ha.season,
+       aes(x = season, y = avg.bin, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Season", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = ha.season)
+simulateResiduals(fittedModel = season_model, plot = TRUE)
+summary(season_model)
+plot(parameters(season_model))
+```
+
+## Abundance Models
+### Negative binomial glmmTMB model validation
+```{r model validation abundance, echo=FALSE, eval=FALSE}
+# no offset
+# nbinom1 log
+
+nbinom1log <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1, data = hurricane_df_abundance_only_full)
+
+# nbinom1 sqrt
+
+nbinom1sqrt <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df_abundance_only_full)
+
+# nbinom2 log
+
+nbinom2log <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance_only_full)
+
+# nbinom2 sqrt
+
+nbinom2sqrt <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df_abundance_only_full)
+
+# nbinom12 log
+
+nbinom12log <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12, data = hurricane_df_abundance_only_full)
+
+#nbinom12 sqrt
+
+nbinom12sqrt <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df_abundance_only_full)
+## offset
+
+# nbinom1 log
+
+nbinom1logoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = hurricane_df_abundance_only_full)
+
+# nbinom1 sqrt
+
+nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df_abundance_only_full)
+
+# nbinom2 log
+
+nbinom2logoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = hurricane_df_abundance_only_full)
+
+# nbinom2 sqrt
+
+nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df_abundance_only_full)
+
+# nbinom12 log
+
+nbinom12logoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = hurricane_df_abundance_only_full)
+
+#nbinom12 sqrt
+
+nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df_abundance_only_full)
+
+
+# List of all model objects
+models <- list(
+  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
+  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
+  nbinom12logoff, nbinom12sqrtoff
+)
+
+# Model names
+model_names <- c(
+  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
+  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
+  "nbinom12logoff", "nbinom12sqrtoff"
+)
+
+# Simulate residuals and extract diagnostics
+residual_summaries <- map2_df(models, model_names, function(model, name) {
+  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
+  data.frame(
+    model = name,
+    dispersion = testDispersion(sim)$p.value,
+    uniformity = testUniformity(sim)$p.value,
+    outliers = testOutliers(sim)$p.value,
+    AIC = AIC(model)
+  )
+})
+
+# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
+residual_summaries %>%
+  arrange(AIC) %>%
+  print()
+```
+
+## Final Hurricane Abundance Model
+```{r}
+# run model 
+final_h_abundance <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance_only_full)
+
+simulateResiduals(fittedModel = final_h_abundance, plot = TRUE)
+summary(final_h_abundance)
+plot(parameters(final_h_abundance))
+```
+
+## Plots -- Abundance
+```{r}
+#### A 
+a1a <- ggpredict(final_h_abundance, terms = c("psite_type", "event"))
+a1a <- a1a %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+
+a1ap <- ggplot(a1a,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### B
+a1b <- ggpredict(final_h_abundance, terms = c("psite_type", "event"))
+a1b <- a1b %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+a1b <- a1b %>% 
+  filter(psite_type %in% c("trematode"))
+
+a1bp <- ggplot(a1b,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### C
+a1c <- ggpredict(final_h_abundance, terms = c("psite_type", "event", "timing"))
+a1c <- a1c %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
+
+a1c <- a1c %>% 
+  filter(psite_type %in% c("trematode"))
+
+a1cp <- ggplot(a1c,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### D
+a1d <- ggpredict(final_h_abundance, terms = c("psite_type", "event", "timing"))
+a1d <- a1d %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
+
+a1d <- a1d %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+a1dp <- ggplot(a1d,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 7), breaks = seq(0, 7, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### E
+a1e <- ggpredict(final_h_abundance, terms = c("psite_type", "event"))
+a1e <- a1e %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+a1e <- a1e %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+a1ep <- ggplot(a1e,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 7), breaks = seq(0, 7, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# try to plot only monos
+a1m <- ggpredict(final_h_abundance, terms = c("psite_type", "event", "timing"))
+a1m <- a1m %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group,
+    timing = facet)
+
+a1m <- a1m %>% 
+  filter(psite_type %in% c("monogenean"))
+
+a1mp <- ggplot(a1m,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_plot <- ggarrange(a1ap, a1cp, a1dp, a1mp, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
+plot(hurricane_abundance_plot)
+```
+## Zero inflated results plotted - abundance
+```{r}
+#### A 
+azi1 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event"), component = "zi")
+
+azi1 <- azi1 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi1p <- ggplot(azi1, aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
+                               "monogenean" = "#A6E000",
+                               "trematode" = "#c9ad79",
+                               "myxozoan" = "#07c3c5")) +
+  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
+  labs(x = "Event",
+       y = "Zero-Inflation Estimate",
+       fill = "Parasite Type",
+       linetype = "Parasite Type") +
+  connor_theme
+
+
+#### B
+azi2 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event"), component = "zi")
+
+azi2 <- azi2 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi2 <- azi2 %>% 
+  filter(psite_type %in% c("trematode"))
+
+azi2p <- ggplot(azi2,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### C
+azi3 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event", "timing"), component = "zi")
+
+azi3 <- azi3 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet
+  )
+
+azi3 <- azi3 %>% 
+  filter(psite_type %in% c("trematode"))
+
+azi3p <- ggplot(azi3,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### D
+azi4 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event", "timing"), component = "zi")
+
+azi4 <- azi4 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet
+  )
+
+azi4 <- azi4 %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+azi4p <- ggplot(azi4,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### E
+azi5 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event"), component = "zi")
+
+azi5 <- azi5 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi5 <- azi5 %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+azi5p <- ggplot(azi5,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# try to plot only monos
+azi6 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event", "timing"), component = "zi")
+
+azi6 <- azi6 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group,
+    timing = facet
+  )
+
+azi6 <- azi6 %>% 
+  filter(psite_type %in% c("monogenean"))
+
+azi6p <- ggplot(azi6,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_plot_zi <- ggarrange(azi1p, azi3p, azi4p, azi6p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
+plot(hurricane_abundance_plot_zi)
+```
+## Abundance zi and normal abundance but only estimates of parasites in total (no timing or event)
+```{r}
+# normal abundance
+a_tot <- ggpredict(final_h_abundance, terms = c("psite_type"))
+a_tot <- a_tot %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high)
+
+
+ap_tot <- ggplot(a_tot,
+       aes(x = psite_type, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2)) + 
+  labs(x = "Parasite Type", y = "Abundance Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# zi
+azi_tot <- ggemmeans(final_h_abundance, terms = c("psite_type"), component = "zi")
+
+azi_tot <- azi_tot %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high
+  )
+
+azip_tot <- ggplot(azi_tot, aes(x = psite_type, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
+                               "monogenean" = "#A6E000",
+                               "trematode" = "#c9ad79",
+                               "myxozoan" = "#07c3c5")) +
+  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
+  labs(x = "Parasite Type",
+         y = "Zero-Inflation Estimate",
+       fill = "Parasite Type",
+       linetype = "Parasite Type") +
+  connor_theme
+
+# combine both plots
+hurricane_abundance_zi_normal_tot <- ggarrange(ap_tot, azip_tot, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(hurricane_abundance_zi_normal_tot)
+
+```
+
+# Prevalence 
+Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
+```{r}
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+hp.reps <- hurricane_df_prevalence %>% 
+  group_by(event, timing, psite_type, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# plot how many of each category we have
+raw1p <- ggplot(hp.reps,
+       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type
+hp.bins1 <- hurricane_df_prevalence %>% 
+  group_by(event, timing, psite_type) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+# use this as the raw plot of data
+raw2p <- ggplot(hp.bins1,
+       aes(x = timing, y = avg.bin, fill = psite_type)) +
+  facet_wrap( ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+hp.bins2 <- hurricane_df_prevalence %>% 
+  group_by(event, timing, psite_type, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+# use this as the raw plot of data
+raw3p <- ggplot(hp.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_prevalence_raw <- ggarrange(raw1p, raw2p, raw3p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C"))
+plot(hurricane_prevalence_raw)
+
+# no myxos in percina -- is already not in the database
+```
+
+## Seasonality influencing distribution - prevalence
+```{r}
+# month against number of replicates
+hp.season <- hurricane_df_prevalence %>% 
+  group_by(event, timing, psite_type, fish_sp_x, season) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+ggplot(hp.season,
+       aes(x = season, y = avg.bin, fill = psite_type)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Season", y = "Average Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = hp.season)
+simulateResiduals(fittedModel = season_model, plot = TRUE)
+summary(season_model)
+plot(parameters(season_model))
+
+# summer and intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? 
+```
+
+
+## Prevalence Models
+```{r model validation prevalence, eval=FALSE, echo=FALSE}
+# no offset
+# nbinom1 log
+
+nbinom1log <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (total_length_mm|fish_sp_x),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x), 
+                                family = nbinom1, data = hurricane_df_prevalence)
+# nbinom1 sqrt
+
+nbinom1sqrt <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                family = nbinom1(link = "sqrt"), data = hurricane_df_prevalence)
+
+# nbinom2 log
+
+nbinom2log <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                family = nbinom2, data = hurricane_df_prevalence)
+
+# nbinom2 sqrt
+
+nbinom2sqrt <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                family = nbinom2(link = "sqrt"), data = hurricane_df_prevalence)
+
+# nbinom12 log
+
+nbinom12log <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                family = nbinom12, data = hurricane_df_prevalence)
+
+#nbinom12 sqrt
+
+nbinom12sqrt <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (total_length_mm|fish_sp_x),
+                                family = nbinom12(link = "sqrt"), data = hurricane_df_prevalence)
+
+
+## offset
+
+# nbinom1 log
+
+nbinom1logoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = hurricane_df_prevalence)
+
+# nbinom1 sqrt
+
+nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df_prevalence)
+
+# nbinom2 log
+
+nbinom2logoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = hurricane_df_prevalence)
+
+# nbinom2 sqrt
+
+nbinom2sqrtoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df_prevalence)
+
+# nbinom12 log
+
+nbinom12logoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = hurricane_df_prevalence)
+
+#nbinom12 sqrt
+
+nbinom12sqrtoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df_prevalence)
+
+
+
+# List of all model objects
+models <- list(
+  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
+  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
+  nbinom12logoff, nbinom12sqrtoff
+)
+
+# Model names
+model_names <- c(
+  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
+  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
+  "nbinom12logoff", "nbinom12sqrtoff"
+)
+
+# Simulate residuals and extract diagnostics
+residual_summaries <- map2_df(models, model_names, function(model, name) {
+  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
+  data.frame(
+    model = name,
+    dispersion = testDispersion(sim)$p.value,
+    uniformity = testUniformity(sim)$p.value,
+    outliers = testOutliers(sim)$p.value,
+    AIC = AIC(model)
+  )
+})
+
+# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
+residual_summaries %>%
+  arrange(AIC) %>%
+  print()
+
+```
+
+## Final Hurricane Prevalence Model
+```{r}
+# prevalence
+hurricane_prevalence_final <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = hurricane_df_prevalence)
+
+simulateResiduals(fittedModel = hurricane_prevalence_final, plot = TRUE)
+summary(hurricane_prevalence_final)
+plot(parameters(hurricane_prevalence_final))
+```
+
+switch things around so that monogenes are not reference category? how do i get stats on the reference level?
+
+## Plots -- hurricane prevalence
+## Hurricance prevalence prediction plot
+```{r}
+#### prevalence plot 
+
+p1p <- ggpredict(hurricane_prevalence_final, terms = c("event"))
+
+p1p <- p1p %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high
+  ) %>%
+  mutate(psite_type = "myxozoan") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+
+ggplot(p1p,
+         aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("myxozoan" = "#07c3c5")) +
+  labs(x = "Event", y = "Estimated Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+```
+
+# Estimating Biodiversity Changes
+Jackknife estimates - all parasites
+```{r}
+# create DF for biodiversity estimates -- drop species that have very low replication, so kick out all cilliate, nematomorph, leech, copepod observations (but lets keep in nematodes, cestodes, and acanths)
+# Remove unwanted parasite types and drop their factor levels
+biodiv_df <- hurricane_df6 %>% 
+  filter(!psite_type %in% c("nematomorph", "ciliate", "leech", "copepod")) %>% 
+  droplevels()
+
+# Get all unique combinations of grouping variables
+group_combos <- unique(biodiv_df[, c("event", "timing", "ci", "psite_type", "fish_sp_x",  "psite_spp_y")])
+
+# Empty results data frame
+jackknife_results <- data.frame(
+  event = character(),
+  timing = character(),
+  ci = character(),
+  psite_type = character(),
+  fish_sp_x = character(),
+  psite_spp_y = character(),
+  jackknife_mean_richness = numeric(),
+  total_psite_count = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop over each combination
+for (i in 1:nrow(group_combos)) {
+  event <- group_combos$event[i]
+  timing <- group_combos$timing[i]
+  ci <- group_combos$ci[i]
+  psite <- group_combos$psite_type[i]
+  fish <- group_combos$fish_sp_x[i]
+  rich <- group_combos$psite_spp_y[i]
+  
+  # Safe subsetting using which()
+  sub_df <- biodiv_df[which(
+    biodiv_df$event == event &
+    biodiv_df$timing == timing &
+    biodiv_df$ci == ci &
+    biodiv_df$psite_type == psite &
+    biodiv_df$fish_sp_x == fish &
+    biodiv_df$psite_spp_y == rich
+  ), ]
+  
+  # Remove 0-counts
+  sub_df <- sub_df[sub_df$psite_count != 0, ]
+  
+  # Skip if no data
+  if (nrow(sub_df) == 0) next
+  
+  # Unique samples
+  sample_ids <- unique(sub_df$x)
+  richness_values <- numeric(length(sample_ids))
+  
+  for (j in seq_along(sample_ids)) {
+    id_to_leave_out <- sample_ids[j]
+    df_minus_one <- sub_df[sub_df$x != id_to_leave_out, ]
+    richness_values[j] <- length(unique(df_minus_one$psite_spp_x))
+  }
+  
+  total_count <- sum(sub_df$psite_count, na.rm = TRUE)
+  
+  jackknife_results <- rbind(jackknife_results, data.frame(
+    event = event,
+    timing = timing,
+    ci = ci,
+    psite_type = as.character(psite), 
+    fish_sp_x = as.character(fish),
+    psite_spp_y = as.character(rich),
+    jackknife_mean_richness = mean(richness_values),
+    total_psite_count = total_count
+  ))
+}
+
+# Remove incomplete rows
+jackknife_results <- jackknife_results[complete.cases(jackknife_results), ]
+
+
+# create plots for the variety of combinations of factors we want to investigate
+
+# event
+ggplot(jackknife_results,
+       aes(x = psite_type, y = jackknife_mean_richness, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  facet_wrap(timing ~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme
+```
+
+## Plot jacknife estimates
+```{r}
+ggplot(jackknife_results,
+       aes(x = psite_type, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(timing ~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme 
+
+# trim df to be one df for each type of parasite
+acanths <- jackknife_results %>% 
+  filter(psite_type %in% c("acanthocephalan")) %>% 
+  droplevels()
+
+jk_a <- ggplot(jackknife_results,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+
+nems <- jackknife_results %>% 
+  filter(psite_type %in% c("nematode")) %>% 
+  droplevels()
+
+jk_n <- ggplot(nems,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+cest <- jackknife_results %>% 
+  filter(psite_type %in% c("cestode")) %>% 
+  droplevels()
+
+jk_c <- ggplot(cest,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+trem <- jackknife_results %>% 
+  filter(psite_type %in% c("trematode")) %>% 
+  droplevels() 
+
+jk_t <- ggplot(trem,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+trem_meta <- jackknife_results %>% 
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  droplevels()
+
+jk_tm <- ggplot(trem_meta,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+mono <- jackknife_results %>% 
+  filter(psite_type %in% c("monogenean")) %>% 
+  droplevels()
+
+jk_mono <- ggplot(mono,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+myxo <- jackknife_results %>% 
+  filter(psite_type %in% c("myxozoan")) %>% 
+  droplevels()
+
+jk_myxo <- ggplot(myxo,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+# combine all plots into one
+biodiv_plot_hurricane <- ggarrange(jk_a, jk_n, jk_c, jk_t, jk_tm, jk_mono, jk_myxo, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E", "F", "G"))
+plot(biodiv_plot_hurricane)
+
+```
+
+# Troubleshooting
+PROBLEMS TO FIX:
+1) why do the raw data plots not match the model plots (trematode) (solved above)
+```{r}
+## remove elements of the model sequentially to see what happens to the model afterwards
+# abundance 3 types
+ha_nbinom2log3 <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season), 
+                                family = nbinom2, data = hurricane_df_abundance)
+
+
+#### C
+a1c <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
+a1c <- a1c %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
+
+a1c <- a1c %>% 
+  filter(psite_type %in% c("trematode"))
+
+ggplot(a1c,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#RESULT:
+# Removing fish_psite_combo and total_length_mm|fish_psite_combo and fish_sp_x:
+# fish species is affecting the trend seen between the raw data and the predicted model, meaning that the high numbers of trematodes seen in hybnuc control are influencing the raw data (and are visible in the raw data) but when the model predictions hold this constant (as a random effect) that effect is insignificant.
+```
+now for metacercaria result (solved above too)
+```{r}
+## remove elements of the model sequentially to see what happens to the model afterwards
+# abundance 3 types
+ha_nbinom2log3 <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season), 
+                                family = nbinom2, data = hurricane_df_abundance)
+
+
+#### C
+a1c <- ggpredict(ha_nbinom2log3, terms = c("psite_type", "event", "timing"))
+a1c <- a1c %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
+
+a1c <- a1c %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+ggplot(a1c,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# RESULT: For metas, the raw data could be emphasizing the metas in pimvig in control compared to hurricane
+```
+
+# Outdated 6/17/25
+
+2) why are the myxo results between H and DF different
+```{r, eval=FALSE}
+# plot raw myxo data for hurricane
+ggplot(hurricane_df_prevalence,
+         aes(x = ci, y = psite_prevalence, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("myxozoan" = "#07c3c5")) + 
+  scale_y_continuous(limits = c(0, 1200), breaks = seq(0, 1200, by = 200)) +
+  labs(x = "CI Category", y = "Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme 
+
+# plot raw myxo data for DF
+ggplot(drought_flood_df_m,
+         aes(x = ci, y = psite_prevalence, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("myxozoan" = "#07c3c5")) + 
+  scale_y_continuous(limits = c(0, 1200), breaks = seq(0, 1200, by = 200)) +
+  labs(x = "CI Category", y = "Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme 
+```
+
+```{r}
+avg.bins.p <- hurricane_df_prevalence %>% 
+  group_by(event, timing, psite_type, ci) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+# use this as the raw plot of data
+ggplot(avg.bins.p,
+       aes(x = ci, y = avg.bin)) +
+  facet_wrap(timing ~ event) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+```
+Various troubleshooting
+FROM ARIAL -- WORKING ON ZI AND TESTING ASSUMPTIONS
+```{r, echo=FALSE, eval=FALSE}
+#### test 
+ha_nbinom2log3_zi <- glmmTMB(psite_abundance2 ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                family = binomial(link = "logit"), data = hurricane_df_abundance)
+
+ha_nbinom2log3 <- glmmTMB(psite_abundance ~ event*timing + psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance)
+
+
+ha_nbinom2log3_zi <- glmmTMB(psite_abundance2 ~ event*timing + psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                family = binomial(link = "logit"), data = hurricane_df_abundance)
+
+simulateResiduals(fittedModel = ha_nbinom2log3, plot = TRUE)
+summary(ha_nbinom2log3)
+plot(parameters(ha_nbinom2log3))
+
+
+simulateResiduals(fittedModel = ha_nbinom2log3_zi, plot = TRUE)
+summary(ha_nbinom2log3_zi)
+plot(parameters(ha_nbinom2log3_zi))
+
+levels(hurricane_df_abundance$psite_type)
+
+
+#####calculating odds percentage from coefficients- [(exp(coef)-1)*100]
+### ZI model (part one of hurdle)
+#behavior (travel)
+(exp(2.0029)-1)*100
+
+##################### Isolating hurdle part 1 to test which is reference (0 or 1)
+#add new column to create 0 and 1
+hurricane_df_abundance$psite_abundance2 <- as.numeric(hurricane_df_abundance$psite_abundance)
+
+#change non-zeros to 1
+hurricane_df_abundance$psite_abundance2[hurricane_df_abundance$psite_abundance2>0] <- 1
+
+#double check this worked and matches counts from original n_minute column --> counting up how many zeros are in the data
+sum(hurricane_df_abundance$psite_abundance2>0)
+sum(hurricane_df_abundance$psite_abundance2<1)
+
+#change to factor so we can relevel
+hurricane_df_abundance <- hurricane_df_abundance %>%
+  mutate(psite_abundance2=as.factor(psite_abundance2))
+
+levels(hurricane_df_abundance$psite_abundance2)
+
+hurricane_df_abundance <- hurricane_df_abundance %>%
+  mutate(psite_abundance2 = relevel(psite_abundance2, ref = "1"))
+
+#### end test
+```
+
+SUMMARY NOTES:
+- we have zero inflation 
+- if the conditional estimate is positive, then the count is higher 
+- if the zi estimate is positive, then you are expecting to see less ones and therefore more zeroes
+- the zi model only concerns itself with either 0 or 1 for each observation --> all non zero values of count are converted to 1 (0 is our reference level, meaning we are seeking to understand what makes a parasite more likely to be found relative to not being found)
+- UNANSWERED: does the conditional model contain zeros still, or are the zeros seperated out into the zi model (truncated removes all zeros from the conditional) --> I think yes, the zeros are still in the conditional model, the zi model just maps out the predictions of the probability of encountering a zero or not in a given sample given all factors
+- do I want to do odds ratio calculations?
+- META result I think can be explained by seasonality
+- basically, the way that the controls in hurricane are set up makes it so that all control pre values are march - september when metas are more present and all control post are oct-march when they are less abundant, so we see a drop off between pre and post for control BUT hurricanes are much more variable in their pre and post (since control is the average of all hurricane times) and therefore the seasonal effect of metas is being buried in the analysis SO it looks like there is a drop off between control and hurricane but actually the main difference is between pre and post BUT what i am unsure about is, shouldnt the model with the element of timing pick out this relationship as significant? or is that potentially something buried in the estimate, since the model is using the reference level of pre and control to judge everything else? 
+- OTHER Q: should we make all non control and non hurricane values into other control values? this is 1588 observations we are losing
+
+Metas and temperature -- does warmer temperature mean more metacercaria?
+```{r, echo=FALSE, eval=FALSE}
+nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)) + (1|mean_temperature),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)) + (1|mean_temperature), 
+                                family = nbinom1(link = "sqrt"), data = hatm)
+
+simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
+summary(nbinom1sqrtoff)
+plot(parameters(nbinom1sqrtoff))
+```
+
+Run df analyses with drought database
+```{r, echo=FALSE, eval=FALSE}
+### prevalence nbinom1sqrtoff
+nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ df_event + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ df_event + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df_prevalence)
+
+simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
+summary(nbinom1sqrtoff)
+plot(parameters(nbinom1sqrtoff))
+```
+
+
+MYXO RESULTS DIFFER FROM HURRICANE TO DF ANALYSIS
+- the sample sizes are different (there are 724 fewer observations in the hurricane df than there are in the drought/flood df)
+- when I run thedf analysis using the hurricane dataset, the significance of the ciImpact goes from p < 0.001 to = 0.0043, when I run the optimized model parameterization for the DF database (picking the model that has not necessarily the lowest AIC, but low AIC and also good dHarma) the significance of ciImpact goes down to 0.08
+- interpretation of this is that there is no significant relationship between CI and myxozoan prevalence in a hurricane or a drought, even though by just using the hurricane df we do see a significant relationship
+- maybe we dont have enough power to be detecting the effect in the hurricane df, but we do in the DF one? 
+- I also think that the parameterization and LACK of a interactive term in the DF model might be changing these results from H to DF, but I don't know which of those is more important 
+
+
+
+
+
+

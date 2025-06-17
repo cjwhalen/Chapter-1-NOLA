@@ -63,6 +63,23 @@ library(purrr)
 library(vegan)
 library(reghelper)
 ```
+#### Set up aesthetic for plots
+```{r}
+# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
+connor_theme <- theme(legend.position = "top", 
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        strip.background = element_rect(fill = NA, color = NA),
+        panel.background = element_rect(fill = NA, color = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        panel.spacing.y = unit(0, "lines"),
+        axis.text = element_text(size = 8, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+```
+
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
 ```{r datasets and dataframe loading and general df clean and prep for analysis, echo=FALSE}
 full_data <- read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_physical_2024.09.25.csv") %>% 
@@ -157,7 +174,7 @@ full_data <- full_data %>%
 # Data Prep and Cleaning
 ### Controls 
 Find the average date of a hurricane, so that we can identify when the average hurricane starts and stops and how long it lasts -- this will be used to assign a period of time to our hurricane controls. [This code was used to identify these information, but no longer needs to be run for the analysis to work]. Then, pick out the years in which there was no hurricane, so that we can identify which years to assign as control in our hurricane analysis. 
-```{r control assignment to dataframe, eval=FALSE}
+```{r control assignment to dataframe, eval=FALSE, echo=TRUE}
 average_hurr <- hurricane_df6 %>%
   filter(str_detect(ewe_type, "hurricane")) %>%
   mutate(
@@ -527,7 +544,7 @@ hurricane_df_prevalence <- hurricane_df_prevalence %>%
 ```
 
 Control troubleshooting
-```{r control troubleshooting, eval=FALSE, echo=FALSE}
+```{r control troubleshooting, eval=FALSE, echo=TRUE}
 # check for overlapping dates in control and hurricane events
 control_dates_df <- data.frame(
   Start_Date = c(
@@ -669,30 +686,11 @@ overlap_df <- combined_df %>%
   filter(Year %in% overlap_years)
 
 # years where hurricane and control events overlap: 1969, 2000 --> eliminate these from the control category (done up above)
-
-
 ```
 Is there any way to make a psite_type reference category like we do for control? make some sort of average control parasite type?
 
-# Prelim plots
-set up aesthetic for plots
-```{r}
-# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
-# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
-connor_theme <- theme(legend.position = "top", 
-        legend.title = element_text(size = 18),
-        legend.text = element_text(size = 14),
-        strip.background = element_rect(fill = NA, color = NA),
-        panel.background = element_rect(fill = NA, color = "white"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.spacing.x = unit(0, "lines"),
-        panel.spacing.y = unit(0, "lines"),
-        axis.text = element_text(size = 8, color = "grey30"),
-        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
-```
 # Abundance
-Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
+## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
 ```{r}
 # how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
 ha.reps <- hurricane_df_abundance %>% 
@@ -740,7 +738,7 @@ hurricane_abundance_raw <- ggarrange(raw1, raw2, raw3, common.legend = FALSE, le
 plot(hurricane_abundance_raw)
 ```
 
-Drop carvel and pervig from analysis since they do not have monos and metas consistently
+## Drop carvel and pervig from analysis since they do not have monos and metas consistently
 ```{r}
 hurricane_df_abundance_only_full <- hurricane_df_abundance %>% 
   filter(!fish_sp_x %in% c("Percina vigil", "Carpiodes velifer"))
@@ -814,9 +812,8 @@ plot(parameters(season_model))
 ```
 
 ## Abundance Models
-### 3 parasite types
-Negative binomial glmmTMB model validation
-```{r}
+### Negative binomial glmmTMB model validation
+```{r model validation abundance, echo=FALSE, eval=FALSE}
 # no offset
 # nbinom1 log
 
@@ -960,6 +957,454 @@ summary(final_h_abundance)
 plot(parameters(final_h_abundance))
 ```
 
+## Plots -- Abundance
+```{r}
+#### A 
+a1a <- ggpredict(final_h_abundance, terms = c("psite_type", "event"))
+a1a <- a1a %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+
+a1ap <- ggplot(a1a,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### B
+a1b <- ggpredict(final_h_abundance, terms = c("psite_type", "event"))
+a1b <- a1b %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+a1b <- a1b %>% 
+  filter(psite_type %in% c("trematode"))
+
+a1bp <- ggplot(a1b,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### C
+a1c <- ggpredict(final_h_abundance, terms = c("psite_type", "event", "timing"))
+a1c <- a1c %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
+
+a1c <- a1c %>% 
+  filter(psite_type %in% c("trematode"))
+
+a1cp <- ggplot(a1c,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### D
+a1d <- ggpredict(final_h_abundance, terms = c("psite_type", "event", "timing"))
+a1d <- a1d %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet)
+
+a1d <- a1d %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+a1dp <- ggplot(a1d,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 7), breaks = seq(0, 7, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### E
+a1e <- ggpredict(final_h_abundance, terms = c("psite_type", "event"))
+a1e <- a1e %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group)
+
+a1e <- a1e %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+a1ep <- ggplot(a1e,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 7), breaks = seq(0, 7, by = 2)) + 
+  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# try to plot only monos
+a1m <- ggpredict(final_h_abundance, terms = c("psite_type", "event", "timing"))
+a1m <- a1m %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group,
+    timing = facet)
+
+a1m <- a1m %>% 
+  filter(psite_type %in% c("monogenean"))
+
+a1mp <- ggplot(a1m,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, by = 2)) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_plot <- ggarrange(a1ap, a1cp, a1dp, a1mp, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
+plot(hurricane_abundance_plot)
+```
+## Zero inflated results plotted - abundance
+```{r}
+#### A 
+azi1 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event"), component = "zi")
+
+azi1 <- azi1 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi1p <- ggplot(azi1, aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
+                               "monogenean" = "#A6E000",
+                               "trematode" = "#c9ad79",
+                               "myxozoan" = "#07c3c5")) +
+  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
+  labs(x = "Event",
+       y = "Zero-Inflation Estimate",
+       fill = "Parasite Type",
+       linetype = "Parasite Type") +
+  connor_theme
+
+
+#### B
+azi2 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event"), component = "zi")
+
+azi2 <- azi2 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi2 <- azi2 %>% 
+  filter(psite_type %in% c("trematode"))
+
+azi2p <- ggplot(azi2,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### C
+azi3 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event", "timing"), component = "zi")
+
+azi3 <- azi3 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet
+  )
+
+azi3 <- azi3 %>% 
+  filter(psite_type %in% c("trematode"))
+
+azi3p <- ggplot(azi3,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### D
+azi4 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event", "timing"), component = "zi")
+
+azi4 <- azi4 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group, 
+    timing = facet
+  )
+
+azi4 <- azi4 %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+azi4p <- ggplot(azi4,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+#### E
+azi5 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event"), component = "zi")
+
+azi5 <- azi5 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group
+  )
+
+azi5 <- azi5 %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+azi5p <- ggplot(azi5,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
+  labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# try to plot only monos
+azi6 <- ggemmeans(final_h_abundance, terms = c("psite_type", "event", "timing"), component = "zi")
+
+azi6 <- azi6 %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    event = group,
+    timing = facet
+  )
+
+azi6 <- azi6 %>% 
+  filter(psite_type %in% c("monogenean"))
+
+azi6p <- ggplot(azi6,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) + 
+  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+hurricane_abundance_plot_zi <- ggarrange(azi1p, azi3p, azi4p, azi6p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
+plot(hurricane_abundance_plot_zi)
+```
+## Abundance zi and normal abundance but only estimates of parasites in total (no timing or event)
+```{r}
+# normal abundance
+a_tot <- ggpredict(final_h_abundance, terms = c("psite_type"))
+a_tot <- a_tot %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high)
+
+
+ap_tot <- ggplot(a_tot,
+       aes(x = psite_type, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2)) + 
+  labs(x = "Parasite Type", y = "Abundance Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# zi
+azi_tot <- ggemmeans(final_h_abundance, terms = c("psite_type"), component = "zi")
+
+azi_tot <- azi_tot %>%
+  rename(
+    psite_type = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high
+  )
+
+azip_tot <- ggplot(azi_tot, aes(x = psite_type, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
+                               "monogenean" = "#A6E000",
+                               "trematode" = "#c9ad79",
+                               "myxozoan" = "#07c3c5")) +
+  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
+  labs(x = "Parasite Type",
+         y = "Zero-Inflation Estimate",
+       fill = "Parasite Type",
+       linetype = "Parasite Type") +
+  connor_theme
+
+# combine both plots
+hurricane_abundance_zi_normal_tot <- ggarrange(ap_tot, azip_tot, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(hurricane_abundance_zi_normal_tot)
+
+```
 
 # Prevalence 
 Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
@@ -1012,7 +1457,7 @@ plot(hurricane_prevalence_raw)
 # no myxos in percina -- is already not in the database
 ```
 
-# Seasonality influencing distribution
+## Seasonality influencing distribution - prevalence
 ```{r}
 # month against number of replicates
 hp.season <- hurricane_df_prevalence %>% 
@@ -1028,15 +1473,17 @@ ggplot(hp.season,
   connor_theme
 
 # run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = ha.season)
+season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = hp.season)
 simulateResiduals(fittedModel = season_model, plot = TRUE)
 summary(season_model)
 plot(parameters(season_model))
+
+# summer and intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? 
 ```
 
 
 ## Prevalence Models
-```{r}
+```{r model validation prevalence, eval=FALSE, echo=FALSE}
 # no offset
 # nbinom1 log
 
@@ -1160,7 +1607,7 @@ residual_summaries %>%
 
 ```
 
-# Final Hurricane Prevalence Model
+## Final Hurricane Prevalence Model
 ```{r}
 # prevalence
 hurricane_prevalence_final <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(log(total_length_mm)),
@@ -1174,208 +1621,16 @@ plot(parameters(hurricane_prevalence_final))
 
 switch things around so that monogenes are not reference category? how do i get stats on the reference level?
 
-# PLOTS -- Abundance
+## Plots -- hurricane prevalence
+## Hurricance prevalence prediction plot
 ```{r}
-#### A 
-a1a <- ggpredict(h_only_full, terms = c("psite_type", "event"))
-a1a <- a1a %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group)
+#### prevalence plot 
 
-
-a1ap <- ggplot(a1a,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 8), breaks = seq(0, 8, by = 2)) + 
-  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### B
-a1b <- ggpredict(h_only_full, terms = c("psite_type", "event"))
-a1b <- a1b %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group)
-
-a1b <- a1b %>% 
-  filter(psite_type %in% c("trematode"))
-
-a1bp <- ggplot(a1b,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### C
-a1c <- ggpredict(h_only_full, terms = c("psite_type", "event", "timing"))
-a1c <- a1c %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group, 
-    timing = facet)
-
-a1c <- a1c %>% 
-  filter(psite_type %in% c("trematode"))
-
-a1cp <- ggplot(a1c,
-       aes(x = timing, y = estimate)) +
-  facet_wrap(~ event) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 2)) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### D
-a1d <- ggpredict(h_only_full, terms = c("psite_type", "event", "timing"))
-a1d <- a1d %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group, 
-    timing = facet)
-
-a1d <- a1d %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
-
-a1dp <- ggplot(a1d,
-       aes(x = timing, y = estimate)) +
-  facet_wrap(~ event, scales = "free_y") +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 7), breaks = seq(0, 7, by = 2)) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### E
-a1e <- ggpredict(h_only_full, terms = c("psite_type", "event"))
-a1e <- a1e %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group)
-
-a1e <- a1e %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
-
-a1ep <- ggplot(a1e,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 7), breaks = seq(0, 7, by = 2)) + 
-  labs(x = "Event", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# try to plot only monos
-a1m <- ggpredict(h_only_full, terms = c("psite_type", "event", "timing"))
-a1m <- a1m %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group,
-    timing = facet)
-
-a1m <- a1m %>% 
-  filter(psite_type %in% c("monogenean"))
-
-a1mp <- ggplot(a1m,
-       aes(x = timing, y = estimate)) +
-  facet_wrap(~ event, scales = "free_y") +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, by = 2)) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-```
-
-combine all plots - abundance 
-```{r}
-hurricane_abundance_plot <- ggarrange(a1ap, a1cp, a1dp, a1mp, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
-plot(hurricane_abundance_plot)
-```
-
-
-
-
-# PLOTS - prevalence
-hurricance prevalence plot prediction
-```{r}
-#### F
-#### prevalence plot
-# Myxozoan parasites were more abundant in the impact category (estimate = 2.8743, p value < 0.001). 
-
-p1p <- ggpredict(mxyxo_final, terms = c("ci"))
+p1p <- ggpredict(hurricane_prevalence_final, terms = c("event"))
 
 p1p <- p1p %>%
   rename(
-    ci = x,
+    event = x,
     estimate = predicted,
     se = std.error,
     lower = conf.low,
@@ -1384,8 +1639,8 @@ p1p <- p1p %>%
   mutate(psite_type = "myxozoan") %>%
   filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
-p1pp <- ggplot(p1p,
-         aes(x = ci, y = estimate)) +
+ggplot(p1p,
+         aes(x = event, y = estimate)) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
@@ -1395,404 +1650,231 @@ p1pp <- ggplot(p1p,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("myxozoan" = "#07c3c5")) +
-  labs(x = "CI Category", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  labs(x = "Event", y = "Estimated Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
-```
-
-
-# Zero inflated results plotted - abundance
-```{r}
-#### A 
-azi1 <- ggemmeans(h_only_full, terms = c("psite_type", "event"), component = "zi")
-
-azi1 <- azi1 %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group
-  )
-
-azi1p <- ggplot(azi1, aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
-                               "monogenean" = "#A6E000",
-                               "trematode" = "#c9ad79",
-                               "myxozoan" = "#07c3c5")) +
-  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
-  labs(x = "Event",
-       y = "Zero-Inflation Estimate",
-       fill = "Parasite Type",
-       linetype = "Parasite Type") +
-  connor_theme
-
-
-#### B
-azi2 <- ggemmeans(h_only_full, terms = c("psite_type", "event"), component = "zi")
-
-azi2 <- azi2 %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group
-  )
-
-azi2 <- azi2 %>% 
-  filter(psite_type %in% c("trematode"))
-
-azi2p <- ggplot(azi2,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
-  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### C
-azi3 <- ggemmeans(h_only_full, terms = c("psite_type", "event", "timing"), component = "zi")
-
-azi3 <- azi3 %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group, 
-    timing = facet
-  )
-
-azi3 <- azi3 %>% 
-  filter(psite_type %in% c("trematode"))
-
-azi3p <- ggplot(azi3,
-       aes(x = timing, y = estimate)) +
-  facet_wrap(~ event) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
-  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### D
-azi4 <- ggemmeans(h_only_full, terms = c("psite_type", "event", "timing"), component = "zi")
-
-azi4 <- azi4 %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group, 
-    timing = facet
-  )
-
-azi4 <- azi4 %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
-
-azi4p <- ggplot(azi4,
-       aes(x = timing, y = estimate)) +
-  facet_wrap(~ event) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = timing),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 10)) + 
-  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-#### E
-azi5 <- ggemmeans(h_only_full, terms = c("psite_type", "event"), component = "zi")
-
-azi5 <- azi5 %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group
-  )
-
-azi5 <- azi5 %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
-
-azi5p <- ggplot(azi5,
-       aes(x = event, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
-  labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# try to plot only monos
-azi6 <- ggemmeans(h_only_full, terms = c("psite_type", "event", "timing"), component = "zi")
-
-azi6 <- azi6 %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    event = group,
-    timing = facet
-  )
-
-azi6 <- azi6 %>% 
-  filter(psite_type %in% c("monogenean"))
-
-azi6p <- ggplot(azi6,
-       aes(x = timing, y = estimate)) +
-  facet_wrap(~ event, scales = "free_y") +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) + 
-  labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-```
-
-hurricance prevalence plot prediction
-```{r}
-#### F
-#### prevalence plot
-# Myxozoan parasites were more abundant in the impact category (estimate = 2.8743, p value < 0.001). 
-
-p1p <- ggpredict(mxyxo_final, terms = c("ci"))
-
-p1p <- p1p %>%
-  rename(
-    ci = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high
-  ) %>%
-  mutate(psite_type = "myxozoan") %>%
-  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
-
-p1pp <- ggplot(p1p,
-         aes(x = ci, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("myxozoan" = "#07c3c5")) +
-  labs(x = "CI Category", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-```
-
-combine all plots - abundance ZI
-```{r}
-hurricane_abundance_plot_zi <- ggarrange(azi1p, azi3p, azi4p, azi6p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D"))
-plot(hurricane_abundance_plot_zi)
-```
-
-abundance zi and normal abundance but only estimates of parasites in total (no timing or event)
-```{r}
-# normal abundance
-a_tot <- ggpredict(h_only_full, terms = c("psite_type"))
-a_tot <- a_tot %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high)
-
-
-ap_tot <- ggplot(a_tot,
-       aes(x = psite_type, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
-  labs(x = "Parasite Type", y = "Abundance Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# zi
-azi_tot <- ggemmeans(h_only_full, terms = c("psite_type"), component = "zi")
-
-azi_tot <- azi_tot %>%
-  rename(
-    psite_type = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high
-  )
-
-azip_tot <- ggplot(azi_tot, aes(x = psite_type, y = estimate)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
-                width = 0.05,
-                position = position_dodge(0.5)) +
-  geom_line(aes(group = psite_type, linetype = psite_type),
-            position = position_dodge(0.5)) +
-  geom_point(aes(fill = psite_type, group = psite_type),
-             pch = 21, size = 5,
-             position = position_dodge(0.5)) +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF",
-                               "monogenean" = "#A6E000",
-                               "trematode" = "#c9ad79",
-                               "myxozoan" = "#07c3c5")) +
-  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
-  labs(x = "Parasite Type",
-         y = "Zero-Inflation Estimate",
-       fill = "Parasite Type",
-       linetype = "Parasite Type") +
-  connor_theme
-
-# combine both plots
-hurricane_abundance_zi_normal_tot <- ggarrange(ap_tot, azip_tot, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
-plot(hurricane_abundance_zi_normal_tot)
-
 ```
 
 # Estimating Biodiversity Changes
-Jackknife estimates
+Jackknife estimates - all parasites
 ```{r}
-# prep dataframe to include only data on biodiversity
+# create DF for biodiversity estimates -- drop species that have very low replication, so kick out all cilliate, nematomorph, leech, copepod observations (but lets keep in nematodes, cestodes, and acanths)
+# Remove unwanted parasite types and drop their factor levels
+biodiv_df <- hurricane_df6 %>% 
+  filter(!psite_type %in% c("nematomorph", "ciliate", "leech", "copepod")) %>% 
+  droplevels()
 
-hurricane_diveristy <- hurricane_df6 %>%
-  select(x, psite_type, psite_count, event, timing, category, ci, psite_spp_x, fish_psite_combo) %>%
-  mutate(psite_spp_id = as.numeric(factor(psite_spp_x))) %>% 
-  filter(psite_count != 0)
-
-# overall species before and after plus timing
-
-
-# Get all unique combinations of event, timing, and ci
-group_combos <- unique(hurricane_df6[, c("event", "timing", "ci")])
+# Get all unique combinations of grouping variables
+group_combos <- unique(biodiv_df[, c("event", "timing", "ci", "psite_type", "fish_sp_x",  "psite_spp_y")])
 
 # Empty results data frame
 jackknife_results <- data.frame(
   event = character(),
   timing = character(),
   ci = character(),
+  psite_type = character(),
+  fish_sp_x = character(),
+  psite_spp_y = character(),
   jackknife_mean_richness = numeric(),
   total_psite_count = numeric(),
   stringsAsFactors = FALSE
 )
 
-# Loop over each event × timing × ci combo
+# Loop over each combination
 for (i in 1:nrow(group_combos)) {
-  e <- group_combos$event[i]
-  t <- group_combos$timing[i]
-  c <- group_combos$ci[i]
+  event <- group_combos$event[i]
+  timing <- group_combos$timing[i]
+  ci <- group_combos$ci[i]
+  psite <- group_combos$psite_type[i]
+  fish <- group_combos$fish_sp_x[i]
+  rich <- group_combos$psite_spp_y[i]
   
-  # Subset data for this combination
-  sub_df <- hurricane_df6[hurricane_df6$event == e &
-                          hurricane_df6$timing == t &
-                          hurricane_df6$ci == c, ]
+  # Safe subsetting using which()
+  sub_df <- biodiv_df[which(
+    biodiv_df$event == event &
+    biodiv_df$timing == timing &
+    biodiv_df$ci == ci &
+    biodiv_df$psite_type == psite &
+    biodiv_df$fish_sp_x == fish &
+    biodiv_df$psite_spp_y == rich
+  ), ]
   
-  # Get unique sample IDs
+  # Remove 0-counts
+  sub_df <- sub_df[sub_df$psite_count != 0, ]
+  
+  # Skip if no data
+  if (nrow(sub_df) == 0) next
+  
+  # Unique samples
   sample_ids <- unique(sub_df$x)
-  
   richness_values <- numeric(length(sample_ids))
   
-  # Leave-one-out loop for jackknife richness
   for (j in seq_along(sample_ids)) {
     id_to_leave_out <- sample_ids[j]
-    
     df_minus_one <- sub_df[sub_df$x != id_to_leave_out, ]
-    
     richness_values[j] <- length(unique(df_minus_one$psite_spp_x))
   }
   
-  # Sum total parasite count in this group
   total_count <- sum(sub_df$psite_count, na.rm = TRUE)
   
-  # Store results
   jackknife_results <- rbind(jackknife_results, data.frame(
-    event = e,
-    timing = t,
-    ci = c,
+    event = event,
+    timing = timing,
+    ci = ci,
+    psite_type = as.character(psite), 
+    fish_sp_x = as.character(fish),
+    psite_spp_y = as.character(rich),
     jackknife_mean_richness = mean(richness_values),
     total_psite_count = total_count
   ))
 }
 
+# Remove incomplete rows
+jackknife_results <- jackknife_results[complete.cases(jackknife_results), ]
 
-# prelim plot
-ggplot(hurricane_diveristy,
-       aes(x = psite_spp_id, y = psite_count, fill = timing)) + 
-  geom_line() + facet_wrap(event ~ ci) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("") + 
-  xlab("") + 
-  scale_fill_manual(
-  values = c("post" = "#F28A8A", "pre" = "#1BB6AF"))
+
+# create plots for the variety of combinations of factors we want to investigate
+
+# event
+ggplot(jackknife_results,
+       aes(x = psite_type, y = jackknife_mean_richness, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  facet_wrap(timing ~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme
+```
+
+## Plot jacknife estimates
+```{r}
+ggplot(jackknife_results,
+       aes(x = psite_type, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(timing ~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme 
+
+# trim df to be one df for each type of parasite
+acanths <- jackknife_results %>% 
+  filter(psite_type %in% c("acanthocephalan")) %>% 
+  droplevels()
+
+jk_a <- ggplot(jackknife_results,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+
+nems <- jackknife_results %>% 
+  filter(psite_type %in% c("nematode")) %>% 
+  droplevels()
+
+jk_n <- ggplot(nems,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+cest <- jackknife_results %>% 
+  filter(psite_type %in% c("cestode")) %>% 
+  droplevels()
+
+jk_c <- ggplot(cest,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+trem <- jackknife_results %>% 
+  filter(psite_type %in% c("trematode")) %>% 
+  droplevels() 
+
+jk_t <- ggplot(trem,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+trem_meta <- jackknife_results %>% 
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  droplevels()
+
+jk_tm <- ggplot(trem_meta,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+mono <- jackknife_results %>% 
+  filter(psite_type %in% c("monogenean")) %>% 
+  droplevels()
+
+jk_mono <- ggplot(mono,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+myxo <- jackknife_results %>% 
+  filter(psite_type %in% c("myxozoan")) %>% 
+  droplevels()
+
+jk_myxo <- ggplot(myxo,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+# combine all plots into one
+biodiv_plot_hurricane <- ggarrange(jk_a, jk_n, jk_c, jk_t, jk_tm, jk_mono, jk_myxo, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E", "F", "G"))
+plot(biodiv_plot_hurricane)
 
 ```
 
-
-
-# PROBLEMS TO FIX:
+# Troubleshooting
+PROBLEMS TO FIX:
 1) why do the raw data plots not match the model plots (trematode) (solved above)
 ```{r}
 ## remove elements of the model sequentially to see what happens to the model afterwards
@@ -1878,8 +1960,10 @@ ggplot(a1c,
 # RESULT: For metas, the raw data could be emphasizing the metas in pimvig in control compared to hurricane
 ```
 
+# Outdated 6/17/25
+
 2) why are the myxo results between H and DF different
-```{r}
+```{r, eval=FALSE}
 # plot raw myxo data for hurricane
 ggplot(hurricane_df_prevalence,
          aes(x = ci, y = psite_prevalence, fill = psite_type)) +
@@ -1915,16 +1999,9 @@ ggplot(avg.bins.p,
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 ```
-
-
-
-
-3) 
-
-
-# Various troubleshooting
+Various troubleshooting
 FROM ARIAL -- WORKING ON ZI AND TESTING ASSUMPTIONS
-```{r}
+```{r, echo=FALSE, eval=FALSE}
 #### test 
 ha_nbinom2log3_zi <- glmmTMB(psite_abundance2 ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
                                 family = binomial(link = "logit"), data = hurricane_df_abundance)
@@ -1991,7 +2068,7 @@ SUMMARY NOTES:
 - OTHER Q: should we make all non control and non hurricane values into other control values? this is 1588 observations we are losing
 
 Metas and temperature -- does warmer temperature mean more metacercaria?
-```{r}
+```{r, echo=FALSE, eval=FALSE}
 nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
                                   (1|fish_sp_x) + offset(sqrt(total_length_mm)) + (1|mean_temperature),
                                 ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
@@ -2004,7 +2081,7 @@ plot(parameters(nbinom1sqrtoff))
 ```
 
 Run df analyses with drought database
-```{r}
+```{r, echo=FALSE, eval=FALSE}
 ### prevalence nbinom1sqrtoff
 nbinom1sqrtoff <- glmmTMB(psite_prevalence ~ df_event + ci + (1|catalog_number) + (1|year_collected/season) + 
                                   (1|fish_sp_x) + offset(sqrt(total_length_mm)),
@@ -2016,6 +2093,7 @@ simulateResiduals(fittedModel = nbinom1sqrtoff, plot = TRUE)
 summary(nbinom1sqrtoff)
 plot(parameters(nbinom1sqrtoff))
 ```
+
 
 MYXO RESULTS DIFFER FROM HURRICANE TO DF ANALYSIS
 - the sample sizes are different (there are 724 fewer observations in the hurricane df than there are in the drought/flood df)
