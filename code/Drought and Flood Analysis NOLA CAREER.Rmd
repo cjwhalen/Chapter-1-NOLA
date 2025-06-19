@@ -170,6 +170,14 @@ full_data <- full_data %>%
     TRUE ~ fish_sp_x
   ))
 
+# what are total counts of each parasite type in the main dataset?
+summary <- full_data %>%
+  group_by(psite_type) %>%
+  summarise(
+    total_observations = n(),
+    total_parasite_count = sum(psite_count, na.rm = TRUE)
+  )
+
 # drop low replicate categories
 drought_flood_df <- full_data %>%
   filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
@@ -701,8 +709,8 @@ azi6p <- ggplot(azi6,
   labs(x = "Event", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
-hurricane_abundance_plot_zi <- ggarrange(azi1p, azi3p, azi5p, azi6p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E", "F"))
-plot(hurricane_abundance_plot_zi)
+df_abundance_plot_zi <- ggarrange(azi1p, azi3p, azi5p, azi6p, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E", "F"))
+plot(df_abundance_plot_zi)
 ```
 
 
@@ -777,7 +785,7 @@ simulateResiduals(fittedModel = season_model, plot = TRUE)
 summary(season_model)
 plot(parameters(season_model))
 
-# intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? 
+# intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? Season is already in the main model, so is this covered by the model itself?
 ```
 ## Prevalence model validation
 ```{r}
@@ -933,13 +941,12 @@ df_f <- ggplot(df1p,
   geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
-  geom_line(aes(group = event, linetype = event),
-            position = position_dodge(width = 0.5)) +
   geom_point(aes(fill = event, group = event),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) +
-  labs(x = "CI Category", y = "Estimate", fill = "Event", linetype = "Event") +
+  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) + 
+    scale_y_continuous(limits = c(0, 5), breaks = seq(0, 5, 2)) +
+  labs(x = "Event", y = "Estimate", fill = "Event") +
   connor_theme
 
 ```
@@ -979,94 +986,259 @@ plot(df_prevalence_raw_and_model_corrected)
 
 ## Zero Inflated prevalence plots
 ```{r}
+pzi1 <- ggemmeans(df_prevalence_final, terms = c("event"), component = "zi")
+
+pzi1 <- pzi1 %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    psite_type = group
+  ) %>%
+  mutate(psite_type = ifelse(psite_type == "1", "myxozoan", psite_type)) %>%
+  drop_na()
+
+pzi1p <- ggplot(pzi1,
+       aes(x = event, y = estimate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = event, group = event),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) + 
+    scale_y_continuous(limits = c(0, 5), breaks = seq(0, 5, 2)) +
+  labs(x = "Event", y = "Zero Inflation Estimate", fill = "Event") +
+  connor_theme
+
+df_prevalence_plot_zi <- ggarrange(pzi1p, common.legend = FALSE, legend = "bottom", labels = c("A"))
+plot(df_prevalence_plot_zi)
 
 ```
+## Plot Zi and conditional model outputs together -- prevalence
+```{r}
+df_prevalence_plot_total <- ggarrange(df_f, pzi1p, common.legend = TRUE, legend = "bottom", labels = c("A", "B"))
+plot(df_prevalence_plot_total)
+```
+
 
 # Estimating Biodiversity Changes
-Jackknife estimates -- taken from the hurricane page, needs to be updated for drought and flood data 4/30
+Jackknife estimates 
 ```{r}
-# prep dataframe to include only data on biodiversity
+# create DF for biodiversity estimates -- drop species that have very low replication, so kick out all cilliate, nematomorph, leech, copepod observations (but lets keep in nematodes, cestodes, and acanths)
+# Remove unwanted parasite types and drop their factor levels
+df_biodiv_df <- drought_flood_df %>% 
+  filter(!psite_type %in% c("nematomorph", "ciliate", "leech", "copepod")) %>% 
+  droplevels()
+# these are already absent from the drought_flood_df
 
-hurricane_diveristy <- hurricane_df6 %>%
-  select(x, psite_type, psite_count, event, timing, category, ci, psite_spp_x, fish_psite_combo) %>%
-  mutate(psite_spp_id = as.numeric(factor(psite_spp_x))) %>% 
-  filter(psite_count != 0)
-
-# overall species before and after plus timing
-
-
-# Get all unique combinations of event, timing, and ci
-group_combos <- unique(hurricane_df6[, c("event", "timing", "ci")])
+# Get all unique combinations of grouping variables
+group_combos <- unique(df_biodiv_df[, c("event", "ci", "psite_type", "fish_sp_x", "psite_spp_y")])
 
 # Empty results data frame
 jackknife_results <- data.frame(
   event = character(),
-  timing = character(),
   ci = character(),
+  psite_type = character(),
+  fish_sp_x = character(),
+  psite_spp_y = character(),
   jackknife_mean_richness = numeric(),
   total_psite_count = numeric(),
   stringsAsFactors = FALSE
 )
 
-# Loop over each event × timing × ci combo
+# Loop over each combination
 for (i in 1:nrow(group_combos)) {
-  e <- group_combos$event[i]
-  t <- group_combos$timing[i]
-  c <- group_combos$ci[i]
+  event <- group_combos$event[i]
+  ci <- group_combos$ci[i]
+  psite <- group_combos$psite_type[i]
+  fish <- group_combos$fish_sp_x[i]
+  rich <- group_combos$psite_spp_y[i]
   
-  # Subset data for this combination
-  sub_df <- hurricane_df6[hurricane_df6$event == e &
-                          hurricane_df6$timing == t &
-                          hurricane_df6$ci == c, ]
+  # Safe subsetting using which()
+  sub_df <- df_biodiv_df[which(
+    df_biodiv_df$event == event &
+    df_biodiv_df$ci == ci &
+    df_biodiv_df$psite_type == psite &
+    df_biodiv_df$fish_sp_x == fish &
+    df_biodiv_df$psite_spp_y == rich
+  ), ]
   
-  # Get unique sample IDs
+  # Remove 0-counts
+  sub_df <- sub_df[sub_df$psite_count != 0, ]
+  
+  # Skip if no data
+  if (nrow(sub_df) == 0) next
+  
+  # Unique samples
   sample_ids <- unique(sub_df$x)
-  
   richness_values <- numeric(length(sample_ids))
   
-  # Leave-one-out loop for jackknife richness
   for (j in seq_along(sample_ids)) {
     id_to_leave_out <- sample_ids[j]
-    
     df_minus_one <- sub_df[sub_df$x != id_to_leave_out, ]
-    
     richness_values[j] <- length(unique(df_minus_one$psite_spp_x))
   }
   
-  # Sum total parasite count in this group
   total_count <- sum(sub_df$psite_count, na.rm = TRUE)
   
-  # Store results
   jackknife_results <- rbind(jackknife_results, data.frame(
-    event = e,
-    timing = t,
-    ci = c,
+    event = event,
+    ci = ci,
+    psite_type = as.character(psite), 
+    fish_sp_x = as.character(fish),
+    psite_spp_y = as.character(rich),
     jackknife_mean_richness = mean(richness_values),
     total_psite_count = total_count
   ))
 }
 
+# Remove incomplete rows
+jackknife_results <- jackknife_results[complete.cases(jackknife_results), ]
 
 
+# create plots for the variety of combinations of factors we want to investigate
 
-# prelim plot
-ggplot(hurricane_diveristy,
-       aes(x = psite_spp_id, y = psite_count, fill = timing)) + 
-  geom_line() + facet_wrap(event ~ ci) +
-  theme(
-    strip.background = element_rect(fill = NA, color = NA),
-    panel.background = element_rect(fill = NA, color = "white"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.spacing.x = unit(0, "lines"),
-    panel.spacing.y = unit(0, "lines"),
-    axis.text = element_text(size = 8, color = "grey30"),
-    axis.ticks = element_line(size = 0.2, color = "darkgrey")
-  ) +
-  ylab("") + 
-  xlab("") + 
-  scale_fill_manual(
-  values = c("post" = "#F28A8A", "pre" = "#1BB6AF"))
+# event
+ggplot(jackknife_results,
+       aes(x = psite_type, y = jackknife_mean_richness, fill = psite_type)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme
+```
+
+## Plot jacknife estimates
+```{r}
+ggplot(jackknife_results,
+       aes(x = psite_type, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(timing ~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme 
+
+# trim df to be one df for each type of parasite
+acanths <- jackknife_results %>% 
+  filter(psite_type %in% c("acanthocephalan")) %>% 
+  droplevels()
+
+jk_a <- ggplot(jackknife_results,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+
+nems <- jackknife_results %>% 
+  filter(psite_type %in% c("nematode")) %>% 
+  droplevels()
+
+jk_n <- ggplot(nems,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+cest <- jackknife_results %>% 
+  filter(psite_type %in% c("cestode")) %>% 
+  droplevels()
+
+jk_c <- ggplot(cest,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+trem <- jackknife_results %>% 
+  filter(psite_type %in% c("trematode")) %>% 
+  droplevels() 
+
+jk_t <- ggplot(trem,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+trem_meta <- jackknife_results %>% 
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  droplevels()
+
+jk_tm <- ggplot(trem_meta,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+mono <- jackknife_results %>% 
+  filter(psite_type %in% c("monogenean")) %>% 
+  droplevels()
+
+jk_mono <- ggplot(mono,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+myxo <- jackknife_results %>% 
+  filter(psite_type %in% c("myxozoan")) %>% 
+  droplevels()
+
+jk_myxo <- ggplot(myxo,
+       aes(x = timing, y = jackknife_mean_richness, fill = psite_spp_y)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ event) +
+  theme_minimal(base_size = 12) +
+  labs(
+    x = "Fish species",
+    y = "Mean Parasite Richness (Jackknife)",
+    fill = "Parasite type"
+  ) + connor_theme + guides(fill = "none")
+
+# combine all plots into one
+biodiv_plot_hurricane <- ggarrange(jk_a, jk_n, jk_c, jk_t, jk_tm, jk_mono, jk_myxo, common.legend = FALSE, legend = "bottom", labels = c("A", "B", "C", "D", "E", "F", "G"))
+plot(biodiv_plot_hurricane)
+
+```
 
 ```
 
