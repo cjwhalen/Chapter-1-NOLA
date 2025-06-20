@@ -325,11 +325,9 @@ hurricane_events$random_value <- sample(1:24, n_events, replace = TRUE)
 
 combined_by_random <- full_join(hurricane_events, no_event_df, by = "random_value", suffix = c("_event", "_noevent"))
 
-# there are more control years than there are storms, so 
+# there are more control years than there are storms, so we sample randomly up to the # of hurricanes and apply NA to all remaining (unsampled) control years 
 
 # this randomization will likely be newly random each time this code is run, so as reference, this chunk was applied to the controls df on 6/19/25 and each storm that was given a random control year assignment was sorted numerically by random number and processed downward. Therefore, hurricane camille will receive the first randomly selected control year and so on
-
-# no 1969 or 2000 control years were randomly selected for our controls on 6/19/25
 
 ```
 #### Control troubleshooting
@@ -384,7 +382,7 @@ Correct controls by identifying overlaps and reducing the period of control to n
 # Bill (2003)	2002-12-27	2004-01-04	Tropical Storm -- OK
 # Ivan (2004)	2004-03-02	2005-03-25	Hurricane -- OK
 
-# same for storms? will lower coded storms overwrite higher up ones? -- georges and hermine --> no it doesnt
+## these overlaps have been applied retroactively to the controls mapping
 
 ```
 
@@ -1231,7 +1229,6 @@ azi1p <- ggplot(azi1, aes(x = event, y = estimate)) +
                                "monogenean" = "#A6E000",
                                "trematode" = "#c9ad79",
                                "myxozoan" = "#07c3c5")) +
-  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
   labs(x = "Event",
        y = "Zero-Inflation Estimate",
        fill = "Parasite Type",
@@ -1266,7 +1263,6 @@ azi2p <- ggplot(azi2,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
   labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -1299,7 +1295,6 @@ azi3p <- ggplot(azi3,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) + 
   labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -1332,7 +1327,6 @@ azi4p <- ggplot(azi4,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 80), breaks = seq(0, 80, 10)) + 
   labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -1396,7 +1390,6 @@ azi6p <- ggplot(azi6,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 40), breaks = seq(0, 40, 10)) + 
   labs(x = "Timing", y = "Zero-Inflation Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -1427,7 +1420,6 @@ ap_tot <- ggplot(a_tot,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-    scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, 2)) + 
   labs(x = "Parasite Type", y = "Abundance Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -1456,7 +1448,6 @@ azip_tot <- ggplot(azi_tot, aes(x = psite_type, y = estimate)) +
                                "monogenean" = "#A6E000",
                                "trematode" = "#c9ad79",
                                "myxozoan" = "#07c3c5")) +
-  scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, 10)) +
   labs(x = "Parasite Type",
          y = "Zero-Inflation Estimate",
        fill = "Parasite Type",
@@ -1524,24 +1515,24 @@ plot(hurricane_prevalence_raw)
 ```{r}
 # month against number of replicates
 hp.season <- hurricane_df_prevalence %>% 
-  group_by(event, timing, psite_type, fish_sp_x, season) %>% 
-  summarize(avg.bin = mean(psite_prevalence))
+  group_by(event, timing, psite_type, fish_sp_x, season, year_collected) %>% 
+  summarize(observations = n(), .groups = "drop")
 
 ggplot(hp.season,
-       aes(x = season, y = avg.bin, fill = psite_type)) +
-  facet_wrap(timing ~ event) +
-  geom_col(position = "dodge") +
+       aes(x = year_collected, y = event, fill = psite_type)) +
+  facet_wrap(~ timing) +
+  geom_violin() +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Season", y = "Average Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+  labs(x = "Season", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
 # run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = hp.season)
+season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = hp.season)
 simulateResiduals(fittedModel = season_model, plot = TRUE)
 summary(season_model)
 plot(parameters(season_model))
 
-# summer and intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? 
+# summer has some sort of significant influence on myxo prevalence 
 ```
 
 
@@ -1689,7 +1680,7 @@ switch things around so that monogenes are not reference category? how do i get 
 ```{r}
 #### prevalence plot 
 
-p1p <- ggpredict(hurricane_prevalence_final, terms = c("event"))
+p1p <- ggpredict(hurricane_prevalence_final, terms = c("event", "timing"))
 
 p1p <- p1p %>%
   rename(
@@ -1697,13 +1688,15 @@ p1p <- p1p %>%
     estimate = predicted,
     se = std.error,
     lower = conf.low,
-    upper = conf.high
+    upper = conf.high,
+    timing = group
   ) %>%
   mutate(psite_type = "myxozoan") %>%
   filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
 hpp_f <- ggplot(p1p,
-         aes(x = event, y = estimate)) +
+         aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
@@ -1715,16 +1708,48 @@ hpp_f <- ggplot(p1p,
   scale_fill_manual(values = c("myxozoan" = "#07c3c5")) +
   labs(x = "Event", y = "Estimated Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
+
+final_prevalence_plot <- ggarrange(hpp_f, common.legend = FALSE, legend = "bottom", labels = c("A"))
+plot(final_prevalence_plot)
 ```
 
 PLot prevalence model and raw data together 
 ```{r}
+hurricane_prevalence_raw_and_model <- ggarrange(hpp_f, raw2p, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(hurricane_prevalence_raw_and_model)
 
+# control pre and post should be flipped 
+
+# let's look again at our raw data from above 
+plot(raw1p)
+
+# looks like hybnuc and carvel in control have very high counts of myxos, let's remove hybog from the raw data and see if it more closely matches the expected model result
+no_h_or_c <- hurricane_df_prevalence %>% 
+  group_by(event, category, psite_type, fish_sp_x, timing) %>% 
+  summarize(avg.bin = mean(psite_prevalence))
+
+no_h_or_c <- no_h_or_c %>% 
+  filter(!fish_sp_x %in% c("hybnuc", "carvel"))
+
+no_hc <- ggplot(no_h_or_c,
+       aes(x = timing, y = avg.bin, fill = psite_type)) +
+  facet_wrap(~event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+  labs(x = "Event", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# plot this no-hybnuc/carvel result next to the model plot
+
+df_prevalence_raw_and_model_corrected <- ggarrange(hpp_f, no_hc, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
+plot(df_prevalence_raw_and_model_corrected)
+
+# the data is now technically correct and matches
 ```
 
 ## Zero Inflated prevalence plots
 ```{r}
-azi1 <- ggemmeans(hurricane_prevalence_final, terms = c("event"), component = "zi")
+azi1 <- ggemmeans(hurricane_prevalence_final, terms = c("event", "timing"), component = "zi")
 
 azi1 <- azi1 %>%
   rename(
@@ -1733,31 +1758,34 @@ azi1 <- azi1 %>%
     se = std.error,
     lower = conf.low,
     upper = conf.high,
-    psite_type = group
+    timing = group
   ) %>%
-  mutate(psite_type = ifelse(psite_type == "1", "myxozoan", psite_type)) %>%
-  drop_na()
+  mutate(psite_type = "myxozoan") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
 azi1p <- ggplot(azi1,
-       aes(x = event, y = estimate)) +
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ event) +
   geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
                 width = 0.05,
                 position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = event, group = event),
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = event),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_fill_manual(values = c("drought" = "#D84D16", "flood" = "#1BB6AF","control" = "#F4B95A", "impact" = "#FF69B4")) + 
-    scale_y_continuous(limits = c(0, 5), breaks = seq(0, 5, 2)) +
-  labs(x = "Event", y = "Zero Inflation Estimate", fill = "Event") +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
+    scale_y_continuous(limits = c(0, 3), breaks = seq(0, 3, 1)) +
+  labs(x = "Timing", y = "Zero Inflation Estimate", fill = "Event") +
   connor_theme
 
-df_prevalence_plot_zi <- ggarrange(pzi1p, common.legend = FALSE, legend = "bottom", labels = c("A"))
-plot(df_prevalence_plot_zi)
+hurricane_prevalence_plot_zi <- ggarrange(azi1p, common.legend = FALSE, legend = "bottom", labels = c("A"))
+plot(hurricane_prevalence_plot_zi)
 
 ```
-## Plot Zi and conditional model outputs together -- abundance
+## Plot Zi and conditional model outputs together -- prevalence
 ```{r}
-hurricance_prevalence_plot_total <- ggarrange(hpp_f, pzi1p, common.legend = TRUE, legend = "bottom", labels = c("A", "B"))
+hurricance_prevalence_plot_total <- ggarrange(hpp_f, azi1p, common.legend = TRUE, legend = "bottom", labels = c("A", "B"))
 plot(hurricance_prevalence_plot_total)
 ```
 
