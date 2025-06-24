@@ -185,6 +185,8 @@ full_data <- full_data %>%
   mutate(category = as.factor(category)) %>% 
   mutate(psite_type = as.factor(psite_type))
 
+full_data <- full_data %>%
+  mutate(month_day = format(date, "%m-%d"))
 
 # what are total counts of each parasite type in the main dataset?
 summary <- full_data %>%
@@ -209,7 +211,7 @@ no_event_years <- c(1963, 1966, 1967, 1968, 1970,
                     1978, 1980, 1981, 1982, 1983,
                     1984, 1986, 1987, 1989, 1990,
                     1991, 1993, 1994, 1996, 1999,
-                    2000, 2005)
+                    2000)
 
 n_hurricanes <- 24
 
@@ -248,10 +250,57 @@ assigned_controls <- data.frame(
   control_year = sampled_years
 )
 
+# 6/23/25 resampling for control years that overlap with other dates of storms: 4 overlaps
+n_hurricanes <- 4
+sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
+assigned_controls <- data.frame(
+  random_value = 1:n_hurricanes,
+  control_year = sampled_years
+)
+
+# 6/23/25 resampling for control years that overlap with other dates of storms: 3 overlaps
+n_hurricanes <- 3
+sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
+assigned_controls <- data.frame(
+  random_value = 1:n_hurricanes,
+  control_year = sampled_years
+)
+
+# 6/23/25 resampling for control years that overlap with other dates of storms: 2 overlaps
+n_hurricanes <- 2
+sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
+assigned_controls <- data.frame(
+  random_value = 1:n_hurricanes,
+  control_year = sampled_years
+)
+
+# 6/23/25 resampling for control years that overlap with other dates of storms: 2 overlaps
+n_hurricanes <- 2
+sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
+assigned_controls <- data.frame(
+  random_value = 1:n_hurricanes,
+  control_year = sampled_years
+)
+
+# 6/23/25 resampling for control years that overlap with other dates of storms: 1 overlap
+n_hurricanes <- 1
+sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
+assigned_controls <- data.frame(
+  random_value = 1:n_hurricanes,
+  control_year = sampled_years
+)
+
+# 6/23/25 resampling for control years that overlap with other dates of storms: 1 overlap
+n_hurricanes <- 1
+sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
+assigned_controls <- data.frame(
+  random_value = 1:n_hurricanes,
+  control_year = sampled_years
+)
 ```
 #### Control troubleshooting
 Correct controls by identifying overlaps and reducing the period of control to not overlap with a hurricane event anymore
-```{r, eval=FALSE, echo=TRUE}
+```{r, eval=FALSE, echo=FALSE}
 # Hilda (1964)	1964-03-28	1965-04-05	Hurricane -- OK
 # Betsy (1965)	1965-02-27	1966-03-13	Hurricane -- OK 
 #  Debbie (1965)	1965-03-23	1966-04-01	Hurricane -- overlap with control 
@@ -607,98 +656,26 @@ Correct controls by identifying overlaps and reducing the period of control to n
 #    date >= as.Date("1976-10-07") & date <= as.Date("1977-04-07") ~ "post_control",
 #    TRUE ~ "no event"
 #  ))
+
+
+# one final organization by date to make sure there are no overlaps 
+# these ones need to be resampled again:
+# 1978-02-16 1979-03-19 -  ~ post_control, #andrew 1978	
+# 1980-02-12 1981-02-20 -  ~ post_control, #danny -- external 1980	
+# 1973-03-21 1974-04-04 -  ~ post_control, #lili -- external 1973	
+# 1970-03-26 1971-04-01 -  ~ post_control, #hermine 1970	
+
+
+
+
 ```
-
-
 
 
 ## Hurricane events and Controls Mapping
 Add actual hurricane timeline parameters for 6 month (6 month meaning a buffer period of 6 months before a hurricane [denoted as pre] and 6 months after a hurricane [denoted post]). These dates for hurricane occurance are taken from the [NOAA hurricane watch website](https://coast.noaa.gov/hurricanes/#map=3.51/28.21/-61.45&search=eyJzZWFyY2hTdHJpbmciOiJDdXN0b20gUG9seWdvbiIsInNlYXJjaFR5cGUiOiJzdG9ybWlkcyIsIm1hdGNoIjoiZXhhY3QiLCJnZW9qc29uIjp7ImNvb3JkaW5hdGVzIjpbW1stOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XSxbLTg5LjczNjQxMjIzNjkyMjIzLDMyLjY4MjYxNzc1MzAyNTk0XSxbLTg5LjgwMDMxMjgwNjE3MjkxLDMyLjM0MDI4MTk4MzQ0Ml0sWy05MC4xNTAwNDYyNzQ3OTAwOSwzMi4xMjY0MTg3MzIxMjk1NjVdLFstOTAuMTk0NjE1NjY2MTQ5MTIsMzEuOTk0Nzc1ODU5NjQ5MTY3XSxbLTkwLjEwMDU4OTYzNDE1NDEsMzEuODQ3OTM4MTYwODc0MzA3XSxbLTkwLjA3NDUxMjEwNDYyOTI2LDMxLjczMDE4Mjc4MjkwMTY1XSxbLTg5LjkzMjI1OTI0MjQ0NDA1LDMxLjQ0NDMwNDgzOTgzOTg0NV0sWy04OS42MDA1MzcyMzEwMTc4NywzMS4xOTc0MzE2MzgyMDY2OF0sWy04OS41NDc3OTkyNzQ4MTE3OCwzMC44MDg0MTE1ODI1MTE3NjZdLFstODkuNjIxNjEyODU0ODEwMjUsMzAuNTQxODk1NzUyOTE2NDE3XSxbLTg5LjQyNDIxMDQ5NjQ3NjA5LDMwLjM0NTk0NzA5MDY1NDczMl0sWy04OS40Nzg5MDc3MDY4NDM0NywyOS42Nzk3MzQxNjA2MzEyNF0sWy04OS45OTU0NzQ5OTM4NDQ1NCwyOS45Mzk2ODk1MTk2MDU3OF0sWy04OS45ODA4NzM0MTcwNTYwMywzMC42NzcwOTM2NzYwOTQzNl0sWy05MC4wNDQ3ODc0NTQwMzA0MywzMS4xOTc3OTA4OTU5OTE2MDJdLFstOTAuMzA0MzcwOTI0NTk1NCwzMS42MDE3OTE3MTUzMjUxOV0sWy05MC4zNDY1MTc2NjAzMjcyNywzMS45Nzc0ODI4MDMzNDQ3XSxbLTkwLjMzMDI0MzQ0ODM4NTIsMzIuMjUzMTI4MDg4MDQ4NDRdLFstOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XV1dLCJ0eXBlIjoiUG9seWdvbiJ9LCJjYXRlZ29yaWVzIjpbIkg1IiwiSDQiLCJIMyIsIkgyIiwiSDEiLCJUUyIsIlREIiwiRVQiXSwieWVhcnMiOltdLCJtb250aHMiOltdLCJlbnNvIjpbXSwicHJlc3N1cmUiOnsicmFuZ2UiOlswLDEwMzBdLCJpbmNsdWRlVW5rbm93blByZXNzdXJlIjp0cnVlfSwic3Rvcm1JRHMiOiIyMDAzMTc5TjIwMjcxLDIwMDIyNThOMTAzMDAsMjAwMjI1NU4yNjI3MywyMDAyMjE3TjI5MjcyLDIwMDExNTdOMjgyNjUsMTk5ODI2MU4yNzI3MCwxOTk4MjU5TjEwMzM1LDE5OTcxOThOMjcyNjcsMTk5NTIxMk4yMjI4NywxOTkyMjMwTjExMzI1LDE5ODgyNTFOMjMyNjgsMTk4ODIyMU4zMDI3MCwxOTg1Mjk5TjI1MjcwLDE5ODUyNDBOMjAyODYsMTk3OTE5MU4yMjI2NCwxOTcxMjQ5TjExMzAyLDE5NjkyMjZOMTgyODAsMTk2NTI2OE4xNzI3NSwxOTY1MjM5TjExMzEwLDE5NjQyNzNOMjEyODAiLCJ0YWJJbmRleCI6MSwiYnVmZmVyVW5pdCI6WyJNaWxlcyJdLCJzb3J0U2VsZWN0aW9uIjp7InZhbHVlIjoieWVhcnNfbmV3ZXN0IiwibGFiZWwiOiJZZWFyIChOZXdlc3QpIn0sImFwcGx5VG9BT0kiOmZhbHNlLCJpc1N0b3JtTGFiZWxzVmlzaWJsZSI6dHJ1ZX0=) and represent all hurricane events that crossed a 50 mile boundary of the Pearl River from source to sea. 
 ```{r hurricane event and control assignment to df}
-# controls first
-# controls with resampling of overlapped dates
+# hurricane events
 hurricane_df6 <- full_data %>%
-  mutate(control = case_when(
-    date >= as.Date("1993-03-20") & date <= as.Date("1993-09-02") ~ "pre_control",
-    date >= as.Date("1993-09-02") & date <= as.Date("1993-09-25") ~ "control", #ivan -- external 1993
-    date >= as.Date("1993-09-25") & date <= as.Date("1994-03-25") ~ "post_control",
-    date >= as.Date("1993-03-28") & date <= as.Date("1993-09-28") ~ "pre_control",
-    date >= as.Date("1993-09-28") & date <= as.Date("1993-10-05") ~ "control", #hilda 1993
-    date >= as.Date("1993-10-05") & date <= as.Date("1994-04-05") ~ "post_control",
-    date >= as.Date("1982-02-27") & date <= as.Date("1982-08-27") ~ "pre_control",
-    date >= as.Date("1982-08-27") & date <= as.Date("1982-09-13") ~ "control", #betsy 1982
-    date >= as.Date("1982-09-13") & date <= as.Date("1983-03-13") ~ "post_control",
-    date >= as.Date("1983-01-09") & date <= as.Date("1983-07-09") ~ "pre_control",
-    date >= as.Date("1983-07-09") & date <= as.Date("1983-07-16") ~ "control", #bob 1983
-    date >= as.Date("1983-07-16") & date <= as.Date("1984-01-16") ~ "post_control",
-    date >= as.Date("1980-02-12") & date <= as.Date("1980-08-12") ~ "pre_control",
-    date >= as.Date("1980-08-12") & date <= as.Date("1980-08-20") ~ "control", #danny -- external 1980
-    date >= as.Date("1980-08-20") & date <= as.Date("1981-02-20") ~ "post_control",
-    date >= as.Date("1967-04-26") & date <= as.Date("1967-10-26") ~ "pre_control",
-    date >= as.Date("1967-10-26") & date <= as.Date("1967-11-03") ~ "control", #juan 1967
-    date >= as.Date("1967-11-03") & date <= as.Date("1968-05-03") ~ "post_control",
-    date >= as.Date("1977-03-07") & date <= as.Date("1977-09-07") ~ "pre_control",
-    date >= as.Date("1977-09-07") & date <= as.Date("1977-09-11") ~ "control", #florence 1977
-    date >= as.Date("1977-09-11") & date <= as.Date("1978-03-11") ~ "post_control",
-    date >= as.Date("1978-01-16") & date <= as.Date("1978-07-16") ~ "pre_control",
-    date >= as.Date("1978-07-16") & date <= as.Date("1978-07-27") ~ "control", #danny 1978
-    date >= as.Date("1978-07-27") & date <= as.Date("1979-01-27") ~ "post_control",
-    date >= as.Date("1970-03-26") & date <= as.Date("1970-09-26") ~ "pre_control",
-    date >= as.Date("1970-09-27") & date <= as.Date("1970-09-30") ~ "control", #hermine 1970
-    date >= as.Date("1970-10-01") & date <= as.Date("1971-04-01") ~ "post_control",
-    date >= as.Date("1975-03-12") & date <= as.Date("1975-09-12") ~ "pre_control",
-    date >= as.Date("1975-09-12") & date <= as.Date("1975-09-15") ~ "control", #hanna 1975
-    date >= as.Date("1975-09-15") & date <= as.Date("1976-03-15") ~ "post_control",
-    date >= as.Date("1975-12-27") & date <= as.Date("1976-06-27") ~ "pre_control",
-    date >= as.Date("1976-06-28") & date <= as.Date("1976-07-03") ~ "control", #bill 1975
-    date >= as.Date("1976-07-04") & date <= as.Date("1977-01-04") ~ "post_control",
-    date >= as.Date("1989-03-23") & date <= as.Date("1989-09-23") ~ "pre_control",
-    date >= as.Date("1989-09-24") & date <= as.Date("1989-09-30") ~ "control", #debbie 1989
-    date >= as.Date("1989-10-01") & date <= as.Date("1990-04-01") ~ "post_control",
-    date >= as.Date("1976-01-30") & date <= as.Date("1976-07-30") ~ "pre_control",
-    date >= as.Date("1976-07-31") & date <= as.Date("1976-10-06") ~ "control", #opal (4) and erin (2) combined 1976
-    date >= as.Date("1976-10-07") & date <= as.Date("1977-04-07") ~ "post_control",
-    # resampled due to overlap: and OK
-    date >= as.Date("1978-02-16") & date <= as.Date("1978-08-16") ~ "pre_control",
-    date >= as.Date("1978-08-16") & date <= as.Date("1978-08-19") ~ "control", #andrew 1978
-    date >= as.Date("1978-08-19") & date <= as.Date("1979-03-19") ~ "post_control",
-    date >= as.Date("1977-12-05") & date <= as.Date("1977-03-04") ~ "pre_control", 
-    date >= as.Date("1977-06-05") & date <= as.Date("1977-06-20") ~ "control", #allison 1977
-    date >= as.Date("1977-03-16") & date <= as.Date("1978-12-20") ~ "post_control",
-    date >= as.Date("1973-03-21") & date <= as.Date("1973-09-21") ~ "pre_control",
-    date >= as.Date("1973-09-21") & date <= as.Date("1973-10-04") ~ "control", #lili -- external 1973
-    date >= as.Date("1973-10-04") & date <= as.Date("1974-04-04") ~ "post_control",
-    date >= as.Date("1980-02-28") & date <= as.Date("1980-08-28") ~ "pre_control",
-    date >= as.Date("1980-08-28") & date <= as.Date("1980-09-04") ~ "control", #elena 1980
-    date >= as.Date("1980-09-04") & date <= as.Date("1981-03-04") ~ "post_control",
-    date >= as.Date("1981-02-28") & date <= as.Date("1981-08-29") ~ "pre_control",
-    date >= as.Date("1981-08-29") & date <= as.Date("1981-09-10") ~ "control", #carmen -- external 1981
-    date >= as.Date("1981-09-10") & date <= as.Date("1982-03-10") ~ "post_control",
-    date >= as.Date("1990-04-08") & date <= as.Date("1990-09-14") ~ "pre_control",
-    date >= as.Date("1990-09-14") & date <= as.Date("1990-09-27") ~ "control", #isidore 1990
-    date >= as.Date("1990-09-27") & date <= as.Date("1991-01-15") ~ "post_control",
-    # resampled 2x but ok
-    date >= as.Date("1990-03-15") & date <= as.Date("1990-09-15") ~ "pre_control",
-    date >= as.Date("1990-09-15") & date <= as.Date("1990-10-01") ~ "control", #georges 1990
-    date >= as.Date("1990-10-01") & date <= as.Date("1991-04-01") ~ "post_control",
-    date >= as.Date("1976-02-07") & date <= as.Date("1976-08-07") ~ "pre_control",
-    date >= as.Date("1976-08-08") & date <= as.Date("1976-08-10") ~ "control", #beryl 1976
-    date >= as.Date("1976-08-11") & date <= as.Date("1977-02-11") ~ "post_control",
-    date >= as.Date("1991-02-04") & date <= as.Date("1991-08-04") ~ "pre_control",
-    date >= as.Date("1991-08-04") & date <= as.Date("1991-08-09") ~ "control", #bertha 1991
-    date >= as.Date("1991-08-09") & date <= as.Date("1992-02-09") ~ "post_control",
-    date >= as.Date("1977-02-14") & date <= as.Date("1977-08-14") ~ "pre_control",
-    date >= as.Date("1977-08-14") & date <= as.Date("1977-08-22") ~ "control", #camille 1977
-    date >= as.Date("1977-08-22") & date <= as.Date("1978-02-22") ~ "post_control",
-    # resampled 3x but ok
-    date >= as.Date("1976-03-05") & date <= as.Date("1976-09-05") ~ "pre_control",
-    date >= as.Date("1976-09-05") & date <= as.Date("1976-09-15") ~ "control", #edith 1976
-    date >= as.Date("1976-09-15") & date <= as.Date("1976-03-15") ~ "post_control",
-    TRUE ~ "no event"
-  ))
-
-# now hurricane events
-hurricane_df6 <- hurricane_df6 %>%
   mutate(ewe_type = case_when(
     date >= as.Date("1969-02-14") & date <= as.Date("1969-08-14") ~ "pre_5",
     date >= as.Date("1969-08-14") & date <= as.Date("1969-08-22") ~ "hurricane_5", #camille
@@ -774,6 +751,94 @@ hurricane_df6 <- hurricane_df6 %>%
     date >= as.Date("1995-10-07") & date <= as.Date("1996-04-07") ~ "post_double",
     TRUE ~ "no event"
   ))
+
+# controls with resampling of overlapped dates
+hurricane_df6 <- hurricane_df6 %>%
+  mutate(control = case_when(
+    date >= as.Date("1993-03-28") & date <= as.Date("1993-09-28") ~ "pre_control",
+    date >= as.Date("1993-09-28") & date <= as.Date("1993-10-05") ~ "control", #hilda 1993
+    date >= as.Date("1993-10-05") & date <= as.Date("1994-04-05") ~ "post_control",
+    date >= as.Date("1982-02-27") & date <= as.Date("1982-08-27") ~ "pre_control",
+    date >= as.Date("1982-08-27") & date <= as.Date("1982-09-13") ~ "control", #betsy 1982
+    date >= as.Date("1982-09-13") & date <= as.Date("1983-03-13") ~ "post_control",
+    date >= as.Date("1983-01-09") & date <= as.Date("1983-07-09") ~ "pre_control",
+    date >= as.Date("1983-07-09") & date <= as.Date("1983-07-16") ~ "control", #bob 1983
+    date >= as.Date("1983-07-16") & date <= as.Date("1984-01-16") ~ "post_control",
+    date >= as.Date("1967-04-26") & date <= as.Date("1967-10-26") ~ "pre_control",
+    date >= as.Date("1967-10-26") & date <= as.Date("1967-11-03") ~ "control", #juan 1967
+    date >= as.Date("1967-11-03") & date <= as.Date("1968-05-03") ~ "post_control",
+    date >= as.Date("1977-03-07") & date <= as.Date("1977-09-07") ~ "pre_control",
+    date >= as.Date("1977-09-07") & date <= as.Date("1977-09-11") ~ "control", #florence 1977
+    date >= as.Date("1977-09-11") & date <= as.Date("1978-03-11") ~ "post_control",
+    date >= as.Date("1978-01-16") & date <= as.Date("1978-07-16") ~ "pre_control",
+    date >= as.Date("1978-07-16") & date <= as.Date("1978-07-27") ~ "control", #danny 1978
+    date >= as.Date("1978-07-27") & date <= as.Date("1979-01-27") ~ "post_control",
+    date >= as.Date("1975-03-12") & date <= as.Date("1975-09-12") ~ "pre_control",
+    date >= as.Date("1975-09-12") & date <= as.Date("1975-09-15") ~ "control", #hanna 1975
+    date >= as.Date("1975-09-15") & date <= as.Date("1976-03-15") ~ "post_control",
+    date >= as.Date("1975-12-27") & date <= as.Date("1976-06-27") ~ "pre_control",
+    date >= as.Date("1976-06-28") & date <= as.Date("1976-07-03") ~ "control", #bill 1975
+    date >= as.Date("1976-07-04") & date <= as.Date("1977-01-04") ~ "post_control",
+    date >= as.Date("1989-03-23") & date <= as.Date("1989-09-23") ~ "pre_control",
+    date >= as.Date("1989-09-24") & date <= as.Date("1989-09-30") ~ "control", #debbie 1989
+    date >= as.Date("1989-10-01") & date <= as.Date("1990-04-01") ~ "post_control",
+    date >= as.Date("1976-01-30") & date <= as.Date("1976-07-30") ~ "pre_control",
+    date >= as.Date("1976-07-31") & date <= as.Date("1976-10-06") ~ "control", #opal (4) and erin (2) combined 1976
+    date >= as.Date("1976-10-07") & date <= as.Date("1977-04-07") ~ "post_control",
+    # resampled due to overlap: and OK
+    date >= as.Date("1977-12-05") & date <= as.Date("1977-03-04") ~ "pre_control", 
+    date >= as.Date("1977-06-05") & date <= as.Date("1977-06-20") ~ "control", #allison 1977
+    date >= as.Date("1977-03-16") & date <= as.Date("1978-12-20") ~ "post_control",
+    date >= as.Date("1980-02-28") & date <= as.Date("1980-08-28") ~ "pre_control",
+    date >= as.Date("1980-08-28") & date <= as.Date("1980-09-04") ~ "control", #elena 1980
+    date >= as.Date("1980-09-04") & date <= as.Date("1981-03-04") ~ "post_control",
+    date >= as.Date("1981-02-28") & date <= as.Date("1981-08-29") ~ "pre_control",
+    date >= as.Date("1981-08-29") & date <= as.Date("1981-09-10") ~ "control", #carmen -- external 1981
+    date >= as.Date("1981-09-10") & date <= as.Date("1982-03-10") ~ "post_control",
+    date >= as.Date("1990-03-14") & date <= as.Date("1990-09-14") ~ "pre_control",
+    date >= as.Date("1990-09-14") & date <= as.Date("1990-09-27") ~ "control", #isidore 1990
+    date >= as.Date("1990-09-27") & date <= as.Date("1991-03-27") ~ "post_control",
+    # resampled 2x but ok
+    date >= as.Date("1990-03-15") & date <= as.Date("1990-09-15") ~ "pre_control",
+    date >= as.Date("1990-09-15") & date <= as.Date("1990-10-01") ~ "control", #georges 1990
+    date >= as.Date("1990-10-01") & date <= as.Date("1991-04-01") ~ "post_control",
+    date >= as.Date("1976-02-07") & date <= as.Date("1976-08-07") ~ "pre_control",
+    date >= as.Date("1976-08-08") & date <= as.Date("1976-08-10") ~ "control", #beryl 1976
+    date >= as.Date("1976-08-11") & date <= as.Date("1977-02-11") ~ "post_control",
+    date >= as.Date("1991-02-04") & date <= as.Date("1991-08-04") ~ "pre_control",
+    date >= as.Date("1991-08-04") & date <= as.Date("1991-08-09") ~ "control", #bertha 1991
+    date >= as.Date("1991-08-09") & date <= as.Date("1992-02-09") ~ "post_control",
+    date >= as.Date("1977-02-14") & date <= as.Date("1977-08-14") ~ "pre_control",
+    date >= as.Date("1977-08-14") & date <= as.Date("1977-08-22") ~ "control", #camille 1977
+    date >= as.Date("1977-08-22") & date <= as.Date("1978-02-22") ~ "post_control",
+    # resampled 3x but ok
+    date >= as.Date("1976-03-05") & date <= as.Date("1976-09-05") ~ "pre_control",
+    date >= as.Date("1976-09-05") & date <= as.Date("1976-09-15") ~ "control", #edith 1976
+    date >= as.Date("1976-09-15") & date <= as.Date("1976-03-15") ~ "post_control",
+    # resampled 4x but ok 
+    date >= as.Date("1990-02-16") & date <= as.Date("1990-08-16") ~ "pre_control",
+    date >= as.Date("1990-08-16") & date <= as.Date("1990-08-19") ~ "control", #andrew 1978
+    date >= as.Date("1990-08-19") & date <= as.Date("1991-03-19") ~ "post_control",
+    # resampled 5x but ok 
+    date >= as.Date("1967-03-26") & date <= as.Date("1967-09-26") ~ "pre_control",
+    date >= as.Date("1967-09-27") & date <= as.Date("1967-09-30") ~ "control", #hermine 1970
+    date >= as.Date("1967-10-01") & date <= as.Date("1968-04-01") ~ "post_control",
+    # resampled 7x
+    date >= as.Date("1980-02-12") & date <= as.Date("1980-08-12") ~ "pre_control",
+    date >= as.Date("1980-08-12") & date <= as.Date("1980-08-20") ~ "control", #danny -- external 1980
+    date >= as.Date("1980-08-20") & date <= as.Date("1981-02-20") ~ "post_control",
+    # resampled 8x but ok 
+    date >= as.Date("1982-03-21") & date <= as.Date("1982-09-21") ~ "pre_control",
+    date >= as.Date("1982-09-21") & date <= as.Date("1982-10-04") ~ "control", #lili -- external 1973
+    date >= as.Date("1982-10-04") & date <= as.Date("1983-04-04") ~ "post_control",
+    # resampled 15x 
+    date >= as.Date("1983-03-02") & date <= as.Date("1983-09-02") ~ "pre_control",
+    date >= as.Date("1983-09-02") & date <= as.Date("1983-09-25") ~ "control", #ivan -- external 1993
+    date >= as.Date("1983-09-25") & date <= as.Date("1984-03-25") ~ "post_control",
+    
+    TRUE ~ "no event"
+  ))
+
 
 # make a new column for storm intensity
 
@@ -894,7 +959,16 @@ ggplot(summary,
   labs(x = "Event", y = "Total Observations", fill = "Parasite Type") +
   connor_theme
 
+# number of control vs hurricane events by month
+summary <- hurricane_df_abundance %>%
+  group_by(event, timing, psite_type, month_collected) %>%
+  summarise(
+    total_observations = n(),
+    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    .groups = "drop"
+  )
 ```
+
 
 # Abundance
 ## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
@@ -998,17 +1072,52 @@ plot(hurricane_abundance_raw_only_full)
 ```
 ## Seasonality influencing distribution of abundance
 ```{r}
-# month against number of replicates
+# month and day against number of replicates
 ha.season <- hurricane_df_abundance_only_full %>% 
-  group_by(event, timing, psite_type, fish_sp_x, season, date) %>% 
+  group_by(event, timing, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
   summarize(observations = n(), .groups = "drop")
 
+# insert a dummy year as an anchor
+ha.season <- ha.season %>%
+  mutate(month_day_date = as.Date(paste0("2001-", month_day), format = "%Y-%m-%d"))
+
+ha.season$month_day_date <- as.Date(format(as.Date(ha.season$month_day_date), "2001-%m-%d"))
+
+range(ha.season$month_day_date)
+
+
 ggplot(ha.season,
-       aes(x = date, y = event, fill = psite_type)) +
-  facet_wrap(~ timing) +
-  geom_violin() +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Season", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+       aes(x = month_day_date, y = event, fill = psite_type)) +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2001-01-03", "2001-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = c(
+    "trematode_metacercaria" = "#AFDFEF",
+    "monogenean" = "#A6E000",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "Month", y = "Event", fill = "Parasite Type") +
+  connor_theme
+
+
+ggplot(ha.season,
+       aes(x = year_collected, y = event, fill = psite_type)) +
+  geom_violin() + 
+  facet_wrap(~ season) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_fill_manual(values = c(
+    "trematode_metacercaria" = "#AFDFEF",
+    "monogenean" = "#A6E000",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "Month-Day", y = "Event", fill = "Parasite Type") +
   connor_theme
 
 # run a model to see if season has an effect on occurrences
@@ -1661,18 +1770,29 @@ plot(hurricane_prevalence_raw)
 
 ## Seasonality influencing distribution - prevalence
 ```{r}
-# month against number of replicates
+# month and day against number of replicates
 hp.season <- hurricane_df_prevalence %>% 
-  group_by(event, timing, psite_type, fish_sp_x, season, date) %>% 
+  group_by(event, timing, psite_type, fish_sp_x, season, month_day) %>% 
   summarize(observations = n(), .groups = "drop")
 
+# insert a dummy year as an anchor
+hp.season <- hp.season %>%
+  mutate(month_day_date = as.Date(paste0("2020-", month_day), format = "%Y-%m-%d"))
+
 ggplot(hp.season,
-       aes(x = date, y = event, fill = psite_type)) +
-  facet_wrap(~ timing) +
+       aes(x = month_day_date, y = event, fill = psite_type)) +
   geom_violin() +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Season", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(date_labels = "%b %d", date_breaks = "1 month") +
+  scale_fill_manual(values = c(
+    "trematode_metacercaria" = "#AFDFEF",
+    "monogenean" = "#A6E000",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "Month-Day", y = "Event", fill = "Parasite Type") +
   connor_theme
+
 
 # run a model to see if season has an effect on occurrences
 season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = hp.season)
@@ -1815,9 +1935,11 @@ residual_summaries %>%
 ## Final Hurricane Prevalence Model
 ```{r}
 # prevalence
-hurricane_prevalence_final <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(log(total_length_mm)),
-                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + offset(sqrt(total_length_mm)), 
-                                family = nbinom2, data = hurricane_df_prevalence)
+hurricane_prevalence_final <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = hurricane_df_prevalence)
 
 simulateResiduals(fittedModel = hurricane_prevalence_final, plot = TRUE)
 summary(hurricane_prevalence_final)
@@ -1828,7 +1950,7 @@ switch things around so that monogenes are not reference category? how do i get 
 
 ## Plots -- hurricane prevalence
 ## Hurricance prevalence prediction plot
-```{r}
+```{r, eval=FALSE}
 #### prevalence plot 
 
 p1p <- ggpredict(hurricane_prevalence_final, terms = c("event", "timing"))
@@ -1865,7 +1987,7 @@ plot(final_prevalence_plot)
 ```
 
 PLot prevalence model and raw data together 
-```{r}
+```{r, eval=FALSE}
 hurricane_prevalence_raw_and_model <- ggarrange(hpp_f, raw2p, common.legend = FALSE, legend = "bottom", labels = c("A", "B"))
 plot(hurricane_prevalence_raw_and_model)
 
@@ -1899,7 +2021,7 @@ plot(df_prevalence_raw_and_model_corrected)
 ```
 
 ## Zero Inflated prevalence plots
-```{r}
+```{r, eval=FALSE}
 azi1 <- ggemmeans(hurricane_prevalence_final, terms = c("event", "timing"), component = "zi")
 
 azi1 <- azi1 %>%
@@ -1935,7 +2057,7 @@ plot(hurricane_prevalence_plot_zi)
 
 ```
 ## Plot Zi and conditional model outputs together -- prevalence
-```{r}
+```{r, eval=FALSE}
 hurricance_prevalence_plot_total <- ggarrange(hpp_f, azi1p, common.legend = TRUE, legend = "bottom", labels = c("A", "B"))
 plot(hurricance_prevalence_plot_total)
 ```
