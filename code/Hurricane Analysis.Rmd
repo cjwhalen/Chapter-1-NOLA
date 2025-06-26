@@ -658,7 +658,7 @@ Correct controls by identifying overlaps and reducing the period of control to n
 #  ))
 
 
-# one final organization by date to make sure there are no overlaps 
+# one final organization by date to make sure there are no overlaps -- done
 # these ones need to be resampled again:
 # 1978-02-16 1979-03-19 -  ~ post_control, #andrew 1978	
 # 1980-02-12 1981-02-20 -  ~ post_control, #danny -- external 1980	
@@ -673,6 +673,7 @@ Correct controls by identifying overlaps and reducing the period of control to n
 
 ## Hurricane events and Controls Mapping
 Add actual hurricane timeline parameters for 6 month (6 month meaning a buffer period of 6 months before a hurricane [denoted as pre] and 6 months after a hurricane [denoted post]). These dates for hurricane occurance are taken from the [NOAA hurricane watch website](https://coast.noaa.gov/hurricanes/#map=3.51/28.21/-61.45&search=eyJzZWFyY2hTdHJpbmciOiJDdXN0b20gUG9seWdvbiIsInNlYXJjaFR5cGUiOiJzdG9ybWlkcyIsIm1hdGNoIjoiZXhhY3QiLCJnZW9qc29uIjp7ImNvb3JkaW5hdGVzIjpbW1stOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XSxbLTg5LjczNjQxMjIzNjkyMjIzLDMyLjY4MjYxNzc1MzAyNTk0XSxbLTg5LjgwMDMxMjgwNjE3MjkxLDMyLjM0MDI4MTk4MzQ0Ml0sWy05MC4xNTAwNDYyNzQ3OTAwOSwzMi4xMjY0MTg3MzIxMjk1NjVdLFstOTAuMTk0NjE1NjY2MTQ5MTIsMzEuOTk0Nzc1ODU5NjQ5MTY3XSxbLTkwLjEwMDU4OTYzNDE1NDEsMzEuODQ3OTM4MTYwODc0MzA3XSxbLTkwLjA3NDUxMjEwNDYyOTI2LDMxLjczMDE4Mjc4MjkwMTY1XSxbLTg5LjkzMjI1OTI0MjQ0NDA1LDMxLjQ0NDMwNDgzOTgzOTg0NV0sWy04OS42MDA1MzcyMzEwMTc4NywzMS4xOTc0MzE2MzgyMDY2OF0sWy04OS41NDc3OTkyNzQ4MTE3OCwzMC44MDg0MTE1ODI1MTE3NjZdLFstODkuNjIxNjEyODU0ODEwMjUsMzAuNTQxODk1NzUyOTE2NDE3XSxbLTg5LjQyNDIxMDQ5NjQ3NjA5LDMwLjM0NTk0NzA5MDY1NDczMl0sWy04OS40Nzg5MDc3MDY4NDM0NywyOS42Nzk3MzQxNjA2MzEyNF0sWy04OS45OTU0NzQ5OTM4NDQ1NCwyOS45Mzk2ODk1MTk2MDU3OF0sWy04OS45ODA4NzM0MTcwNTYwMywzMC42NzcwOTM2NzYwOTQzNl0sWy05MC4wNDQ3ODc0NTQwMzA0MywzMS4xOTc3OTA4OTU5OTE2MDJdLFstOTAuMzA0MzcwOTI0NTk1NCwzMS42MDE3OTE3MTUzMjUxOV0sWy05MC4zNDY1MTc2NjAzMjcyNywzMS45Nzc0ODI4MDMzNDQ3XSxbLTkwLjMzMDI0MzQ0ODM4NTIsMzIuMjUzMTI4MDg4MDQ4NDRdLFstOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XV1dLCJ0eXBlIjoiUG9seWdvbiJ9LCJjYXRlZ29yaWVzIjpbIkg1IiwiSDQiLCJIMyIsIkgyIiwiSDEiLCJUUyIsIlREIiwiRVQiXSwieWVhcnMiOltdLCJtb250aHMiOltdLCJlbnNvIjpbXSwicHJlc3N1cmUiOnsicmFuZ2UiOlswLDEwMzBdLCJpbmNsdWRlVW5rbm93blByZXNzdXJlIjp0cnVlfSwic3Rvcm1JRHMiOiIyMDAzMTc5TjIwMjcxLDIwMDIyNThOMTAzMDAsMjAwMjI1NU4yNjI3MywyMDAyMjE3TjI5MjcyLDIwMDExNTdOMjgyNjUsMTk5ODI2MU4yNzI3MCwxOTk4MjU5TjEwMzM1LDE5OTcxOThOMjcyNjcsMTk5NTIxMk4yMjI4NywxOTkyMjMwTjExMzI1LDE5ODgyNTFOMjMyNjgsMTk4ODIyMU4zMDI3MCwxOTg1Mjk5TjI1MjcwLDE5ODUyNDBOMjAyODYsMTk3OTE5MU4yMjI2NCwxOTcxMjQ5TjExMzAyLDE5NjkyMjZOMTgyODAsMTk2NTI2OE4xNzI3NSwxOTY1MjM5TjExMzEwLDE5NjQyNzNOMjEyODAiLCJ0YWJJbmRleCI6MSwiYnVmZmVyVW5pdCI6WyJNaWxlcyJdLCJzb3J0U2VsZWN0aW9uIjp7InZhbHVlIjoieWVhcnNfbmV3ZXN0IiwibGFiZWwiOiJZZWFyIChOZXdlc3QpIn0sImFwcGx5VG9BT0kiOmZhbHNlLCJpc1N0b3JtTGFiZWxzVmlzaWJsZSI6dHJ1ZX0=) and represent all hurricane events that crossed a 50 mile boundary of the Pearl River from source to sea. 
+
 ```{r hurricane event and control assignment to df}
 # hurricane events
 hurricane_df6 <- full_data %>%
@@ -680,75 +681,99 @@ hurricane_df6 <- full_data %>%
     date >= as.Date("1969-02-14") & date <= as.Date("1969-08-14") ~ "pre_5",
     date >= as.Date("1969-08-14") & date <= as.Date("1969-08-22") ~ "hurricane_5", #camille
     date >= as.Date("1969-08-22") & date <= as.Date("1970-02-22") ~ "post_5",
+    
     date >= as.Date("1971-03-05") & date <= as.Date("1971-09-05") ~ "pre_5",
     date >= as.Date("1971-09-05") & date <= as.Date("1971-09-15") ~ "hurricane_5", #edith
     date >= as.Date("1971-09-15") & date <= as.Date("1972-03-15") ~ "post_5",
+    
     date >= as.Date("1992-02-16") & date <= as.Date("1992-08-16") ~ "pre_5",
     date >= as.Date("1992-08-16") & date <= as.Date("1992-08-19") ~ "hurricane_5", #andrew
     date >= as.Date("1992-08-19") & date <= as.Date("1993-03-19") ~ "post_5",
+    
     date >= as.Date("2004-03-02") & date <= as.Date("2004-09-02") ~ "pre_5",
     date >= as.Date("2004-09-02") & date <= as.Date("2004-09-25") ~ "hurricane_5", #ivan -- external
     date >= as.Date("2004-09-25") & date <= as.Date("2005-03-25") ~ "post_5",
+    
     date >= as.Date("1964-03-28") & date <= as.Date("1964-09-28") ~ "pre_4",
     date >= as.Date("1964-09-28") & date <= as.Date("1964-10-05") ~ "hurricane_4", #hilda
     date >= as.Date("1964-10-05") & date <= as.Date("1965-04-05") ~ "post_4",
+    
     date >= as.Date("1965-02-27") & date <= as.Date("1965-08-27") ~ "pre_4",
     date >= as.Date("1965-08-27") & date <= as.Date("1965-09-13") ~ "hurricane_4", #betsy
     date >= as.Date("1965-09-13") & date <= as.Date("1966-03-13") ~ "post_4",
+    
     date >= as.Date("1974-02-28") & date <= as.Date("1974-08-29") ~ "pre_4",
     date >= as.Date("1974-08-29") & date <= as.Date("1974-09-10") ~ "hurricane_4", #carmen -- external
     date >= as.Date("1974-09-10") & date <= as.Date("1975-03-10") ~ "post_4",
+    
     date >= as.Date("1998-03-15") & date <= as.Date("1998-09-15") ~ "pre_4",
     date >= as.Date("1998-09-15") & date <= as.Date("1998-10-01") ~ "hurricane_4", #georges
     date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_4",
+    
     date >= as.Date("2002-03-21") & date <= as.Date("2002-09-21") ~ "pre_4",
     date >= as.Date("2002-09-21") & date <= as.Date("2002-10-04") ~ "hurricane_4", #lili -- external 
     date >= as.Date("2002-10-04") & date <= as.Date("2003-04-04") ~ "post_4",
+    
     date >= as.Date("1985-02-28") & date <= as.Date("1985-08-28") ~ "pre_3",
     date >= as.Date("1985-08-28") & date <= as.Date("1985-09-04") ~ "hurricane_3", #elena
     date >= as.Date("1985-09-04") & date <= as.Date("1986-03-04") ~ "post_3",
+    
     date >= as.Date("2002-03-14") & date <= as.Date("2002-09-14") ~ "pre_3",
     date >= as.Date("2002-09-14") & date <= as.Date("2002-09-27") ~ "hurricane_3", #isidore 
     date >= as.Date("2002-09-27") & date <= as.Date("2003-03-27") ~ "post_3",
+    
     date >= as.Date("1979-01-09") & date <= as.Date("1979-07-09") ~ "pre_1",
     date >= as.Date("1979-07-09") & date <= as.Date("1979-07-16") ~ "hurricane_1", #bob
     date >= as.Date("1979-07-16") & date <= as.Date("1980-01-16") ~ "post_1",
+    
     date >= as.Date("1985-02-12") & date <= as.Date("1985-08-12") ~ "pre_1",
     date >= as.Date("1985-08-12") & date <= as.Date("1985-08-20") ~ "hurricane_1", #danny -- external
     date >= as.Date("1985-08-20") & date <= as.Date("1986-02-20") ~ "post_1",
+    
     date >= as.Date("1985-04-26") & date <= as.Date("1985-10-26") ~ "pre_1",
     date >= as.Date("1985-10-26") & date <= as.Date("1985-11-03") ~ "hurricane_1", #juan
     date >= as.Date("1985-11-03") & date <= as.Date("1986-05-03") ~ "post_1",
+    
     date >= as.Date("1988-03-07") & date <= as.Date("1988-09-07") ~ "pre_1",
     date >= as.Date("1988-09-07") & date <= as.Date("1988-09-11") ~ "hurricane_1", #florence
     date >= as.Date("1988-09-11") & date <= as.Date("1989-03-11") ~ "post_1",
+    
     date >= as.Date("1997-01-16") & date <= as.Date("1997-07-16") ~ "pre_1",
     date >= as.Date("1997-07-16") & date <= as.Date("1997-07-27") ~ "hurricane_1", #danny
     date >= as.Date("1997-07-27") & date <= as.Date("1998-01-27") ~ "post_1",
+    
     date >= as.Date("1988-02-07") & date <= as.Date("1988-08-07") ~ "pre_ts",
     date >= as.Date("1988-08-08") & date <= as.Date("1988-08-10") ~ "tropical_storm", #beryl
     date >= as.Date("1988-08-11") & date <= as.Date("1989-02-11") ~ "post_ts",
+    
     date >= as.Date("1998-03-26") & date <= as.Date("1998-09-26") ~ "pre_ts",
     date >= as.Date("1998-09-27") & date <= as.Date("1998-09-30") ~ "tropical_storm", #hermine
     date >= as.Date("1998-10-01") & date <= as.Date("1999-04-01") ~ "post_ts",
+    
     date >= as.Date("2000-12-05") & date <= as.Date("2001-06-05") ~ "pre_ts",
     date >= as.Date("2001-06-05") & date <= as.Date("2001-06-20") ~ "tropical_storm", #allison
-    date >= as.Date("2001-06-20") & date <= as.Date("2001-12-20") ~ "post_ts",
+    date >= as.Date("2001-06-20") & date <= as.Date("2002-12-20") ~ "post_ts",
+    
     date >= as.Date("2002-02-04") & date <= as.Date("2002-08-04") ~ "pre_ts",
     date >= as.Date("2002-08-04") & date <= as.Date("2002-08-09") ~ "tropical_storm", #bertha
     date >= as.Date("2002-08-09") & date <= as.Date("2003-02-09") ~ "post_ts",
+    
     date >= as.Date("2002-03-12") & date <= as.Date("2002-09-12") ~ "pre_ts",
     date >= as.Date("2002-09-12") & date <= as.Date("2002-09-15") ~ "tropical_storm", #hanna
     date >= as.Date("2002-09-15") & date <= as.Date("2003-03-15") ~ "post_ts",
+    
     date >= as.Date("2002-12-27") & date <= as.Date("2003-06-27") ~ "pre_ts",
     date >= as.Date("2003-06-28") & date <= as.Date("2003-07-03") ~ "tropical_storm", #bill
     date >= as.Date("2003-07-04") & date <= as.Date("2004-01-04") ~ "post_ts",
+    
     date >= as.Date("1965-03-23") & date <= as.Date("1965-09-23") ~ "pre_ts",
     date >= as.Date("1965-09-24") & date <= as.Date("1965-09-30") ~ "tropical_storm", #debbie
     date >= as.Date("1965-10-01") & date <= as.Date("1966-04-01") ~ "post_ts",
+    
     date >= as.Date("1995-01-30") & date <= as.Date("1995-07-30") ~ "pre_double",
     date >= as.Date("1995-07-31") & date <= as.Date("1995-10-06") ~ "hurricane_double", #opal (4) and erin (2) combined
     date >= as.Date("1995-10-07") & date <= as.Date("1996-04-07") ~ "post_double",
+    
     TRUE ~ "no event"
   ))
 
@@ -814,7 +839,7 @@ hurricane_df6 <- hurricane_df6 %>%
     # resampled 3x but ok
     date >= as.Date("1976-03-05") & date <= as.Date("1976-09-05") ~ "pre_control",
     date >= as.Date("1976-09-05") & date <= as.Date("1976-09-15") ~ "control", #edith 1976
-    date >= as.Date("1976-09-15") & date <= as.Date("1976-03-15") ~ "post_control",
+    date >= as.Date("1976-09-15") & date <= as.Date("1977-03-15") ~ "post_control",
     # resampled 4x but ok 
     date >= as.Date("1990-02-16") & date <= as.Date("1990-08-16") ~ "pre_control",
     date >= as.Date("1990-08-16") & date <= as.Date("1990-08-19") ~ "control", #andrew 1978
@@ -823,7 +848,7 @@ hurricane_df6 <- hurricane_df6 %>%
     date >= as.Date("1967-03-26") & date <= as.Date("1967-09-26") ~ "pre_control",
     date >= as.Date("1967-09-27") & date <= as.Date("1967-09-30") ~ "control", #hermine 1970
     date >= as.Date("1967-10-01") & date <= as.Date("1968-04-01") ~ "post_control",
-    # resampled 7x
+    # resampled 7x but ok 
     date >= as.Date("1980-02-12") & date <= as.Date("1980-08-12") ~ "pre_control",
     date >= as.Date("1980-08-12") & date <= as.Date("1980-08-20") ~ "control", #danny -- external 1980
     date >= as.Date("1980-08-20") & date <= as.Date("1981-02-20") ~ "post_control",
@@ -831,14 +856,13 @@ hurricane_df6 <- hurricane_df6 %>%
     date >= as.Date("1982-03-21") & date <= as.Date("1982-09-21") ~ "pre_control",
     date >= as.Date("1982-09-21") & date <= as.Date("1982-10-04") ~ "control", #lili -- external 1973
     date >= as.Date("1982-10-04") & date <= as.Date("1983-04-04") ~ "post_control",
-    # resampled 15x 
+    # resampled 15x but ok 
     date >= as.Date("1983-03-02") & date <= as.Date("1983-09-02") ~ "pre_control",
     date >= as.Date("1983-09-02") & date <= as.Date("1983-09-25") ~ "control", #ivan -- external 1993
     date >= as.Date("1983-09-25") & date <= as.Date("1984-03-25") ~ "post_control",
     
     TRUE ~ "no event"
   ))
-
 
 # make a new column for storm intensity
 
@@ -1072,6 +1096,7 @@ plot(hurricane_abundance_raw_only_full)
 ```
 ## Seasonality influencing distribution of abundance
 ```{r}
+
 # month and day against number of replicates
 ha.season <- hurricane_df_abundance_only_full %>% 
   group_by(event, timing, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
@@ -1079,19 +1104,18 @@ ha.season <- hurricane_df_abundance_only_full %>%
 
 # insert a dummy year as an anchor
 ha.season <- ha.season %>%
-  mutate(month_day_date = as.Date(paste0("2001-", month_day), format = "%Y-%m-%d"))
+  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
 
-ha.season$month_day_date <- as.Date(format(as.Date(ha.season$month_day_date), "2001-%m-%d"))
+ha.season$month_day_date <- as.Date(format(as.Date(ha.season$month_day_date), "2025-%m-%d"))
 
 range(ha.season$month_day_date)
-
 
 ggplot(ha.season,
        aes(x = month_day_date, y = event, fill = psite_type)) +
   geom_violin(scale = "count", trim = FALSE) +
   geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
   scale_x_date(
-    limits = as.Date(c("2001-01-03", "2001-12-26")),
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
     date_labels = "%b",
     date_breaks = "1 month",
     expand = c(0.01, 0)
@@ -1103,21 +1127,6 @@ ggplot(ha.season,
     "myxozoan" = "#07c3c5"
   )) +
   labs(x = "Month", y = "Event", fill = "Parasite Type") +
-  connor_theme
-
-
-ggplot(ha.season,
-       aes(x = year_collected, y = event, fill = psite_type)) +
-  geom_violin() + 
-  facet_wrap(~ season) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF",
-    "monogenean" = "#A6E000",
-    "trematode" = "#c9ad79",
-    "myxozoan" = "#07c3c5"
-  )) +
-  labs(x = "Month-Day", y = "Event", fill = "Parasite Type") +
   connor_theme
 
 # run a model to see if season has an effect on occurrences
@@ -2061,6 +2070,14 @@ plot(hurricane_prevalence_plot_zi)
 hurricance_prevalence_plot_total <- ggarrange(hpp_f, azi1p, common.legend = TRUE, legend = "bottom", labels = c("A", "B"))
 plot(hurricance_prevalence_plot_total)
 ```
+
+
+# 3 month hurricane buffer
+```{r}
+
+```
+
+
 
 
 # Estimating Biodiversity Changes

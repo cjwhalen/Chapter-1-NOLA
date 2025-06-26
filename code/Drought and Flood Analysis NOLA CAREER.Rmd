@@ -50,6 +50,8 @@ source("~/Desktop/UW/Dissertation/theme_ctmt.R")
 library(LaCroixColoR)
 library(patchwork)
 library(ggh4x)
+
+library(parameters)
 library(vistime)
 library(car)
 library(DHARMa)
@@ -169,6 +171,9 @@ full_data <- full_data %>%
     fish_sp_x == "Ictalurus punctatus" ~ "ictpun",
     TRUE ~ fish_sp_x
   ))
+
+full_data <- full_data %>%
+  mutate(month_day = format(date, "%m-%d"))
 
 # what are total counts of each parasite type in the main dataset?
 summary <- full_data %>%
@@ -297,26 +302,39 @@ plot(df_abundance_raw_only_full)
 ```
 ## Seasonality influencing distribution of abundance
 ```{r}
-# month against number of replicates
-dfa.season <- drought_flood_df_a_only_full %>% 
-  group_by(event, category, psite_type, fish_sp_x, season) %>% 
-  summarize(avg.bin = mean(psite_abundance))
+# month and day against number of replicates
+hp.season <- drought_flood_df_a %>% 
+  group_by(event, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
+  summarize(observations = n(), .groups = "drop")
 
-ggplot(dfa.season,
-       aes(x = season, y = avg.bin, fill = psite_type)) +
-  facet_wrap(~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Season", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+# insert a dummy year as an anchor
+hp.season <- hp.season %>%
+  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
+
+hp.season$month_day_date <- as.Date(format(as.Date(hp.season$month_day_date), "2025-%m-%d"))
+
+range(hp.season$month_day_date)
+
+
+ggplot(hp.season,
+       aes(x = month_day_date, y = event, fill = psite_type)) +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = c(
+    "trematode_metacercaria" = "#AFDFEF",
+    "monogenean" = "#A6E000",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "Month", y = "Event", fill = "Parasite Type") +
   connor_theme
 
-# run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = dfa.season)
-simulateResiduals(fittedModel = season_model, plot = TRUE)
-summary(season_model)
-plot(parameters(season_model))
-
-# season does not seem to have an effect on parasite abundance 
 ```
 
 ## Abundance Models
@@ -766,26 +784,39 @@ plot(df_prevalence_raw)
 
 ## Seasonality influencing distribution - prevalence
 ```{r}
-# month against number of replicates
-dfp.season <- drought_flood_df_m %>% 
-  group_by(event, psite_type, fish_sp_x, season) %>% 
-  summarize(avg.bin = mean(psite_prevalence))
+# month and day against number of replicates
+hp.season <- drought_flood_df_m %>% 
+  group_by(event, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
+  summarize(observations = n(), .groups = "drop")
 
-ggplot(dfp.season,
-       aes(x = season, y = avg.bin, fill = psite_type)) +
-  facet_wrap(~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Season", y = "Average Parasite Prevalence", fill = "Parasite Type", linetype = "Parasite Type") +
+# insert a dummy year as an anchor
+hp.season <- hp.season %>%
+  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
+
+hp.season$month_day_date <- as.Date(format(as.Date(hp.season$month_day_date), "2025-%m-%d"))
+
+range(hp.season$month_day_date)
+
+
+ggplot(hp.season,
+       aes(x = month_day_date, y = event, fill = psite_type)) +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = c(
+    "trematode_metacercaria" = "#AFDFEF",
+    "monogenean" = "#A6E000",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "Month", y = "Event", fill = "Parasite Type") +
   connor_theme
 
-# run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(avg.bin ~ season*event, family = nbinom2, data = dfp.season)
-simulateResiduals(fittedModel = season_model, plot = TRUE)
-summary(season_model)
-plot(parameters(season_model))
-
-# intercept(fall) have some sort of significant influence on myxo prevalence --> how to correct for seasonality? Season is already in the main model, so is this covered by the model itself?
 ```
 ## Prevalence model validation
 ```{r}
@@ -1115,7 +1146,7 @@ ggplot(jackknife_results,
 ```
 
 ## Plot jacknife estimates
-```{r}
+```{r, eval=FALSE}
 ggplot(jackknife_results,
        aes(x = psite_type, y = jackknife_mean_richness, fill = psite_spp_y)) +
   geom_col(position = "dodge") +
