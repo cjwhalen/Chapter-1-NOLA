@@ -1,8 +1,11 @@
 ---
-title: "Drought and Flood: NOLA CAREER Project"
+title: 'Drought and Flood: NOLA CAREER Project'
 author: "Connor Whalen"
 date: "2025-02-18"
 output:
+  word_document:
+    toc: true
+    toc_depth: '3'
   html_document:
     theme: readable
     highlight: textmate
@@ -44,13 +47,10 @@ library(lubridate)
 library(ggplot2)
 library(stringr)
 library(glmmTMB)
-#library(lmerTest)
 library(lme4)
-source("~/Desktop/UW/Dissertation/theme_ctmt.R")
 library(LaCroixColoR)
 library(patchwork)
 library(ggh4x)
-
 library(parameters)
 library(vistime)
 library(car)
@@ -819,7 +819,7 @@ ggplot(hp.season,
 
 ```
 ## Prevalence model validation
-```{r}
+```{r, echo=FALSE, eval=FALSE}
 ## normal
 
 # nbinom1 log
