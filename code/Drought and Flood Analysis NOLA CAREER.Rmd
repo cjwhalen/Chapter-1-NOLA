@@ -303,20 +303,20 @@ plot(df_abundance_raw_only_full)
 ## Seasonality influencing distribution of abundance
 ```{r}
 # month and day against number of replicates
-hp.season <- drought_flood_df_a %>% 
+dfp.season <- drought_flood_df_a %>% 
   group_by(event, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
   summarize(observations = n(), .groups = "drop")
 
 # insert a dummy year as an anchor
-hp.season <- hp.season %>%
+dfp.season <- dfp.season %>%
   mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
 
-hp.season$month_day_date <- as.Date(format(as.Date(hp.season$month_day_date), "2025-%m-%d"))
+dfp.season$month_day_date <- as.Date(format(as.Date(dfp.season$month_day_date), "2025-%m-%d"))
 
-range(hp.season$month_day_date)
+range(dfp.season$month_day_date)
 
 
-ggplot(hp.season,
+ggplot(dfp.season,
        aes(x = month_day_date, y = event, fill = psite_type)) +
   geom_violin(scale = "count", trim = FALSE) +
   geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
@@ -335,6 +335,11 @@ ggplot(hp.season,
   labs(x = "Month", y = "Event", fill = "Parasite Type") +
   connor_theme
 
+# run a model to see if season has an effect on occurrences
+season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = dfp.season)
+simulateResiduals(fittedModel = season_model, plot = TRUE)
+summary(season_model)
+plot(parameters(season_model))
 ```
 
 ## Abundance Models
@@ -483,6 +488,24 @@ df_abundance_final <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catal
 simulateResiduals(fittedModel = df_abundance_final, plot = TRUE)
 summary(df_abundance_final)
 plot(parameters(df_abundance_final))
+
+
+# relevel to have trems in the reference cateogory:
+drought_flood_df_a_only_full <- drought_flood_df_a_only_full %>%
+  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
+  mutate(psite_type = factor(psite_type, 
+                             levels = c("trematode", "trematode_metacercaria", "monogenean")))
+
+df_abundance_final <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = drought_flood_df_a_only_full)
+
+
+simulateResiduals(fittedModel = df_abundance_final, plot = TRUE)
+summary(df_abundance_final)
+plot(parameters(df_abundance_final))
+
+# gives NA in the AIC
 ```
 # Plots - abundance
 ```{r}
@@ -785,20 +808,20 @@ plot(df_prevalence_raw)
 ## Seasonality influencing distribution - prevalence
 ```{r}
 # month and day against number of replicates
-hp.season <- drought_flood_df_m %>% 
+dfp.season <- drought_flood_df_m %>% 
   group_by(event, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
   summarize(observations = n(), .groups = "drop")
 
 # insert a dummy year as an anchor
-hp.season <- hp.season %>%
+dfp.season <- dfp.season %>%
   mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
 
-hp.season$month_day_date <- as.Date(format(as.Date(hp.season$month_day_date), "2025-%m-%d"))
+dfp.season$month_day_date <- as.Date(format(as.Date(dfp.season$month_day_date), "2025-%m-%d"))
 
-range(hp.season$month_day_date)
+range(dfp.season$month_day_date)
 
 
-ggplot(hp.season,
+ggplot(dfp.season,
        aes(x = month_day_date, y = event, fill = psite_type)) +
   geom_violin(scale = "count", trim = FALSE) +
   geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
@@ -816,6 +839,12 @@ ggplot(hp.season,
   )) +
   labs(x = "Month", y = "Event", fill = "Parasite Type") +
   connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = dfp.season)
+simulateResiduals(fittedModel = season_model, plot = TRUE)
+summary(season_model)
+plot(parameters(season_model))
 
 ```
 ## Prevalence model validation
