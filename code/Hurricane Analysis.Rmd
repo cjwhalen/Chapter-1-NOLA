@@ -3835,6 +3835,135 @@ plot(hurricane_prevalence3_plot_zi)
 
 ```
 
+# Plot the paper's main takeaway result: 
+These results suggest that trematode metacercaria are generally more abundant under post-event conditions in the short term, but their abundance declines over time. However, the presence of a hurricane amplifies this pattern—while metacercaria abundance drops sharply from 3 to 6 months in non-hurricane conditions, it remains relatively high in hurricane-affected situations. This indicates a sustained, net positive effect of hurricanes on metacercaria abundance, with far fewer present in the system when hurricanes are absent.
+
+Troubleshooting
+```{r}
+three_raw <- ggpredict(final_h_abundance3, terms = c("event", "timing", "psite_type"))
+three_raw %>% filter(predicted < conf.low | predicted > conf.high)
+
+str(three)
+three <- three %>%
+  mutate(
+    estimate = as.numeric(estimate),
+    lower = as.numeric(lower),
+    upper = as.numeric(upper)
+  )
+
+three %>% filter(estimate < lower)
+
+```
+
+```{r}
+six <- ggpredict(final_h_abundance, terms = c("event", "timing", "psite_type"))
+six <- six %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    psite_type = facet
+  ) %>%
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  mutate(model = "6 month buffer") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+
+three <- ggpredict(final_h_abundance3, terms = c("event", "timing", "psite_type"))
+three <- three %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    psite_type = facet
+  ) %>%
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  mutate(model = "3 month buffer") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+
+combined_preds <- bind_rows(six, three)
+
+
+# just hurricane 
+hurricane_only <- combined_preds %>% 
+  filter(event %in% c("hurricane"))
+
+combined1 <- ggplot(hurricane_only,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ model) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = event),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) +
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
+  connor_theme
+
+
+# hurricane and control
+six <- ggpredict(final_h_abundance, terms = c("timing", "psite_type"))
+six <- six %>%
+  rename(
+    timing = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    psite_type = group
+  ) %>%
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  mutate(model = "6 month buffer") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+
+three <- ggpredict(final_h_abundance3, terms = c("timing", "psite_type"))
+three <- three %>%
+  rename(
+    timing = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    psite_type = group
+  ) %>%
+  filter(psite_type %in% c("trematode_metacercaria")) %>% 
+  mutate(model = "3 month buffer") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+
+combined_preds <- bind_rows(six, three)
+
+combined2 <- ggplot(combined_preds,
+       aes(x = timing, y = estimate)) +
+  facet_wrap(~ model) +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) +
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) +
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
+  connor_theme
+
+# create plot
+
+final_plot <- ggarrange(combined1, combined2, common.legend = TRUE, legend = "bottom", labels = c("Hurricane Only", "Hurricane and Control"))
+plot(final_plot)
+
+```
+
+
+
 
 # Estimating Biodiversity Changes
 Jackknife estimates - all parasites
@@ -3928,6 +4057,9 @@ ggplot(jackknife_results,
     fill = "Parasite type"
   ) + connor_theme
 ```
+
+
+
 
 ## Plot jacknife estimates
 ```{r}
