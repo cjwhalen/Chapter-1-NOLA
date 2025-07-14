@@ -1113,6 +1113,19 @@ plot(parameters(season_model))
 # no effect of seasonality present
 ```
 
+# What are our abundance counts at each reference level?
+```{r}
+counts6 <- hurricane_df_abundance_only_full %>% 
+  group_by(psite_type) %>% 
+  summarize(observations = n(), .groups = "drop")
+# trematodes are most abundant
+
+# relevel to have trematodes as reference level:
+hurricane_df_abundance_only_full_tremR <- hurricane_df_abundance_only_full %>%
+  mutate(psite_type = relevel(psite_type, ref = "trematode"))
+```
+
+
 ## Abundance Models
 ### Negative binomial glmmTMB model validation
 ```{r model validation abundance, echo=FALSE, eval=FALSE}
@@ -1257,6 +1270,17 @@ final_h_abundance <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1
 simulateResiduals(fittedModel = final_h_abundance, plot = TRUE)
 summary(final_h_abundance)
 plot(parameters(final_h_abundance))
+
+
+# run trematode reference level model
+final_h_abundance6T <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected)  + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance_only_full_tremR)
+
+simulateResiduals(fittedModel = final_h_abundance6T, plot = TRUE)
+summary(final_h_abundance6T)
+plot(parameters(final_h_abundance6T))
+
 ```
 
 ## Plots -- Abundance
@@ -2178,6 +2202,39 @@ ggplot(p1ms,
   connor_theme
 ```
 
+# Model the effects on specific parasite species within trem_meta
+```{r}
+# refine the data to only include the trem_metas:
+meta6 <- hurricane_df_abundance_only_full %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+
+meta6_reps <- meta6 %>% 
+  group_by(psite_spp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# remove unknown metas from the analysis and drop trem.meta.gg (less than 50 total observations)
+meta6 <- meta6 %>% 
+  filter(!psite_spp_x %in% c("TREM.META.GG", "TREM.META.UNK", "META.UNK"))
+
+# set most abundant meta species to be the reference level
+meta6  <- meta6 %>%
+  mutate(psite_spp_x = relevel(factor(psite_spp_x), ref = "TREM.META"))
+
+# create a model that looks at species of parasite only
+meta6_model <- glmmTMB(psite_abundance ~ psite_spp_x + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                family = nbinom2, data = meta6)
+
+simulateResiduals(fittedModel = meta6_model, plot = TRUE)
+summary(meta6_model)
+plot(parameters(meta6_model))
+
+# TREM.META.SP is significnatly increasing -- meaning this is the only meta that is definitily positively affected by hurricanes 
+
+
+```
+
+
 
 
 # 3 Month Buffer
@@ -2675,6 +2732,17 @@ season_only <- hurricane_df3 %>%
 # all winter hurricane observations of fishes are in pervig, no hurricane observations in winter are present for any other species of fish -- perhaps there is some seasonality to the presence of fish in the river?
 
 ```
+# What are our abundance counts at each reference level?
+```{r}
+counts3 <- hurricane_df3_abundance_only_full %>% 
+  group_by(psite_type) %>% 
+  summarize(observations = n(), .groups = "drop")
+# trematodes are most abundant
+
+# relevel to have trematodes as reference level:
+hurricane_df3_abundance_only_full_tremR <- hurricane_df3_abundance_only_full %>%
+  mutate(psite_type = relevel(psite_type, ref = "trematode"))
+```
 
 ## Abundance Models
 ### Negative binomial glmmTMB model validation
@@ -2824,6 +2892,15 @@ final_h_abundance3 <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (
 simulateResiduals(fittedModel = final_h_abundance3, plot = TRUE)
 summary(final_h_abundance3)
 plot(parameters(final_h_abundance3))
+
+# run trematode reference level model
+final_h_abundance3T <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected)  + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df3_abundance_only_full_tremR)
+
+simulateResiduals(fittedModel = final_h_abundance3T, plot = TRUE)
+summary(final_h_abundance3T)
+plot(parameters(final_h_abundance3T))
 ```
 
 ## Plots -- Abundance 3 month
@@ -3768,6 +3845,58 @@ hurricane_prevalence3_plot_zi <- ggarrange(azi1p, common.legend = FALSE, legend 
 plot(hurricane_prevalence3_plot_zi)
 
 ```
+
+# Model the effects on specific parasite species within trem_meta
+```{r}
+# refine the data to only include the trem_metas:
+meta3 <- hurricane_df3_abundance_only_full %>% 
+  filter(psite_type %in% c("trematode_metacercaria"))
+
+meta3_reps <- meta3 %>% 
+  group_by(psite_spp_x) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# remove unknown metas from the analysis (and drop meta.hs because it is being weird)
+meta3 <- meta3 %>% 
+  filter(!psite_spp_x %in% c("TREM.META.UNK", "META.UNK", "META.HS"))
+
+# set most abundant meta species to be the reference level
+meta3  <- meta3 %>%
+  mutate(psite_spp_x = relevel(factor(psite_spp_x), ref = "TREM.META"))
+
+# create a model that looks at species of parasite only
+meta3_model <- glmmTMB(psite_abundance ~ psite_spp_x + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                family = nbinom2, data = meta3)
+
+simulateResiduals(fittedModel = meta3_model, plot = TRUE)
+summary(meta3_model)
+plot(parameters(meta3_model))
+# AIC is NA but maybe that doesn't really matter here?
+
+# TREM.META.SP is significnatly increasing -- meaning this is the only meta that is definitely positively affected by hurricanes 
+
+```
+
+# Plot meta species together
+```{r}
+meta6 <- ggpredict(meta6_model, terms = c("psite_spp_x"))
+meta_six <- meta6 %>%
+  rename(
+    psite_spp_x = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high
+  ) %>%
+  mutate(model = "6 month buffer") %>%
+  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+meta3 <- ggpredict(meta3model, terms = c("psite_type"))
+
+# combine the DFs 
+meta_combined <- bind_rows(meta6, meta3)
+```
+
+
 
 # Plot the paper's main takeaway result: 
 In short, post hurricanes cause brief upward spikes in meta abundance, which taper off at 6 months, while normal post-condition abundances in metas are low consistently at 3 and 6 month intervals. Additionally, at 3 months and in hurricane conditions, metas are less abundant. 
