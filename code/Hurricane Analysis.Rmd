@@ -66,6 +66,7 @@ library(purrr)
 library(vegan)
 library(reghelper)
 library(fuzzyjoin)
+library(emmeans)
 ```
 #### Set up aesthetic for plots
 ```{r}
@@ -1260,6 +1261,7 @@ residual_summaries %>%
   print()
 ```
 
+
 ## Final Hurricane Abundance Model
 ```{r}
 # run model 
@@ -1272,14 +1274,52 @@ summary(final_h_abundance)
 plot(parameters(final_h_abundance))
 
 
-# run trematode reference level model
-final_h_abundance6T <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected)  + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = hurricane_df_abundance_only_full_tremR)
+emm <- emmeans(final_h_abundance, ~ event * timing * psite_type)
+joint_tests(final_h_abundance)
 
-simulateResiduals(fittedModel = final_h_abundance6T, plot = TRUE)
-summary(final_h_abundance6T)
-plot(parameters(final_h_abundance6T))
+emm <- emmeans(final_h_abundance, ~ event * timing * psite_type, type = "response")
+
+emmip(final_h_abundance, psite_type ~ event | timing,
+      type = "response",
+      CIs = TRUE,
+      dodge = 0.3) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event") +
+  theme(legend.position = "bottom")
+
+# Convert emmeans results to a data frame
+emm_df <- as.data.frame(emm)
+
+ggplot(emm_df, aes(x = event, y = response, color = psite_type, group = psite_type)) +
+  geom_point(position = position_dodge(width = 0.3), size = 3) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+                position = position_dodge(width = 0.3), width = 0.2) +
+  facet_wrap(~ timing) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event",
+       color = "Parasite Type") +
+  theme(legend.position = "bottom")
+
+
+# relevel to see mono relationship:
+hurricane_df_abundance_only_full_mono <- hurricane_df_abundance_only_full %>% 
+  mutate(psite_type = factor(psite_type, levels = c("trematode_metacercaria", "trematode", "monogenean")))
+
+
+final_h_abundancemono <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected)  + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df_abundance_only_full_mono)
+
+simulateResiduals(fittedModel = final_h_abundancemono, plot = TRUE)
+summary(final_h_abundancemono)
+plot(parameters(final_h_abundancemono))
+
+emm <- emmeans(final_h_abundancemono, ~ event * timing * psite_type)
+joint_tests(final_h_abundancemono)
 
 ```
 
@@ -2882,6 +2922,81 @@ residual_summaries %>%
 
 ```
 
+### Negative binomial glmmTMB model selection
+- take our best model fit from above, and then run all options of variables to see what AIC is best
+```{r model validation abundance 3 mo, echo=FALSE, eval=FALSE}
+
+random_effects <- c(
+  "(1|catalog_number)",
+  "(1|year_collected)",
+  "(1|season)",
+  "(1|fish_psite_combo)",
+  "(1|fish_sp_x)",
+  "(total_length_mm|fish_psite_combo)"
+)
+
+# Generate all non-empty subsets of random effects
+all_subsets <- unlist(
+  lapply(1:length(random_effects), function(n) {
+    combn(random_effects, n, simplify = FALSE)
+  }),
+  recursive = FALSE
+)
+
+# Combine each subset into a formula string
+random_effects_formulas <- map_chr(all_subsets, ~ paste(.x, collapse = " + "))
+
+# Now build full model formulas with fixed effects and these random effects
+fixed_part <- "psite_abundance ~ event * timing * psite_type + ci"
+zi_fixed_part <- "~ event * timing * psite_type + ci"
+
+models <- tibble(
+  random_effects = random_effects_formulas,
+  formula_cond = paste(fixed_part, "+", random_effects_formulas),
+  formula_zi = paste(zi_fixed_part, "+", random_effects_formulas)
+)
+
+# Example print first 5 model formulas
+print(models[1:5, ])
+
+results <- models %>%
+  mutate(
+    model = map2(formula_cond, formula_zi, ~ 
+      glmmTMB(as.formula(.x),
+              ziformula = as.formula(.y),
+              family = nbinom2,
+              data = hurricane_df3_abundance_only_full))
+  )
+
+
+
+# Create a concise model name from the random effects part (or just index)
+results <- results %>%
+  mutate(
+    model_name = paste0("model_", row_number())
+  )
+
+# Run diagnostics and extract AIC for each model
+residual_summaries <- results %>%
+  select(model_name, model) %>%
+  mutate(
+    sim = map(model, ~ simulateResiduals(fittedModel = .x, plot = FALSE)),
+    dispersion_p = map_dbl(sim, ~ testDispersion(.x)$p.value),
+    uniformity_p = map_dbl(sim, ~ testUniformity(.x)$p.value),
+    outliers_p = map_dbl(sim, ~ testOutliers(.x)$p.value),
+    AIC = map_dbl(model, AIC)
+  ) %>%
+  select(-sim) %>%
+  arrange(AIC)
+
+# View best models ranked by AIC
+print(residual_summaries)
+
+results[11, c("formula_cond", "formula_zi", "random_effects")] %>%
+  print()
+
+```
+
 ## Final Hurricane Abundance Model
 ```{r}
 # run model 
@@ -2893,14 +3008,77 @@ simulateResiduals(fittedModel = final_h_abundance3, plot = TRUE)
 summary(final_h_abundance3)
 plot(parameters(final_h_abundance3))
 
-# run trematode reference level model
-final_h_abundance3T <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected)  + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = hurricane_df3_abundance_only_full_tremR)
+emm <- emmeans(final_h_abundance3, ~ event * timing * psite_type)
+joint_tests(final_h_abundance3)
 
-simulateResiduals(fittedModel = final_h_abundance3T, plot = TRUE)
-summary(final_h_abundance3T)
-plot(parameters(final_h_abundance3T))
+
+#The overall test says the interaction between timing and parasite type is strongly significant.
+
+#Also, the 3-way interaction including event is significant.
+
+#The individual main effects and other 2-way interactions are not significant at the conventional 0.05 level.
+
+#This implies the effect of event on abundance depends on the combination of timing and parasite type.
+
+#It also highlights the importance of looking beyond main effects to understand your model.
+
+emm <- emmeans(final_h_abundance3, ~ event * timing * psite_type, type = "response")
+
+emmip(final_h_abundance3, psite_type ~ event | timing,
+      type = "response",
+      CIs = TRUE,
+      dodge = 0.3) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event") +
+  theme(legend.position = "bottom")
+
+# Convert emmeans results to a data frame
+emm_df <- as.data.frame(emm)
+
+ggplot(emm_df, aes(x = event, y = response, color = psite_type, group = psite_type)) +
+  geom_point(position = position_dodge(width = 0.3), size = 3) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+                position = position_dodge(width = 0.3), width = 0.2) +
+  facet_wrap(~ timing) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event",
+       color = "Parasite Type") +
+  theme(legend.position = "bottom")
+
+
+
+# relevel to see mono relationship:
+hurricane_df3_abundance_only_full_mono <- hurricane_df3_abundance_only_full %>% 
+  mutate(psite_type = factor(psite_type, levels = c("trematode_metacercaria", "trematode", "monogenean")))
+
+
+final_h_abundance3mono <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (1|year_collected)  + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df3_abundance_only_full_mono)
+
+simulateResiduals(fittedModel = final_h_abundance3mono, plot = TRUE)
+summary(final_h_abundance3mono)
+plot(parameters(final_h_abundance3mono))
+
+emm <- emmeans(final_h_abundance3mono, ~ event * timing * psite_type)
+joint_tests(final_h_abundance3mono)
+```
+
+
+```{r}
+# lowest AIC structure
+final_h_abundance3_optimal <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|catalog_number) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*psite_type + ci + (1|catalog_number) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df3_abundance_only_full)
+
+simulateResiduals(fittedModel = final_h_abundance3_optimal, plot = TRUE)
+summary(final_h_abundance3_optimal)
+plot(parameters(final_h_abundance3_optimal))
+
 ```
 
 ## Plots -- Abundance 3 month
@@ -3911,10 +4089,8 @@ six <- six %>%
     upper = conf.high,
     timing = group,
     psite_type = facet
-  ) %>%
-  filter(psite_type %in% c("trematode_metacercaria")) %>% 
-  mutate(model = "6 month buffer") %>%
-  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+  )
+six$model <- "6 month"
 
 three <- ggpredict(final_h_abundance3, terms = c("event", "timing", "psite_type"))
 
@@ -3927,28 +4103,27 @@ three <- three %>%
     upper = conf.high,
     timing = group,
     psite_type = facet
-  ) %>%
-  filter(psite_type %in% c("trematode_metacercaria")) %>% 
-  mutate(model = "3 month buffer") %>%
-  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
+  ) 
+three$model <- "3 month"
 
 combined_preds <- bind_rows(six, three)
 
 
-# plot hurricanes causing a temporary spike in meta abundance 
+# plot hurricanes causing a temporary spike in meta abundance relative to monos
 
-h_o <- combined_preds %>% 
-  filter(event %in% c("hurricane"))
+combined_preds <- combined_preds %>% 
+  filter(!psite_type %in% c("trematode"))
 
-s1 <- ggplot(combined_preds,
+ggplot(combined_preds,
        aes(x = timing, y = estimate)) +
   facet_grid(event ~ model, scales = "free_y") +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = event),
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
                 width = 0.05,
-                position = position_dodge(width = 0.5)) +
+                position = position_dodge(width = 0.5)) + 
+  coord_cartesian(ylim = c(0, 10)) +
   geom_line(aes(group = psite_type, linetype = psite_type),
             position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = psite_type, group = event),
+  geom_point(aes(fill = psite_type, group = psite_type),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) +
@@ -3956,6 +4131,10 @@ s1 <- ggplot(combined_preds,
   connor_theme
 
 
+```
+
+Plotting
+```{r}
 # just timing -- post-condition abundances in metas are low consistently at 3 and 6 month intervals
 six <- ggpredict(final_h_abundance, terms = c("timing", "psite_type"))
 six <- six %>%
@@ -3967,7 +4146,6 @@ six <- six %>%
     upper = conf.high,
     psite_type = group
   ) %>%
-  filter(psite_type %in% c("trematode_metacercaria")) %>% 
   mutate(model = "6 month buffer") %>%
   filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
@@ -3981,7 +4159,6 @@ three <- three %>%
     upper = conf.high,
     psite_type = group
   ) %>%
-  filter(psite_type %in% c("trematode_metacercaria")) %>% 
   mutate(model = "3 month buffer") %>%
   filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
@@ -4013,7 +4190,6 @@ six <- six %>%
     upper = conf.high,
     psite_type = group
   ) %>%
-  filter(psite_type %in% c("trematode_metacercaria")) %>% 
   mutate(model = "6 month buffer") %>%
   filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
@@ -4027,7 +4203,6 @@ three <- three %>%
     upper = conf.high,
     psite_type = group
   ) %>%
-  filter(psite_type %in% c("trematode_metacercaria")) %>% 
   mutate(model = "3 month buffer") %>%
   filter(!is.na(estimate), !is.na(lower), !is.na(upper))
 
