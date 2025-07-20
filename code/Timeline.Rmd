@@ -1,0 +1,52 @@
+---
+title: "Timeline of Hurricanes"
+author: "Connor Whalen"
+date: "2025-07-20"
+output:
+  word_document:
+    toc: true
+    toc_depth: '3'
+  html_document:
+    theme: readable
+    highlight: textmate
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+Load packages
+```{r}
+library(ggplot2)
+library(ghibli)
+library(tidyverse)
+```
+
+
+Load dataframe
+```{r}
+df <- read.csv("datasets/nola misc analysis - timeline dates.csv") %>% 
+  janitor::clean_names() %>%
+  mutate(start_date = as.Date(start_date)) %>%
+  mutate(end_date = as.Date(end_date)) %>% 
+  select(start_date, end_date, type, enso_event, enso_strength) %>% 
+  filter(!type %in% c("6 month", "3 month"))
+
+```
+
+Make timeline.
+```{r}
+
+ggplot(df, 
+       aes(x = start_date, xend = end_date, y = type, yend = type, color = type)) +
+  geom_point(size = 3, alpha = 1) +
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y") +
+  labs(title = "Timeline of Event Types",
+       x = "Date",
+       y = "Event Type") +
+  theme_minimal()
+
+```
+

@@ -199,6 +199,7 @@ summary <- full_data %>%
     total_parasite_count = sum(psite_count, na.rm = TRUE)
   )
 
+
 ```
 # 6 Month Buffer
 ## Control assignment and resampling 
@@ -1115,7 +1116,7 @@ plot(parameters(season_model))
 ```
 
 # What are our abundance counts at each reference level?
-```{r}
+```{r, eval=FALSE}
 counts6 <- hurricane_df_abundance_only_full %>% 
   group_by(psite_type) %>% 
   summarize(observations = n(), .groups = "drop")
@@ -4228,6 +4229,142 @@ s3 <- ggplot(combined_preds,
 final_plot <- ggarrange(s1, s2, s3, common.legend = TRUE, legend = "bottom", labels = c("H+Po+M", "Po+M", "H+M"))
 plot(final_plot)
 
+```
+
+
+# plotting model prediction outputs for both 3 and 6 month 
+```{r}
+
+params1 <- parameters(final_h_abundance) %>%
+  mutate(model = "6mo")
+
+params2 <- parameters(final_h_abundance3) %>%
+  mutate(model = "3mo")
+
+params_combined <- bind_rows(params1, params2) %>% 
+  drop_na() %>%
+  mutate(sig = case_when(
+    CI_low > 0 ~ "Significant",
+    CI_high < 0 ~ "Significant",
+    TRUE ~ "n.s"
+  )) %>% 
+  mutate(Parameter = fct_reorder(Parameter, p, .desc = FALSE)) %>% 
+  filter(!Parameter %in% c("(Intercept)")) %>% 
+  group_by(model, Component) %>%
+  mutate(Parameter = fct_reorder(Parameter, Coefficient, .desc = TRUE)) %>%
+  ungroup()
+
+
+ggplot(params_combined, 
+       aes(x = Parameter, y = Coefficient, fill = model, color = model, alpha = sig)) + 
+  geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.3,
+                position = position_dodge(width = 0.6), size = 0.7) + 
+  geom_point(position = position_dodge(width = 0.6), shape = 21, size = 4, stroke = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
+  facet_wrap(~ Component) +
+  coord_flip() +
+  scale_fill_manual(values = c("6mo" = "#4DB6AC", "3mo" = "#FF8A65")) + 
+  scale_color_manual(values = c("6mo" = "#00695C", "3mo" = "#D84315")) +
+  scale_alpha_manual(values = c("Significant" = 1, "n.s" = 0.4), name = "Significance") +
+  labs(title = "Model Parameter Estimates",
+       y = "Coefficient Estimate ± 95% CI", x = "Parameter") +
+  connor_theme
+
+
+# now plot only the significant results
+params_sig <- bind_rows(params1, params2) %>% 
+  drop_na() %>%
+  mutate(sig = case_when(
+    CI_low > 0 ~ "Significant",
+    CI_high < 0 ~ "Significant",
+    TRUE ~ "n.s"
+  )) %>% 
+  mutate(Parameter = fct_reorder(Parameter, p, .desc = FALSE)) %>% 
+  filter(!Parameter %in% c("(Intercept)")) %>% 
+  group_by(model, Component) %>%
+  mutate(Parameter = fct_reorder(Parameter, Coefficient, .desc = TRUE)) %>%
+  ungroup() %>% 
+  filter(p<0.08)
+
+
+ggplot(params_sig, 
+       aes(x = Parameter, y = Coefficient, fill = model, color = model, alpha = sig)) + 
+  geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.3,
+                position = position_dodge(width = 0.6), size = 0.7) + 
+  geom_point(position = position_dodge(width = 0.6), shape = 21, size = 4, stroke = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
+  facet_wrap(~ Component) +
+  coord_flip() +
+  scale_fill_manual(values = c("6mo" = "#4DB6AC", "3mo" = "#FF8A65")) + 
+  scale_color_manual(values = c("6mo" = "#00695C", "3mo" = "#D84315")) +
+  scale_alpha_manual(values = c("Significant" = 1, "n.s" = 0.4), name = "Significance") +
+  labs(title = "Model Parameter Estimates, significance p<0.08",
+       y = "Coefficient Estimate ± 95% CI", x = "Parameter") +
+  connor_theme
+
+```
+
+
+
+
+# Adding ENSO data
+```{r, eval=FALSE}
+
+
+# add el nino / la nina information from https://ggweather.com/enso/oni.htm
+el_nino_df <- data.frame(
+  year = c(
+    1952, 1953, 1957, 1958, 1982, 1983,
+    1963, 1964, 1965, 1966, 1997, 1998,
+    1958, 1959, 1968, 1969, 1972, 1973, 2015, 2016,
+    1969, 1970, 1986, 1987, 1987, 1988,
+    1976, 1977, 1994, 1995, 1991, 1992,
+    1977, 1978, 2002, 2003, 2023, 2024,
+    1979, 1980, 2009, 2010,
+    2004, 2005,
+    2006, 2007,
+    2014, 2015,
+    2018, 2019
+  ))
+
+la_nina_df <- data.frame(
+  year = c(
+    1951, 1952, 1954, 1955, 1955, 1956,
+    1973, 1974, 1953, 1954, 1964, 1965,
+    1970, 1971, 1975, 1976, 1971, 1972,
+    1995, 1996, 1988, 1989, 1974, 1975,
+    2011, 2012, 1998, 1999, 1983, 1984,
+    2020, 2021, 1999, 2000, 1984, 1985,
+    2021, 2022, 2007, 2008, 2000, 2001,
+    2010, 2011, 2005, 2006, 2008, 2009,
+    2016, 2017, 2017, 2018, 2022, 2023
+  ))
+
+el_nino_df <- el_nino_df %>% 
+  mutate(year = as.integer(year)) %>%
+  mutate(phase = "El Nino") %>% 
+  mutate(phase = as.factor(phase))
+
+la_nina_df <- la_nina_df %>% 
+  mutate(year = as.integer(year)) %>%
+  mutate(phase = "La Nina") %>% 
+  mutate(phase = as.factor(phase))
+
+combined_enso <- bind_rows(el_nino_df, la_nina_df)
+
+phase_counts <- combined_enso %>%
+  distinct(year, phase) %>%
+  count(year) %>%
+  filter(n > 1) %>%
+  pull(year)
+
+# 4. Assign 'Hybrid' label for those years
+enso_labeled <- combined_enso %>%
+  mutate(phase = ifelse(year %in% phase_counts, "Hybrid", phase)) %>%
+  distinct(year, .keep_all = TRUE)
+
+full_data <- full_data %>%
+  left_join(enso_df, by = "year_collected")
 ```
 
 
