@@ -24,29 +24,115 @@ library(ghibli)
 library(tidyverse)
 ```
 
+Set plot aesthetics
+```{r}
+# color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
+# trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
+connor_theme <- theme(legend.position = "top", 
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        strip.background = element_rect(fill = NA, color = NA),
+        panel.background = element_rect(fill = NA, color = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        panel.spacing.y = unit(0, "lines"),
+        axis.text = element_text(size = 8, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+```
 
 Load dataframe
 ```{r}
-df <- read.csv("datasets/nola misc analysis - timeline dates.csv") %>% 
+# actual values
+df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
   janitor::clean_names() %>%
   mutate(start_date = as.Date(start_date)) %>%
   mutate(end_date = as.Date(end_date)) %>% 
-  select(start_date, end_date, type, enso_event, enso_strength) %>% 
-  filter(!type %in% c("6 month", "3 month"))
+  select(start_date, end_date, type, name) %>% 
+   mutate(
+    name = factor(name,
+      levels = c("control", 
+                 unique(name[name != "control"][order(start_date[name != "control"])])))) %>%
+  mutate(
+    start_date = case_when(
+      type == "pre" ~ start_date, 
+      type == "post" ~ NA_Date_, 
+      TRUE ~ start_date
+    ),
+    end_date = case_when(
+      type == "pre" ~ NA_Date_,  
+      type == "post" ~ end_date, 
+      TRUE ~ end_date
+    )
+  ) %>%
+  mutate(type = factor(type)) %>%
+  group_by(name, type) %>%
+  summarise(
+    min_start = min(start_date, na.rm = TRUE),
+    max_end = max(end_date, na.rm = TRUE)
+  ) %>% 
+  mutate(
+    name = factor(name, levels = unique(name)),  # keep name order
+    type_offset = case_when(
+      type == "6 month" ~ -0.2,
+      type == "3 month" ~ 0.2,
+      type == "hurricane" ~ 0,
+      type == "tropical storm" ~ 0  # you can adjust this if needed
+    ),
+    y_pos = as.numeric(name) + type_offset
+  )
+
+control_df <- df %>% 
+  filter(str_detect(name, regex("control", ignore_case = TRUE))) %>% 
+  mutate(type = factor(type),
+         y_pos = as.numeric(type))
+
+event_df <- df %>% 
+  filter(!str_detect(name, regex("control", ignore_case = TRUE)))
 
 ```
 
 Make timeline.
 ```{r}
 
-ggplot(df, 
-       aes(x = start_date, xend = end_date, y = type, yend = type, color = type)) +
-  geom_point(size = 3, alpha = 1) +
-  scale_x_date(date_breaks = "5 years", date_labels = "%Y") +
+ggplot(control_df, 
+       aes(x = min_start, xend = max_end, y = y_pos, yend = y_pos, color = type)) +
+  geom_segment(size = 3, alpha = 1) +
+  scale_y_continuous(
+    breaks = sort(unique(control_df$y_pos)),
+    labels = levels(control_df$type),
+    expand = expansion(mult = c(0.1, 0.1))
+  ) +
+  scale_color_manual(values = c(
+    "hurricane" = "#CB87B4",
+    "tropical storm" = "#8487d1",
+    "6 month" = "#e2733a",
+    "3 month" = "#85b689"
+  )) +
+  labs(title = "Timeline of Control Periods by Type",
+       x = "Date",
+       y = NULL) +
+  connor_theme
+
+
+ggplot(event_df, 
+       aes(x = min_start, xend = max_end, y = y_pos, yend = y_pos, color = type)) +
+  geom_segment(size = 3, alpha = 1) +
+  scale_y_continuous(
+    breaks = seq_along(levels(df$name)),
+    labels = levels(df$name),
+    expand = expansion(mult = c(0.05, 0.05))
+  ) +
+  scale_color_manual(values = c(
+    "hurricane" = "#CB87B4",
+    "tropical storm" = "#8487d1",
+    "6 month" = "#e2733a",
+    "3 month" = "#85b689"
+  )) +
   labs(title = "Timeline of Event Types",
        x = "Date",
        y = "Event Type") +
-  theme_minimal()
+  connor_theme
 
 ```
 
