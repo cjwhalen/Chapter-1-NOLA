@@ -92,23 +92,26 @@ df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timelin
 
 Make timeline.
 ```{r}
-ggplot(df, aes(x = min_start, y = name, color = category)) +
+
+ggplot(df, aes(x = min_start, y = 1, color = category)) +
   # Segment layer for control periods
   geom_segment(
     data = df %>% filter(type %in% c("6 month", "3 month")),
-    aes(xend = max_end, yend = name),
-    size = 3,
-    alpha = 0.8
+    aes(xend = max_end, y = 1, yend = 1),
+    size = 6,
+    alpha = 0.6
   ) +
-  scale_x_date(
-    breaks = seq(as.Date("1964-01-01"), as.Date("2006-01-01"), by = "5 years"),
-    date_labels = "%Y"
-  ) +
+  # Point layer for storms
   geom_point(
     data = df %>% filter(type %in% c("hurricane", "tropical storm")),
-    size = 3,
+    size = 4,
     alpha = 1
   ) +
+  scale_x_date(
+    breaks = seq(as.Date("1965-01-01"), as.Date("2006-01-01"), by = "5 years"),
+    date_labels = "%Y"
+  ) +
+  scale_y_continuous(NULL, breaks = NULL) +
   scale_color_manual(values = c(
     "storm" = "#CB87B4",
     "control" = "#F4B95A"
@@ -118,10 +121,13 @@ ggplot(df, aes(x = min_start, y = name, color = category)) +
     x = "",
     y = ""
   ) +
-  connor_theme + 
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank())
+  connor_theme +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
 
-ggsave("timeline.jpeg", width = 10, height = (9/16)*10)
+
+ggsave("timeline.jpeg", width = 10, height = 2.5)
 ```
 
