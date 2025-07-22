@@ -29,7 +29,6 @@ Set plot aesthetics
 # color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
 # trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
 connor_theme <- theme(legend.position = "top", 
-        legend.title = element_text(size = 18),
         legend.text = element_text(size = 14),
         strip.background = element_rect(fill = NA, color = NA),
         panel.background = element_rect(fill = NA, color = "white"),
@@ -37,8 +36,10 @@ connor_theme <- theme(legend.position = "top",
         panel.grid.minor = element_blank(),
         panel.spacing.x = unit(0, "lines"),
         panel.spacing.y = unit(0, "lines"),
-        axis.text = element_text(size = 8, color = "grey30"),
-        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+        axis.text = element_text(size = 12, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"),
+        axis.title = element_text(size = 14, color = "grey15"),
+        legend.title = element_blank())
 ```
 
 Load dataframe
@@ -48,7 +49,7 @@ df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timelin
   janitor::clean_names() %>%
   mutate(start_date = as.Date(start_date)) %>%
   mutate(end_date = as.Date(end_date)) %>% 
-  select(start_date, end_date, type, name) %>% 
+  select(start_date, end_date, type, name, category) %>% 
    mutate(
     name = factor(name,
       levels = c("control", 
@@ -66,7 +67,7 @@ df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timelin
     )
   ) %>%
   mutate(type = factor(type)) %>%
-  group_by(name, type) %>%
+  group_by(name, type, category) %>%
   summarise(
     min_start = min(start_date, na.rm = TRUE),
     max_end = max(end_date, na.rm = TRUE)
@@ -80,59 +81,47 @@ df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timelin
       type == "tropical storm" ~ 0  # you can adjust this if needed
     ),
     y_pos = as.numeric(name) + type_offset
-  )
+  ) %>%
+  mutate(earliest_start = min(min_start, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(name = fct_reorder(name, earliest_start, .desc = TRUE))
 
-control_df <- df %>% 
-  filter(str_detect(name, regex("control", ignore_case = TRUE))) %>% 
-  mutate(type = factor(type),
-         y_pos = as.numeric(type))
 
-event_df <- df %>% 
-  filter(!str_detect(name, regex("control", ignore_case = TRUE)))
 
 ```
 
 Make timeline.
 ```{r}
-
-ggplot(control_df, 
-       aes(x = min_start, xend = max_end, y = y_pos, yend = y_pos, color = type)) +
-  geom_segment(size = 3, alpha = 1) +
-  scale_y_continuous(
-    breaks = sort(unique(control_df$y_pos)),
-    labels = levels(control_df$type),
-    expand = expansion(mult = c(0.1, 0.1))
+ggplot(df, aes(x = min_start, y = name, color = category)) +
+  # Segment layer for control periods
+  geom_segment(
+    data = df %>% filter(type %in% c("6 month", "3 month")),
+    aes(xend = max_end, yend = name),
+    size = 3,
+    alpha = 0.8
+  ) +
+  scale_x_date(
+    breaks = seq(as.Date("1964-01-01"), as.Date("2006-01-01"), by = "5 years"),
+    date_labels = "%Y"
+  ) +
+  geom_point(
+    data = df %>% filter(type %in% c("hurricane", "tropical storm")),
+    size = 3,
+    alpha = 1
   ) +
   scale_color_manual(values = c(
-    "hurricane" = "#CB87B4",
-    "tropical storm" = "#8487d1",
-    "6 month" = "#e2733a",
-    "3 month" = "#85b689"
+    "storm" = "#CB87B4",
+    "control" = "#F4B95A"
   )) +
-  labs(title = "Timeline of Control Periods by Type",
-       x = "Date",
-       y = NULL) +
-  connor_theme
-
-
-ggplot(event_df, 
-       aes(x = min_start, xend = max_end, y = y_pos, yend = y_pos, color = type)) +
-  geom_segment(size = 3, alpha = 1) +
-  scale_y_continuous(
-    breaks = seq_along(levels(df$name)),
-    labels = levels(df$name),
-    expand = expansion(mult = c(0.05, 0.05))
+  labs(
+    title = "",
+    x = "",
+    y = ""
   ) +
-  scale_color_manual(values = c(
-    "hurricane" = "#CB87B4",
-    "tropical storm" = "#8487d1",
-    "6 month" = "#e2733a",
-    "3 month" = "#85b689"
-  )) +
-  labs(title = "Timeline of Event Types",
-       x = "Date",
-       y = "Event Type") +
-  connor_theme
+  connor_theme + 
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
 
+ggsave("timeline.jpeg", width = 10, height = (9/16)*10)
 ```
 

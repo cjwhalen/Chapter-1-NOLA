@@ -61,7 +61,6 @@ library(DHARMa)
 # color palette -- hurricane = #CB87B4, control = #F4B95A, drought = #D84D16, flood = #1BB6AF
 # trem = #c9ad79 , meta = #F66387 , mono = #A6E000 , myxo = #07c4c5
 connor_theme <- theme(legend.position = "top", 
-        legend.title = element_text(size = 18),
         legend.text = element_text(size = 14),
         strip.background = element_rect(fill = NA, color = NA),
         panel.background = element_rect(fill = NA, color = "white"),
@@ -69,8 +68,10 @@ connor_theme <- theme(legend.position = "top",
         panel.grid.minor = element_blank(),
         panel.spacing.x = unit(0, "lines"),
         panel.spacing.y = unit(0, "lines"),
-        axis.text = element_text(size = 8, color = "grey30"),
-        axis.ticks = element_line(size = 0.2, color = "darkgrey"))
+        axis.text = element_text(size = 12, color = "grey30"),
+        axis.ticks = element_line(size = 0.2, color = "darkgrey"),
+        axis.title = element_text(size = 14, color = "grey15"),
+        legend.title = element_blank())
 ```
 ## Data prep and cleaning
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
