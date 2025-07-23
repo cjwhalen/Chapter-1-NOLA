@@ -71,7 +71,8 @@ connor_theme <- theme(legend.position = "top",
         axis.text = element_text(size = 12, color = "grey30"),
         axis.ticks = element_line(size = 0.2, color = "darkgrey"),
         axis.title = element_text(size = 14, color = "grey15"),
-        legend.title = element_blank())
+        legend.title = element_blank(),
+        strip.text = element_text(size = 12))
 ```
 ## Data prep and cleaning
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis

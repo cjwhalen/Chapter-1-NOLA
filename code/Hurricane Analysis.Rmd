@@ -41,32 +41,40 @@ install.packages("fuzzyjoin")
 
 #### Load packages.
 ```{r package load, echo=FALSE}
-library(ggpubr) 
-library(ggeffects)
-library(tidyverse)
-library(readr)
+library(car)
+library(corrplot)
 library(dbplyr)
-library(lubridate)
+library(DHARMa)
+library(dplyr)
+library(emmeans)
+library(fuzzyjoin)
+library(ggeffects)
+library(ggh4x)
+library(ggmap)
 library(ggplot2)
-library(stringr)
+library(ggpubr)
+library(ghibli)
 library(glmmTMB)
 library(lme4)
-library(patchwork)
-library(ggh4x)
-library(vistime)
-library(car)
-library(DHARMa)
-library(sjPlot)
-library(performance)
-library(parameters)
-library(corrplot)
-library(bbmle) 
 library(lmtest)
+library(lubridate)
+library(mapdata)
+library(maps)
+library(parameters)
+library(patchwork)
+library(pdftools)
+library(performance)
 library(purrr)
-library(vegan)
+library(readr)
 library(reghelper)
-library(fuzzyjoin)
-library(emmeans)
+library(sjPlot)
+library(sp)
+library(stringr)
+library(tidyr)
+library(tidyverse)
+library(vegan)
+library(vistime)
+library(wesanderson)
 ```
 #### Set up aesthetic for plots
 ```{r}
@@ -83,7 +91,11 @@ connor_theme <- theme(legend.position = "top",
         axis.text = element_text(size = 12, color = "grey30"),
         axis.ticks = element_line(size = 0.2, color = "darkgrey"),
         axis.title = element_text(size = 14, color = "grey15"),
-        legend.title = element_blank())
+        legend.title = element_blank(),
+        strip.text = element_text(size = 12))
+
+wes_palette("Zissou1")
+pal<-wes_palette(name = "Zissou1", 7, type = "continuous")
 ```
 
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
@@ -1166,23 +1178,6 @@ plot(parameters(season_model))
 # no effect of seasonality present
 ```
 
-
-
-
-
-# What are our abundance counts at each reference level?
-```{r, eval=FALSE}
-counts6 <- hurricane_df_abundance_only_full %>% 
-  group_by(psite_type) %>% 
-  summarize(observations = n(), .groups = "drop")
-# trematodes are most abundant
-
-# relevel to have trematodes as reference level:
-hurricane_df_abundance_only_full_tremR <- hurricane_df_abundance_only_full %>%
-  mutate(psite_type = relevel(psite_type, ref = "trematode"))
-```
-
-
 ## Abundance Models
 ### Negative binomial glmmTMB model validation
 ```{r model validation abundance, echo=FALSE, eval=FALSE}
@@ -2136,19 +2131,6 @@ season_only <- hurricane_df3 %>%
 ```
 
 
-
-# What are our abundance counts at each reference level?
-```{r}
-counts3 <- hurricane_df3_abundance_only_full %>% 
-  group_by(psite_type) %>% 
-  summarize(observations = n(), .groups = "drop")
-# trematodes are most abundant
-
-# relevel to have trematodes as reference level:
-hurricane_df3_abundance_only_full_tremR <- hurricane_df3_abundance_only_full %>%
-  mutate(psite_type = relevel(psite_type, ref = "trematode"))
-```
-
 ## Abundance Models
 ### Negative binomial glmmTMB model validation
 ```{r model validation abundance 3 mo, echo=FALSE, eval=FALSE}
@@ -2284,81 +2266,6 @@ residual_summaries %>%
   print()
 
 
-
-```
-
-### Negative binomial glmmTMB model selection
-- take our best model fit from above, and then run all options of variables to see what AIC is best
-```{r model validation abundance 3 mo, echo=FALSE, eval=FALSE}
-
-random_effects <- c(
-  "(1|catalog_number)",
-  "(1|year_collected)",
-  "(1|season)",
-  "(1|fish_psite_combo)",
-  "(1|fish_sp_x)",
-  "(total_length_mm|fish_psite_combo)"
-)
-
-# Generate all non-empty subsets of random effects
-all_subsets <- unlist(
-  lapply(1:length(random_effects), function(n) {
-    combn(random_effects, n, simplify = FALSE)
-  }),
-  recursive = FALSE
-)
-
-# Combine each subset into a formula string
-random_effects_formulas <- map_chr(all_subsets, ~ paste(.x, collapse = " + "))
-
-# Now build full model formulas with fixed effects and these random effects
-fixed_part <- "psite_abundance ~ event * timing * psite_type + ci"
-zi_fixed_part <- "~ event * timing * psite_type + ci"
-
-models <- tibble(
-  random_effects = random_effects_formulas,
-  formula_cond = paste(fixed_part, "+", random_effects_formulas),
-  formula_zi = paste(zi_fixed_part, "+", random_effects_formulas)
-)
-
-# Example print first 5 model formulas
-print(models[1:5, ])
-
-results <- models %>%
-  mutate(
-    model = map2(formula_cond, formula_zi, ~ 
-      glmmTMB(as.formula(.x),
-              ziformula = as.formula(.y),
-              family = nbinom2,
-              data = hurricane_df3_abundance_only_full))
-  )
-
-
-
-# Create a concise model name from the random effects part (or just index)
-results <- results %>%
-  mutate(
-    model_name = paste0("model_", row_number())
-  )
-
-# Run diagnostics and extract AIC for each model
-residual_summaries <- results %>%
-  select(model_name, model) %>%
-  mutate(
-    sim = map(model, ~ simulateResiduals(fittedModel = .x, plot = FALSE)),
-    dispersion_p = map_dbl(sim, ~ testDispersion(.x)$p.value),
-    uniformity_p = map_dbl(sim, ~ testUniformity(.x)$p.value),
-    outliers_p = map_dbl(sim, ~ testOutliers(.x)$p.value),
-    AIC = map_dbl(model, AIC)
-  ) %>%
-  select(-sim) %>%
-  arrange(AIC)
-
-# View best models ranked by AIC
-print(residual_summaries)
-
-results[11, c("formula_cond", "formula_zi", "random_effects")] %>%
-  print()
 
 ```
 
@@ -2659,9 +2566,11 @@ hurricane_prevalence3_final <- glmmTMB(psite_prevalence ~ event*timing + ci + (1
 simulateResiduals(fittedModel = hurricane_prevalence3_final, plot = TRUE)
 summary(hurricane_prevalence3_final)
 plot(parameters(hurricane_prevalence3_final))
+
+# switch things around so that monogenes are not reference category? how do i get stats on the reference level?
 ```
 
-switch things around so that monogenes are not reference category? how do i get stats on the reference level?
+
 
 # Model the effects on specific parasite species within trem_meta
 ```{r}
@@ -2693,27 +2602,6 @@ plot(parameters(meta3_model))
 # TREM.META.SP is significnatly increasing -- meaning this is the only meta that is definitely positively affected by hurricanes 
 
 ```
-
-# Plot meta species together
-```{r}
-meta6 <- ggpredict(meta6_model, terms = c("psite_spp_x"))
-meta_six <- meta6 %>%
-  rename(
-    psite_spp_x = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high
-  ) %>%
-  mutate(model = "6 month buffer") %>%
-  filter(!is.na(estimate), !is.na(lower), !is.na(upper))
-meta3 <- ggpredict(meta3model, terms = c("psite_type"))
-
-# combine the DFs 
-meta_combined <- bind_rows(meta6, meta3)
-```
-
-
 
 # Plot the paper's main takeaway result: 
 In short, post hurricanes cause brief upward spikes in meta abundance, which taper off at 6 months, while normal post-condition abundances in metas are low consistently at 3 and 6 month intervals. Additionally, at 3 months and in hurricane conditions, metas are less abundant. 
@@ -2771,7 +2659,6 @@ full <- ggplot(combined_preds,
     "myxozoan" = "#07c3c5")) +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   theme(
     legend.title = element_blank()
   ) +
@@ -2802,7 +2689,6 @@ meta <- ggplot(combined_preds_meta,
     "myxozoan" = "#07c3c5")) +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   theme(
     legend.title = element_blank()
   ) +
@@ -2833,7 +2719,6 @@ trem <- ggplot(combined_preds_trem,
     "myxozoan" = "#07c3c5")) +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   theme(
     legend.title = element_blank()
   ) +
@@ -2864,7 +2749,6 @@ mono <- ggplot(combined_preds_mono,
     "myxozoan" = "#07c3c5")) +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   theme(
     legend.title = element_blank()
   ) +
@@ -2960,8 +2844,8 @@ ggplot(params_sig,
   scale_fill_manual(values = c("6mo" = "#4DB6AC", "3mo" = "#FF8A65")) + 
   scale_color_manual(values = c("6mo" = "#00695C", "3mo" = "#D84315")) +
   scale_alpha_manual(values = c("Significant" = 1, "n.s" = 0.4), name = "Significance") +
-  labs(title = "Model Parameter Estimates, significance p<0.08",
-       y = "Coefficient Estimate ± 95% CI", x = "Parameter") +
+  labs(title = "p<0.08",
+       y = "Estimate", x = "") +
   connor_theme
 
 ```
@@ -2969,6 +2853,14 @@ ggplot(params_sig,
 
 Plot all storms onto the season plot: 6 month
 ```{r}
+# add facet label to seasons
+
+ha3.season <- ha3.season %>% 
+  mutate(duration = "3 months")
+
+ha.season <- ha.season %>% 
+  mutate(duration = "6 months")
+
 timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
   janitor::clean_names() %>%
   mutate(start_date = as.Date(start_date)) %>%
@@ -3013,7 +2905,8 @@ p1 <- ggplot(timeline_df,
 )
 
 p2 <- ggplot(ha.season,
-       aes(x = month_day_date, y = event, fill = psite_type)) +
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
   geom_violin(scale = "count", trim = FALSE) +
   geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
   scale_x_date(
@@ -3022,17 +2915,11 @@ p2 <- ggplot(ha.season,
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF",
-    "monogenean" = "#A6E000",
-    "trematode" = "#c9ad79",
-    "myxozoan" = "#07c3c5"
-  )) +
+  scale_fill_manual(values = pal, name = '') +
   labs(x = "", y = "", fill = "") +
   connor_theme +
   theme(
   panel.spacing = unit(0, "pt"),
-  strip.text = element_blank(), 
   legend.spacing = unit(0, "pt"),
   axis.text.x = element_blank(),
   axis.ticks.x = element_blank()
@@ -3048,7 +2935,8 @@ season6 <- (p1 / p2 +
  
  # 3 month
 season3 <- ggplot(ha3.season,
-       aes(x = month_day_date, y = event, fill = psite_type)) +
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
   geom_violin(scale = "count", trim = FALSE) +
   geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
   scale_x_date(
@@ -3057,33 +2945,287 @@ season3 <- ggplot(ha3.season,
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF",
-    "monogenean" = "#A6E000",
-    "trematode" = "#c9ad79",
-    "myxozoan" = "#07c3c5"
-  )) +
+ scale_fill_manual(values = pal, name = '') +
   labs(x = "", y = "", fill = "") +
   connor_theme +
   theme(
     panel.spacing = unit(0, "pt"),
-    strip.text = element_blank(),
     legend.spacing = unit(0, "pt"),
     legend.position = "none", 
     axis.title.x = element_text(),
     plot.title = element_text(hjust = 0.5)
   )
 
-
-
 final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") + 
-  plot_layout(guides = "collect")                     # optional spacing between legend items
+  plot_layout(guides = "collect") 
   
 
 final_plot
 
 ggsave("seasonality.jpeg", width = 10, height = (9/16)*10, dpi = 300)
  
+```
+
+# Make timelines 
+Load dataframe
+```{r}
+# actual values
+df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
+  janitor::clean_names() %>%
+  mutate(start_date = as.Date(start_date)) %>%
+  mutate(end_date = as.Date(end_date)) %>% 
+  select(start_date, end_date, type, name, category) %>% 
+   mutate(
+    name = factor(name,
+      levels = c("control", 
+                 unique(name[name != "control"][order(start_date[name != "control"])])))) %>%
+  mutate(
+    start_date = case_when(
+      type == "pre" ~ start_date, 
+      type == "post" ~ NA_Date_, 
+      TRUE ~ start_date
+    ),
+    end_date = case_when(
+      type == "pre" ~ NA_Date_,  
+      type == "post" ~ end_date, 
+      TRUE ~ end_date
+    )
+  ) %>%
+  mutate(type = factor(type)) %>%
+  group_by(name, type, category) %>%
+  summarise(
+    min_start = min(start_date, na.rm = TRUE),
+    max_end = max(end_date, na.rm = TRUE)
+  ) %>% 
+  mutate(
+    name = factor(name, levels = unique(name)),  # keep name order
+    type_offset = case_when(
+      type == "6 month" ~ -0.2,
+      type == "3 month" ~ 0.2,
+      type == "hurricane" ~ 0,
+      type == "tropical storm" ~ 0  # you can adjust this if needed
+    ),
+    y_pos = as.numeric(name) + type_offset
+  ) %>%
+  mutate(earliest_start = min(min_start, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(name = fct_reorder(name, earliest_start, .desc = TRUE))
+
+# combine 3 and 6 month dfs into one
+
+combined_hurricane_full_df <- bind_rows(
+  hurricane_df_abundance_only_full %>% mutate(model = "6-month"),
+  hurricane_df3_abundance_only_full %>% mutate(model = "3-month")
+)
+
+
+```
+
+Make timeline.
+```{r}
+
+timeline_plot <- ggplot(df, aes(x = min_start, y = 1, color = category)) +
+  geom_segment(
+    data = df %>% filter(type %in% c("6 month", "3 month")),
+    aes(xend = max_end, y = 1, yend = 1),
+    size = 20,
+    alpha = 1
+  ) +
+  geom_point(
+    data = df %>% filter(type %in% c("hurricane", "tropical storm")),
+    size = 4,
+    alpha = 1, shape = 21, color = "black"
+  ) +
+  scale_x_date(
+    breaks = seq(as.Date("1965-01-01"), as.Date("2006-01-01"), by = "5 years"),
+    date_labels = "%Y"
+  ) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  scale_color_manual(values = c(
+    "storm" = "#CB87B4",
+    "control" = "#F4B95A"
+  )) +
+  labs(
+    title = "",
+    x = "",
+    y = ""
+  ) +
+  connor_theme +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "top",
+    legend.text = element_text(size = 10)
+  )
+
+```
+
+
+# lots samples from TUBRI
+Load data about TUBRI lots
+```{r}
+psite_data<-read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_with_psite_life_history_info_2024.11.21.csv") %>%
+  mutate(
+    Date = make_date(year = YearCollected, 
+                     month = MonthCollected, 
+                     day = DayCollected)
+  ) %>% 
+  filter(!Fish_sp.x %in% c("Percina vigil", "Carpiodes velifer"))
+```
+
+Make map of lots sampled
+```{r}
+bounds<-c(left=-89.855, bottom=30.69, right=-89.81, top=30.81)
+
+mid_x <- (bounds["left"] + bounds["right"]) / 2
+bottom_y <- bounds["bottom"]
+top_y <- bounds["top"]
+mid_y <- (bottom_y + top_y) / 2
+
+base_map <- get_stadiamap(bounds, zoom = 12, maptype = "stamen_terrain_background")
+
+
+# map with all fish sampled
+ggmap(base_map) +
+  geom_point(data = combined_hurricane_full_df,
+             aes(x = longitude, y = latitude, fill = fish_sp_x),
+             position = position_jitter(width = 0.001),
+             shape = 21, size = 4, stroke = 0.5) +
+   scale_x_continuous(
+    limits = c(bounds["left"], bounds["right"]),
+    breaks = mid_x,
+    labels = round(mid_x, 4)  # Format label if needed
+  ) +
+ scale_y_continuous(
+    limits = c(bottom_y, top_y),
+    breaks = c(bottom_y, mid_y, top_y),
+    labels = round(c(bottom_y, mid_y, top_y), 4)
+  ) +
+  scale_fill_manual(values = pal, name = '') +
+  xlab("") +
+  ylab("") + 
+  connor_theme +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10)
+  )
+
+ggsave("river_plot_full.jpeg", width = 3, height = (9/16)*10, dpi = 300)
+
+#####
+
+species <- c("gamaff", "hybnuc", "ictpun", "notath", "pimvig")
+names(pal) <- species
+
+make_species_map <- function(species_name) {
+  ggmap(base_map) +
+    geom_point(
+      data = combined_hurricane_full_df %>% filter(fish_sp_x == species_name),
+      aes(x = longitude, y = latitude, fill = fish_sp_x),
+      position = position_jitter(width = 0.001),
+      shape = 21, size = 4, stroke = 0.5
+    ) +
+    scale_x_continuous(
+      limits = c(bounds["left"], bounds["right"]),
+      breaks = mid_x,
+      labels = round(mid_x, 4)
+    ) +
+    scale_y_continuous(
+      limits = c(bottom_y, top_y),
+      breaks = c(bottom_y, mid_y, top_y),
+      labels = round(c(bottom_y, mid_y, top_y), 4)
+    ) +
+    scale_fill_manual(values = pal, name = "Fish species") +
+    xlab("") +
+    ylab("") + 
+    connor_theme +
+    theme(
+      axis.title.x = element_text(size = 20),
+      axis.title.y = element_text(size = 20),
+      axis.text.x = element_text(size = 10),
+      axis.text.y = element_text(size = 10)
+    )
+}
+
+# Create plots
+a <- make_species_map("pimvig")
+b <- make_species_map("hybnuc") + 
+  theme(
+    axis.title.y = element_blank(), 
+    axis.text.y = element_blank() 
+  )
+c <- make_species_map("notath") + 
+  theme(
+    axis.title.y = element_blank(), 
+    axis.text.y = element_blank() 
+  )
+d <- make_species_map("gamaff") + 
+  theme(
+    axis.title.y = element_blank(), 
+    axis.text.y = element_blank() 
+  )
+e <- make_species_map("ictpun") + 
+  theme(
+    axis.title.y = element_blank(), 
+    axis.text.y = element_blank() 
+  )
+
+# Combine with patchwork
+final_plot <- (a | b | c | d | e) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "top")
+
+final_plot
+
+
+ggsave("river_plot.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
+```
+
+Make fish replication plot
+```{r}
+
+fish <- ggplot(data = combined_hurricane_full_df, aes(x = date, y = fish_sp_x)) +
+  geom_point(data = combined_hurricane_full_df, aes(x = date, fill = fish_sp_x),
+             position = position_jitter(width = 0.15), shape = 21, size = 3) +
+  scale_fill_manual(values = pal, name = '') +
+  xlab("") +
+  ylab("") +
+  scale_x_continuous(
+    breaks = seq(1965, 2006, by = 5),
+    labels = as.character(seq(1965, 2006, by = 5))
+  ) +
+  connor_theme + 
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  )
+
+
+```
+Make final plot
+```{r}
+
+x_scale_shared <- scale_x_date(
+  limits = as.Date(c("1965-01-01", "2006-01-01")),
+  breaks = seq(as.Date("1965-01-01"), as.Date("2006-01-01"), by = "5 years"),
+  date_labels = "%Y"
+)
+
+timeline_plot <- timeline_plot + x_scale_shared
+fish <- fish + x_scale_shared
+
+final_timeline <- wrap_plots(timeline_plot, fish, ncol = 1)
+final_timeline
+
+ggsave("timeline.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 ```
 
 
