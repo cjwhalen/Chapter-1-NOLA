@@ -3060,6 +3060,8 @@ timeline_plot <- ggplot(df, aes(x = min_start, y = 1, color = category)) +
     legend.text = element_text(size = 10)
   )
 
+
+ggsave("ch_only.jpeg", width = 10, height = 3, dpi = 300)
 ```
 
 
@@ -3226,6 +3228,12 @@ final_timeline <- wrap_plots(timeline_plot, fish, ncol = 1)
 final_timeline
 
 ggsave("timeline.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+```
+
+Total fish dissected for this analysis:
+```{r}
+fish_done <- combined_hurricane_full_df %>% 
+  summarise(unique_catalogs = n_distinct(individual_fish_id))
 ```
 
 
