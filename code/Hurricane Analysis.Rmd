@@ -1453,10 +1453,10 @@ ggplot(hp.season,
 
 
 # run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = hp.season)
-simulateResiduals(fittedModel = season_model, plot = TRUE)
-summary(season_model)
-plot(parameters(season_model))
+season_model6p <- glmmTMB(observations ~ season*event, family = nbinom2, data = hp.season)
+simulateResiduals(fittedModel = season_model6p, plot = TRUE)
+summary(season_model6p)
+plot(parameters(season_model6p))
 
 # summer and hurricane (+), spring and hurricane (+), and hurricanes (-) have some sort of significant influence on myxo prevalence 
 ```
@@ -2419,10 +2419,10 @@ ggplot(hp3.season,
 
 
 # run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = hp3.season)
-simulateResiduals(fittedModel = season_model, plot = TRUE)
-summary(season_model)
-plot(parameters(season_model))
+season_model3p <- glmmTMB(observations ~ season*event, family = nbinom2, data = hp3.season)
+simulateResiduals(fittedModel = season_model3p, plot = TRUE)
+summary(season_model3p)
+plot(parameters(season_model3p))
 
 # summer and hurricanes have some sort of significant influence on myxo prevalence -- there are not enough observations in winter to make comments about
 ```
@@ -3230,18 +3230,32 @@ ggsave("timeline.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 Merge output tables for models
 ```{r}
-# season
+# season abundance
 s6 <- tbl_regression(season_model6, exponentiate = TRUE)
 s3 <- tbl_regression(season_model3, exponentiate = TRUE) 
 
 season_table <- tbl_merge(
-    tbls = list(s6, s3),
-    tab_spanner = c("**6 month**", "**3 month**")
-  )
+    tbls = list(s3, s6),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Seasonality on Parasite Abundance**")
 
 s_table <- as_gt(season_table)
 gtsave(s_table, filename = "season_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
 
+
+# season prevalence
+s6p <- tbl_regression(season_model6p, exponentiate = TRUE)
+s3p <- tbl_regression(season_model3p, exponentiate = TRUE) 
+
+season_tablep <- tbl_merge(
+    tbls = list(s3p, s6p),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Seasonality on Parasite Prevalence**")
+
+s_tablep <- as_gt(season_tablep)
+gtsave(s_tablep, filename = "season_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
 
 # abundance conditional
 h6a <- tbl_regression(
@@ -3256,9 +3270,10 @@ h3a <- tbl_regression(
 )
 
 a_table <- tbl_merge(
-    tbls = list(h6a, h3a),
-    tab_spanner = c("**6 month**", "**3 month**")
-  )
+    tbls = list(h3a, h6a),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Abundance (conditional)**")
 
 abun_table <- as_gt(a_table)
 gtsave(abun_table, filename = "abun_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
@@ -3276,9 +3291,10 @@ h3a_z <- tbl_regression(
 )
 
 az_table <- tbl_merge(
-    tbls = list(h6a_z, h3a_z),
-    tab_spanner = c("**6 month**", "**3 month**")
-  )
+    tbls = list(h3a_z, h6a_z),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Abundance (zero-inflated)**")
 
 abun_table_z <- as_gt(az_table)
 gtsave(abun_table_z, filename = "abun_zi_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
@@ -3296,9 +3312,10 @@ h3p <- tbl_regression(
 )
 
 p_table <- tbl_merge(
-    tbls = list(h6p, h3p),
-    tab_spanner = c("**6 month**", "**3 month**")
-  )
+    tbls = list(h3p, h6p),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Prevalence (conditional)**")
 
 prev_table <- as_gt(p_table)
 gtsave(prev_table, filename = "prev_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
@@ -3316,12 +3333,58 @@ h3p_z <- tbl_regression(
 )
 
 pz_table <- tbl_merge(
-    tbls = list(h6p_z, h3p_z),
-    tab_spanner = c("**6 month**", "**3 month**")
-  )
+    tbls = list(h3p_z, h6p_z),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Prevalence (zero-inflated)**")
 
 prev_table_z <- as_gt(pz_table)
 gtsave(prev_table_z, filename = "prev_zi_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+
+# monogene abundance
+# abundance conditional
+h6am <- tbl_regression(
+  final_h_abundancemono,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+h3am <- tbl_regression(
+  final_h_abundance3mono,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+
+am_table <- tbl_merge(
+    tbls = list(h3am, h6am),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Abundance (conditional) [meta as reference]**")
+
+abun_tablem <- as_gt(am_table)
+gtsave(abun_tablem, filename = "abun_mono_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# abundance zi
+h6a_zm <- tbl_regression(
+  final_h_abundancemono,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+h3a_zm <- tbl_regression(
+  final_h_abundance3mono,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+
+az_tablem <- tbl_merge(
+    tbls = list(h3a_z, h6a_z),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Abundance (zero-inflated) [meta as reference]**")
+
+abun_table_zm <- as_gt(az_tablem)
+gtsave(abun_table_zm, filename = "abun_mono_zi_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
 ```
 
 
