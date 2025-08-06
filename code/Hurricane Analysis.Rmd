@@ -3397,6 +3397,88 @@ fish_done <- combined_hurricane_full_df %>%
 # Life cycle effects
 check to see if the type of life cycle a parasite has (direct or complex) has an effect on parasite abundance
 ```{r}
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+ha.reps <- hurricane_df6 %>% 
+  group_by(event, timing, life_history, fish_sp_x) %>% 
+  summarize(observations = n(), .groups = "drop") %>%
+  filter(life_history != "NA") 
+
+# plot how many of each category we have
+ggplot(ha.reps,
+       aes(x = fish_sp_x, y = observations, fill = life_history)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type ---- this is not working and i am not sure why
+ha.bins1 <- hurricane_df6 %>% 
+  group_by(event, timing, life_history) %>% 
+  summarize(avg.bin = mean(psite_count))
+
+# use this as the raw plot of data
+ggplot(ha.bins1,
+       aes(x = timing, y = avg.bin, fill = life_history)) +
+  facet_wrap( ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+ha.bins2 <- hurricane_df6 %>% 
+  group_by(event, timing, life_history, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+ggplot(ha.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+
+
+
+# check seasonality
+
+# month and day against number of replicates
+ha.season.lc <- hurricane_df6 %>% 
+  group_by(event, timing, life_history, fish_sp_x, season, month_day, year_collected) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# insert a dummy year as an anchor
+ha.season.lc <- ha.season.lc %>%
+  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
+
+ha.season.lc$month_day_date <- as.Date(format(as.Date(ha.season.lc$month_day_date), "2025-%m-%d"))
+
+range(ha.season.lc$month_day_date)
+
+ggplot(ha.season.lc,
+       aes(x = month_day_date, y = event, fill = life_history)) +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) +
+  labs(x = "Month", y = "Event", fill = "Life History") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc)
+simulateResiduals(fittedModel = season_model6.lc, plot = TRUE)
+summary(season_model6.lc)
+plot(parameters(season_model6.lc))
+
+# no effect of seasonality present
 
 ```
 
