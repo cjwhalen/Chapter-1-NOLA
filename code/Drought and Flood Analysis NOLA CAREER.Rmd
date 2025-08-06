@@ -492,11 +492,11 @@ summary(df_abundance_final)
 plot(parameters(df_abundance_final))
 
 
-# relevel to have trems in the reference cateogory:
+# relevel to have metas in the reference cateogory:
 drought_flood_df_a_only_full <- drought_flood_df_a_only_full %>%
-  filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
+  filter(psite_type %in% c("trematode_metacercaria", "trematode", "monogenean")) %>% 
   mutate(psite_type = factor(psite_type, 
-                             levels = c("trematode", "trematode_metacercaria", "monogenean")))
+                             levels = c("trematode_metacercaria", "trematode", "monogenean")))
 
 df_abundance_final <- glmmTMB(psite_abundance ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
                                 ziformula = ~ event*psite_type + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 

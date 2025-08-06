@@ -37,6 +37,8 @@ install.packages("DHARMa")
 install.packages("bbmle")
 install.packages("reghelper")
 install.packages("fuzzyjoin")
+install.packages("broom.mixed")
+install.packages("gtsummary")
 ```
 
 #### Load packages.
@@ -75,6 +77,9 @@ library(tidyverse)
 library(vegan)
 library(vistime)
 library(wesanderson)
+library(broom.mixed)
+library(gtsummary)
+library(gt)
 ```
 #### Set up aesthetic for plots
 ```{r}
@@ -93,8 +98,6 @@ connor_theme <- theme(legend.position = "top",
         axis.title = element_text(size = 14, color = "grey15"),
         legend.title = element_blank(),
         strip.text = element_text(size = 12))
-
-wes_palette("Zissou1")
 pal<-wes_palette(name = "Zissou1", 7, type = "continuous")
 ```
 
@@ -1170,12 +1173,13 @@ ggplot(ha.season,
   connor_theme
 
 # run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season)
-simulateResiduals(fittedModel = season_model, plot = TRUE)
-summary(season_model)
-plot(parameters(season_model))
+season_model6 <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season)
+simulateResiduals(fittedModel = season_model6, plot = TRUE)
+summary(season_model6)
+plot(parameters(season_model6))
 
 # no effect of seasonality present
+
 ```
 
 ## Abundance Models
@@ -1348,12 +1352,11 @@ ggplot(emm_df, aes(x = event, y = response, color = psite_type, group = psite_ty
   geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
                 position = position_dodge(width = 0.3), width = 0.2) +
   facet_wrap(~ timing) +
-  theme_minimal() +
   labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
        y = "Estimated abundance (count scale)",
        x = "Event",
        color = "Parasite Type") +
-  theme(legend.position = "bottom")
+  connor_theme
 
 
 # relevel to see mono relationship:
@@ -1593,9 +1596,6 @@ hurricane_prevalence_final <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|
 simulateResiduals(fittedModel = hurricane_prevalence_final, plot = TRUE)
 summary(hurricane_prevalence_final)
 plot(parameters(hurricane_prevalence_final))
-
-# put monos in the reference category
-
 ```
 
 
@@ -2111,10 +2111,10 @@ ggplot(ha3.season,
   connor_theme
 
 # run a model to see if season has an effect on occurrences
-season_model <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha3.season)
-simulateResiduals(fittedModel = season_model, plot = TRUE)
-summary(season_model)
-plot(parameters(season_model))
+season_model3 <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha3.season)
+simulateResiduals(fittedModel = season_model3, plot = TRUE)
+summary(season_model3)
+plot(parameters(season_model3))
 
 # hurricanes have a negative effect, BUT there are no observations for hurricanes in winter, so we may need to drop that from the model
 
@@ -2776,8 +2776,6 @@ ggsave("full_hurricane.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 ```
 
 
-
-
 # plotting model prediction outputs for both 3 and 6 month 
 ```{r}
 
@@ -3230,11 +3228,117 @@ final_timeline
 ggsave("timeline.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 ```
 
+Merge output tables for models
+```{r}
+# season
+s6 <- tbl_regression(season_model6, exponentiate = TRUE)
+s3 <- tbl_regression(season_model3, exponentiate = TRUE) 
+
+season_table <- tbl_merge(
+    tbls = list(s6, s3),
+    tab_spanner = c("**6 month**", "**3 month**")
+  )
+
+s_table <- as_gt(season_table)
+gtsave(s_table, filename = "season_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+
+# abundance conditional
+h6a <- tbl_regression(
+  final_h_abundance,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+h3a <- tbl_regression(
+  final_h_abundance3,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+
+a_table <- tbl_merge(
+    tbls = list(h6a, h3a),
+    tab_spanner = c("**6 month**", "**3 month**")
+  )
+
+abun_table <- as_gt(a_table)
+gtsave(abun_table, filename = "abun_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# abundance zi
+h6a_z <- tbl_regression(
+  final_h_abundance,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+h3a_z <- tbl_regression(
+  final_h_abundance3,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+
+az_table <- tbl_merge(
+    tbls = list(h6a_z, h3a_z),
+    tab_spanner = c("**6 month**", "**3 month**")
+  )
+
+abun_table_z <- as_gt(az_table)
+gtsave(abun_table_z, filename = "abun_zi_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# prevalence conditional
+h6p <- tbl_regression(
+  hurricane_prevalence_final,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+h3p <- tbl_regression(
+  hurricane_prevalence3_final,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+
+p_table <- tbl_merge(
+    tbls = list(h6p, h3p),
+    tab_spanner = c("**6 month**", "**3 month**")
+  )
+
+prev_table <- as_gt(p_table)
+gtsave(prev_table, filename = "prev_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# prevalence zi
+h6p_z <- tbl_regression(
+  hurricane_prevalence_final,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+h3p_z <- tbl_regression(
+  hurricane_prevalence3_final,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+
+pz_table <- tbl_merge(
+    tbls = list(h6p_z, h3p_z),
+    tab_spanner = c("**6 month**", "**3 month**")
+  )
+
+prev_table_z <- as_gt(pz_table)
+gtsave(prev_table_z, filename = "prev_zi_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+```
+
+
 Total fish dissected for this analysis:
 ```{r}
 fish_done <- combined_hurricane_full_df %>% 
   summarise(unique_catalogs = n_distinct(individual_fish_id))
 ```
+
+# Life cycle effects
+check to see if the type of life cycle a parasite has (direct or complex) has an effect on parasite abundance
+```{r}
+
+```
+
+
+
 
 
 # Adding ENSO data
