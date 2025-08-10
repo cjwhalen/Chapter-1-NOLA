@@ -39,6 +39,7 @@ install.packages("reghelper")
 install.packages("fuzzyjoin")
 install.packages("broom.mixed")
 install.packages("gtsummary")
+install.packages('ghibli')
 ```
 
 #### Load packages.
@@ -80,6 +81,7 @@ library(wesanderson)
 library(broom.mixed)
 library(gtsummary)
 library(gt)
+library(ghibli)
 ```
 #### Set up aesthetic for plots
 ```{r}
@@ -98,7 +100,9 @@ connor_theme <- theme(legend.position = "top",
         axis.title = element_text(size = 14, color = "grey15"),
         legend.title = element_blank(),
         strip.text = element_text(size = 12))
-pal<-wes_palette(name = "Zissou1", 7, type = "continuous")
+my_pal <- tail(ghibli_palette("MarnieMedium1", direction = -1, n = 7, type = "discrete"), 7)
+
+
 ```
 
 #### Load full datasets (parasites collected and NOAA SPI precipitation data) and prep data for analysis
@@ -2888,7 +2892,7 @@ p1 <- ggplot(timeline_df,
   ) + 
   scale_color_manual(values = c(
     "hurricane" = "#CB87B4",
-    "tropical storm" = "#8487d1",
+    "tropical storm" = "#CB87B4",
     "trematode" = "#c9ad79",
     "myxozoan" = "#07c3c5"
   )) +
@@ -2913,7 +2917,7 @@ p2 <- ggplot(ha.season,
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
-  scale_fill_manual(values = pal, name = '') +
+  scale_fill_manual(values = my_pal, name = '') +
   labs(x = "", y = "", fill = "") +
   connor_theme +
   theme(
@@ -2943,7 +2947,7 @@ season3 <- ggplot(ha3.season,
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
- scale_fill_manual(values = pal, name = '') +
+ scale_fill_manual(values = my_pal, name = '') +
   labs(x = "", y = "", fill = "") +
   connor_theme +
   theme(
@@ -2959,6 +2963,7 @@ final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") +
   
 
 final_plot
+
 
 ggsave("seasonality.jpeg", width = 10, height = (9/16)*10, dpi = 300)
  
@@ -3103,7 +3108,7 @@ ggmap(base_map) +
     breaks = c(bottom_y, mid_y, top_y),
     labels = round(c(bottom_y, mid_y, top_y), 4)
   ) +
-  scale_fill_manual(values = pal, name = '') +
+  scale_fill_manual(values = my_pal, name = '') +
   xlab("") +
   ylab("") + 
   connor_theme +
@@ -3120,7 +3125,7 @@ ggsave("river_plot_full.jpeg", width = 3, height = (9/16)*10, dpi = 300)
 #####
 
 species <- c("gamaff", "hybnuc", "ictpun", "notath", "pimvig")
-names(pal) <- species
+names(my_pal) <- species
 
 make_species_map <- function(species_name) {
   ggmap(base_map) +
@@ -3140,7 +3145,7 @@ make_species_map <- function(species_name) {
       breaks = c(bottom_y, mid_y, top_y),
       labels = round(c(bottom_y, mid_y, top_y), 4)
     ) +
-    scale_fill_manual(values = pal, name = "Fish species") +
+    scale_fill_manual(values = my_pal, name = '') +
     xlab("") +
     ylab("") + 
     connor_theme +
@@ -3193,7 +3198,7 @@ Make fish replication plot
 fish <- ggplot(data = combined_hurricane_full_df, aes(x = date, y = fish_sp_x)) +
   geom_point(data = combined_hurricane_full_df, aes(x = date, fill = fish_sp_x),
              position = position_jitter(width = 0.15), shape = 21, size = 3) +
-  scale_fill_manual(values = pal, name = '') +
+  scale_fill_manual(values = my_pal, name = '') +
   xlab("") +
   ylab("") +
   scale_x_continuous(
@@ -3414,7 +3419,7 @@ ggplot(ha.reps,
        aes(x = timing, y = observations, fill = life_history)) +
   facet_wrap(~ event) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  scale_fill_manual(values = c("Complex" = "Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
   labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -3428,7 +3433,7 @@ ggplot(ha.bins1,
        aes(x = timing, y = avg.bin, fill = life_history)) +
   facet_wrap( ~ event) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  scale_fill_manual(values = c("Complex" = "Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -3442,7 +3447,7 @@ ggplot(ha.bins2,
        aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
   facet_wrap(timing ~ event) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
   labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -3472,7 +3477,7 @@ ggplot(ha.season.lc,
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
   labs(x = "Month", y = "Event", fill = "Life History") +
   connor_theme
 
@@ -3542,7 +3547,7 @@ ggplot(ha.reps,
        aes(x = timing, y = observations, fill = life_history)) +
   facet_wrap(~ event) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
   labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -3556,7 +3561,7 @@ ggplot(ha.bins1,
        aes(x = timing, y = avg.bin, fill = life_history)) +
   facet_wrap( ~ event) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -3570,7 +3575,7 @@ ggplot(ha.bins2,
        aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
   facet_wrap(timing ~ event) +
   geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) + 
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
   labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
@@ -3578,19 +3583,19 @@ ggplot(ha.bins2,
 # check seasonality
 
 # month and day against number of replicates
-ha.season.lc <- hurricane_df3 %>% 
+ha.season.lc3 <- hurricane_df3 %>% 
   group_by(event, timing, life_history, fish_sp_x, season, month_day, year_collected) %>% 
   summarize(observations = n(), .groups = "drop")
 
 # insert a dummy year as an anchor
-ha.season.lc <- ha.season.lc %>%
+ha.season.lc3 <- ha.season.lc3 %>%
   mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
 
-ha.season.lc$month_day_date <- as.Date(format(as.Date(ha.season.lc$month_day_date), "2025-%m-%d"))
+ha.season.lc3$month_day_date <- as.Date(format(as.Date(ha.season.lc3$month_day_date), "2025-%m-%d"))
 
-range(ha.season.lc$month_day_date)
+range(ha.season.lc3$month_day_date)
 
-ggplot(ha.season.lc,
+ggplot(ha.season.lc3,
        aes(x = month_day_date, y = event, fill = life_history)) +
   geom_violin(scale = "count", trim = FALSE) +
   geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
@@ -3600,15 +3605,15 @@ ggplot(ha.season.lc,
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
-  scale_fill_manual(values = c("Complex" = "blue", "Direct" = "purple")) +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
   labs(x = "Month", y = "Event", fill = "Life History") +
   connor_theme
 
 # run a model to see if season has an effect on occurrences
-season_model6.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc)
-simulateResiduals(fittedModel = season_model6.lc, plot = TRUE)
-summary(season_model6.lc)
-plot(parameters(season_model6.lc))
+season_model3.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc3)
+simulateResiduals(fittedModel = season_model3.lc, plot = TRUE)
+summary(season_model3.lc)
+plot(parameters(season_model3.lc))
 
 # no effect of seasonality present
 
@@ -3652,6 +3657,246 @@ ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_h
   theme(legend.position = "bottom")
 
 # post hurricane direct life cycle history are decreasing
+
+
+# make tables of model outputs
+# season life cycle
+lcs6t <- tbl_regression(season_model6.lc, exponentiate = TRUE)
+lcs3t <- tbl_regression(season_model3.lc, exponentiate = TRUE) 
+
+lcs_table <- tbl_merge(
+    tbls = list(lcs3t, lcs6t),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Seasonality on Life Cycle**")
+
+lcs_table <- as_gt(lcs_table)
+gtsave(lcs_table, filename = "life_cycle_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# models life cycle conditional
+lc6t <- tbl_regression(final_h_life6, exponentiate = TRUE)
+lc3t <- tbl_regression(final_h_life3, exponentiate = TRUE) 
+
+lc_table <- tbl_merge(
+    tbls = list(lc3t, lc6t),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Hurricane Effects on Life Cycle**")
+
+lc_table <- as_gt(lc_table)
+gtsave(lc_table, filename = "life_cycle_model_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# life cycle conditional
+h6alc <- tbl_regression(
+  final_h_life6,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+h3alc <- tbl_regression(
+  final_h_life3,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
+)
+
+alc_table <- tbl_merge(
+    tbls = list(h3alc, h6alc),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Life Cycle (conditional)**")
+
+abun_table_lc <- as_gt(alc_table)
+gtsave(abun_table_lc, filename = "abun_lc_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+# abundance zi
+h6zilc <- tbl_regression(
+  final_h_life6,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+h3zilc <- tbl_regression(
+  final_h_life3,
+  exponentiate = TRUE,
+  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+)
+
+zilc_table <- tbl_merge(
+    tbls = list(h3zilc, h6zilc),
+    tab_spanner = c("**3 month**", "**6 month**")
+  ) %>% 
+   modify_caption("**Parasite Life Cycle (zero-inflated)**")
+
+zi_table_lc <- as_gt(zilc_table)
+gtsave(zi_table_lc, filename = "zi_lc_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+
+
+
+## plot seasonality for the total samples taken and used in the life cycle analyses
+ha.season.lc3 <- ha.season.lc3 %>% 
+  mutate(duration = "3 months")
+
+ha.season.lc <- ha.season.lc %>% 
+  mutate(duration = "6 months")
+
+timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
+  janitor::clean_names() %>%
+  mutate(start_date = as.Date(start_date)) %>%
+  mutate(end_date = as.Date(end_date)) %>% 
+  select(start_date, end_date, type, enso_event, enso_strength) %>% 
+  mutate(
+    start_month = month(start_date),
+    start_day = day(start_date),
+    end_month = month(end_date),
+    end_day = day(end_date),
+    rep_year = 2025,
+    start_date_rep = make_date(rep_year, start_month, start_day),
+    end_date_rep = make_date(rep_year, end_month, end_day)
+  ) %>% 
+  filter(!type %in% c("6 month", "3 month"))
+
+
+
+p1 <- ggplot(timeline_df, 
+       aes(x = start_date_rep, xend = end_date_rep, y = type, yend = type, color = type)) +
+  geom_segment(size = 3, alpha = 1) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) + 
+  scale_color_manual(values = c(
+    "hurricane" = "#CB87B4",
+    "tropical storm" = "#CB87B4",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "", y = "", fill = "")  +
+  connor_theme +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  theme(
+  panel.spacing = unit(0, "pt"),
+  strip.text = element_blank(), 
+  legend.spacing = unit(0, "pt"),
+  legend.title = element_blank()
+)
+
+p2 <- ggplot(ha.season.lc,
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = my_pal, name = '') +
+  labs(x = "", y = "", fill = "") +
+  connor_theme +
+  theme(
+  panel.spacing = unit(0, "pt"),
+  legend.spacing = unit(0, "pt"),
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank()
+)
+
+season6 <- (p1 / p2 + 
+  plot_layout(heights = c(1, 1.2), guides = "collect")) & 
+  theme(
+    axis.title.x = element_text(),
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "top"
+  )
+ 
+ # 3 month
+season3 <- ggplot(ha.season.lc3,
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+ scale_fill_manual(values = my_pal, name = '') +
+  labs(x = "", y = "", fill = "") +
+  connor_theme +
+  theme(
+    panel.spacing = unit(0, "pt"),
+    legend.spacing = unit(0, "pt"),
+    legend.position = "none", 
+    axis.title.x = element_text(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") + 
+  plot_layout(guides = "collect") 
+  
+
+final_plot
+
+
+ggsave("seasonality_lc.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
+```
+
+Plot life cycle results
+```{r}
+lc6 <- ggpredict(final_h_life3, terms = c("event", "timing", "life_history"))
+lc6 <- lc6 %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    life_cycle = facet
+  )
+lc6$model <- "6 month"
+
+lc3 <- ggpredict(final_h_life3, terms = c("event", "timing", "life_history"))
+
+lc3 <- lc3 %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    life_cycle = facet
+  ) 
+lc3$model <- "3 month"
+
+combined_preds <- bind_rows(lc6, lc3)
+
+
+#all together
+ggplot(combined_preds,
+       aes(x = timing, y = estimate)) +
+  facet_grid(event ~ model, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = life_cycle),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) + 
+  geom_line(aes(group = life_cycle, linetype = life_cycle),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = life_cycle, group = life_cycle),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_y_continuous(breaks = c(0, 5, 10)) +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
+  connor_theme +
+  theme(
+    legend.title = element_blank()	
+  ) +
+  guides(linetype = "none")
+
+ggsave("life_cycles.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 ```
 
