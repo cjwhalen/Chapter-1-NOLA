@@ -1,0 +1,10 @@
+"model","variable","estimate_3mo","chi2_3mo","F_ratio_3mo","p_3mo","estimate_6mo","chi2_6mo","F_ratio_6mo","p_6mo"
+"life cycle strategy","event:timing:life_cycle",NA,5.705,5.705,0.0169,NA,3.452,3.452,0.0632
+"","hurricane:post:direct",-1.6156,NA,NA,0.0169,-0.9538,NA,NA,0.0632
+"abundance","event:timing:parasite_type",NA,6.922,3.461,0.0314,NA,4.558,2.279,0.0124
+"","hurricane:post:monogenean",-2.3478,NA,NA,0.01857,-1.5328,NA,NA,0.0449
+"","hurricane:post:trematode_metacercaria",2.521,NA,NA,0.00993,1.6571,NA,NA,0.0503
+"","hurricane:trematode_metacercaria",-2.1027,NA,NA,0.00305,-0.8627,NA,NA,0.1776
+"","post:trematode_metacercaria",-1.9626,NA,NA,0.01525,-1.4219,NA,NA,0.0413
+"","hurricane:post:trematode_adult",1.1051,NA,NA,0.15169,0.767,NA,NA,0.1609
+"prevalence","hurricane:post:myxozoan",-0.96348,NA,NA,0.311,-0.6883,NA,NA,0.413

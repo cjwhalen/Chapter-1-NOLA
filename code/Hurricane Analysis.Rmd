@@ -1600,6 +1600,274 @@ simulateResiduals(fittedModel = hurricane_prevalence_final, plot = TRUE)
 summary(hurricane_prevalence_final)
 plot(parameters(hurricane_prevalence_final))
 ```
+# Life cycle 3 6 month
+```{r}
+# six month
+
+hurricane_df6 <- hurricane_df6 %>% 
+  filter(psite_count != "NA") %>%
+  filter(life_history != "NA") 
+
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+ha.reps <- hurricane_df6 %>% 
+  group_by(event, timing, life_history) %>% 
+  summarize(observations = n(), .groups = "drop") %>%
+  filter(life_history != "NA") 
+
+# plot how many of each category we have
+ggplot(ha.reps,
+       aes(x = timing, y = observations, fill = life_history)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type ---- this is not working and i am not sure why
+ha.bins1 <- hurricane_df6 %>% 
+  group_by(event, timing, life_history) %>% 
+  summarize(avg.bin = mean(psite_count))
+
+# use this as the raw plot of data
+ggplot(ha.bins1,
+       aes(x = timing, y = avg.bin, fill = life_history)) +
+  facet_wrap( ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+ha.bins2 <- hurricane_df6 %>% 
+  group_by(event, timing, life_history, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+ggplot(ha.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+
+# check seasonality
+
+# month and day against number of replicates
+ha.season.lc <- hurricane_df6 %>% 
+  group_by(event, timing, life_history, fish_sp_x, season, month_day, year_collected) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# insert a dummy year as an anchor
+ha.season.lc <- ha.season.lc %>%
+  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
+
+ha.season.lc$month_day_date <- as.Date(format(as.Date(ha.season.lc$month_day_date), "2025-%m-%d"))
+
+range(ha.season.lc$month_day_date)
+
+ggplot(ha.season.lc,
+       aes(x = month_day_date, y = event, fill = life_history)) +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
+  labs(x = "Month", y = "Event", fill = "Life History") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model6.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc)
+simulateResiduals(fittedModel = season_model6.lc, plot = TRUE)
+summary(season_model6.lc)
+plot(parameters(season_model6.lc))
+
+# no effect of seasonality present
+```
+
+### Model validation
+```{r model validation abundance, echo=FALSE, eval=FALSE}
+# no offset
+# nbinom1 log
+
+nbinom1log <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1, data = hurricane_df6)
+
+# nbinom1 sqrt
+
+nbinom1sqrt <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df6)
+
+# nbinom2 log
+
+nbinom2log <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df6)
+
+# nbinom2 sqrt
+
+nbinom2sqrt <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df6)
+
+# nbinom12 log
+
+nbinom12log <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12, data = hurricane_df6)
+
+#nbinom12 sqrt
+
+nbinom12sqrt <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df6)
+## offset
+
+# nbinom1 log
+
+nbinom1logoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = hurricane_df6)
+
+# nbinom1 sqrt
+
+nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df6)
+
+# nbinom2 log
+
+nbinom2logoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = hurricane_df6)
+
+# nbinom2 sqrt
+
+nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df6)
+
+# nbinom12 log
+
+nbinom12logoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = hurricane_df6)
+
+#nbinom12 sqrt
+
+nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df6)
+
+
+# List of all model objects
+models <- list(
+  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
+  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
+  nbinom12logoff, nbinom12sqrtoff
+)
+
+# Model names
+model_names <- c(
+  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
+  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
+  "nbinom12logoff", "nbinom12sqrtoff"
+)
+
+# Simulate residuals and extract diagnostics
+residual_summaries <- map2_df(models, model_names, function(model, name) {
+  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
+  data.frame(
+    model = name,
+    dispersion = testDispersion(sim)$p.value,
+    uniformity = testUniformity(sim)$p.value,
+    outliers = testOutliers(sim)$p.value,
+    AIC = AIC(model)
+  )
+})
+
+# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
+residual_summaries %>%
+  arrange(AIC) %>%
+  print()
+```
+
+
+## 6 month model life cycle
+```{r}
+# run model 
+final_h_life6 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = hurricane_df6)
+
+simulateResiduals(fittedModel = final_h_life6, plot = TRUE)
+summary(final_h_life6)
+plot(parameters(final_h_life6))
+
+emm <- emmeans(final_h_life6, ~ event * timing * life_history)
+joint_tests(final_h_life6)
+
+emm <- emmeans(final_h_life6, ~ event * timing * life_history, type = "response")
+
+emmip(final_h_life6, life_history ~ event | timing,
+      type = "response",
+      CIs = TRUE,
+      dodge = 0.3) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event") +
+  theme(legend.position = "bottom")
+
+# Convert emmeans results to a data frame
+emm_df <- as.data.frame(emm)
+
+ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_history)) +
+  geom_point(position = position_dodge(width = 0.3), size = 3) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+                position = position_dodge(width = 0.3), width = 0.2) +
+  facet_wrap(~ timing) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event",
+       color = "Parasite Type") +
+  theme(legend.position = "bottom")
+
+# no significant effects at 6 months
+```
+
 
 
 # Model the effects on specific parasite species within trem_meta
@@ -2572,6 +2840,272 @@ plot(parameters(hurricane_prevalence3_final))
 
 # switch things around so that monogenes are not reference category? how do i get stats on the reference level?
 ```
+# Life cycle 3 month
+```{r}
+# three month
+
+hurricane_df3 <- hurricane_df3 %>% 
+  filter(psite_count != "NA") %>%
+  filter(life_history != "NA") 
+
+# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
+ha.reps <- hurricane_df3 %>% 
+  group_by(event, timing, life_history) %>% 
+  summarize(observations = n(), .groups = "drop") %>%
+  filter(life_history != "NA") 
+
+# plot how many of each category we have
+ggplot(ha.reps,
+       aes(x = timing, y = observations, fill = life_history)) +
+  facet_wrap(~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
+  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with parasite type ---- this is not working and i am not sure why
+ha.bins1 <- hurricane_df3 %>% 
+  group_by(event, timing, life_history) %>% 
+  summarize(avg.bin = mean(psite_count))
+
+# use this as the raw plot of data
+ggplot(ha.bins1,
+       aes(x = timing, y = avg.bin, fill = life_history)) +
+  facet_wrap( ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+# hurricane abundance with fish species and parasite type
+ha.bins2 <- hurricane_df3 %>% 
+  group_by(event, timing, life_history, fish_sp_x) %>% 
+  summarize(avg.bin = mean(psite_abundance))
+
+# use this as the raw plot of data
+ggplot(ha.bins2,
+       aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
+  facet_wrap(timing ~ event) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
+  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
+  connor_theme
+
+
+# check seasonality
+
+# month and day against number of replicates
+ha.season.lc3 <- hurricane_df3 %>% 
+  group_by(event, timing, life_history, fish_sp_x, season, month_day, year_collected) %>% 
+  summarize(observations = n(), .groups = "drop")
+
+# insert a dummy year as an anchor
+ha.season.lc3 <- ha.season.lc3 %>%
+  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
+
+ha.season.lc3$month_day_date <- as.Date(format(as.Date(ha.season.lc3$month_day_date), "2025-%m-%d"))
+
+range(ha.season.lc3$month_day_date)
+
+ggplot(ha.season.lc3,
+       aes(x = month_day_date, y = event, fill = life_history)) +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
+  labs(x = "Month", y = "Event", fill = "Life History") +
+  connor_theme
+
+# run a model to see if season has an effect on occurrences
+season_model3.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc3)
+simulateResiduals(fittedModel = season_model3.lc, plot = TRUE)
+summary(season_model3.lc)
+plot(parameters(season_model3.lc))
+
+# no effect of seasonality present
+```
+
+### Model validation
+```{r model validation abundance, echo=FALSE, eval=FALSE}
+# no offset
+# nbinom1 log
+
+nbinom1log <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1, data = hurricane_df3)
+
+# nbinom1 sqrt
+
+nbinom1sqrt <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df3)
+
+# nbinom2 log
+
+nbinom2log <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df3)
+
+# nbinom2 sqrt
+
+nbinom2sqrt <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df3)
+
+# nbinom12 log
+
+nbinom12log <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12, data = hurricane_df3)
+
+#nbinom12 sqrt
+
+nbinom12sqrt <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) +
+                                  (total_length_mm|fish_psite_combo), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df3)
+## offset
+
+# nbinom1 log
+
+nbinom1logoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1, data = hurricane_df3)
+
+# nbinom1 sqrt
+
+nbinom1sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom1(link = "sqrt"), data = hurricane_df3)
+
+# nbinom2 log
+
+nbinom2logoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2, data = hurricane_df3)
+
+# nbinom2 sqrt
+
+nbinom2sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom2(link = "sqrt"), data = hurricane_df3)
+
+# nbinom12 log
+
+nbinom12logoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(log(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12, data = hurricane_df3)
+
+#nbinom12 sqrt
+
+nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + 
+                                  (1|fish_sp_x) + offset(sqrt(total_length_mm)),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + 
+                                  offset(sqrt(total_length_mm)), 
+                                family = nbinom12(link = "sqrt"), data = hurricane_df3)
+
+
+# List of all model objects
+models <- list(
+  nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
+  nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
+  nbinom12logoff, nbinom12sqrtoff
+)
+
+# Model names
+model_names <- c(
+  "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
+  "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
+  "nbinom12logoff", "nbinom12sqrtoff"
+)
+
+# Simulate residuals and extract diagnostics
+residual_summaries <- map2_df(models, model_names, function(model, name) {
+  sim <- simulateResiduals(fittedModel = model, plot = FALSE)
+  data.frame(
+    model = name,
+    dispersion = testDispersion(sim)$p.value,
+    uniformity = testUniformity(sim)$p.value,
+    outliers = testOutliers(sim)$p.value,
+    AIC = AIC(model)
+  )
+})
+
+# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
+residual_summaries %>%
+  arrange(AIC) %>%
+  print()
+```
+
+# run life cycle 3 month model
+```{r}
+# run model 
+final_h_life3 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df3)
+
+simulateResiduals(fittedModel = final_h_life3, plot = TRUE)
+summary(final_h_life3)
+lplot(parameters(final_h_life3))
+
+emm <- emmeans(final_h_life3, ~ event * timing * life_history)
+joint_tests(final_h_life3)
+
+emm <- emmeans(final_h_life3, ~ event * timing * life_history, type = "response")
+
+emmip(final_h_life3, life_history ~ event | timing,
+      type = "response",
+      CIs = TRUE,
+      dodge = 0.3) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event") +
+  theme(legend.position = "bottom")
+
+# Convert emmeans results to a data frame
+emm_df <- as.data.frame(emm)
+
+ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_history)) +
+  geom_point(position = position_dodge(width = 0.3), size = 3) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+                position = position_dodge(width = 0.3), width = 0.2) +
+  facet_wrap(~ timing) +
+  theme_minimal() +
+  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
+       y = "Estimated abundance (count scale)",
+       x = "Event",
+       color = "Parasite Type") +
+  theme(legend.position = "bottom")
+
+# post hurricane direct life cycle history are decreasing
+```
 
 
 
@@ -2624,6 +3158,7 @@ six <- six %>%
   )
 six$model <- "6 month"
 
+
 three <- ggpredict(final_h_abundance3, terms = c("event", "timing", "psite_type"))
 
 three <- three %>%
@@ -2655,11 +3190,20 @@ full <- ggplot(combined_preds,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
   scale_y_continuous(breaks = c(0, 6, 12)) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF", 
-    "monogenean" = "#A6E000", 
-    "trematode" = "#c9ad79", 
-    "myxozoan" = "#07c3c5")) +
+   scale_fill_manual(
+    values = c(
+      "trematode_metacercaria" = "#AFDFEF", 
+      "monogenean" = "#A6E000", 
+      "trematode" = "#c9ad79", 
+      "myxozoan" = "#07c3c5"
+    ),
+    labels = c(
+      "trematode_metacercaria" = "trematode metacercaria",
+      "monogenean" = "monogenean",
+      "trematode" = "trematode adult",
+      "myxozoan" = "myxozoan"
+    )
+  ) +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
   theme(
@@ -2685,11 +3229,20 @@ meta <- ggplot(combined_preds_meta,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
   scale_y_continuous(breaks = c(0, 6, 12)) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF", 
-    "monogenean" = "#A6E000", 
-    "trematode" = "#c9ad79", 
-    "myxozoan" = "#07c3c5")) +
+ scale_fill_manual(
+    values = c(
+      "trematode_metacercaria" = "#AFDFEF", 
+      "monogenean" = "#A6E000", 
+      "trematode" = "#c9ad79", 
+      "myxozoan" = "#07c3c5"
+    ),
+    labels = c(
+      "trematode_metacercaria" = "trematode metacercaria",
+      "monogenean" = "monogenean",
+      "trematode" = "trematode adult",
+      "myxozoan" = "myxozoan"
+    )
+  )  +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
   theme(
@@ -2715,11 +3268,20 @@ trem <- ggplot(combined_preds_trem,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
   scale_y_continuous(breaks = c(0, 6, 12)) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF", 
-    "monogenean" = "#A6E000", 
-    "trematode" = "#c9ad79", 
-    "myxozoan" = "#07c3c5")) +
+  scale_fill_manual(
+    values = c(
+      "trematode_metacercaria" = "#AFDFEF", 
+      "monogenean" = "#A6E000", 
+      "trematode" = "#c9ad79", 
+      "myxozoan" = "#07c3c5"
+    ),
+    labels = c(
+      "trematode_metacercaria" = "trematode metacercaria",
+      "monogenean" = "monogenean",
+      "trematode" = "trematode adult",
+      "myxozoan" = "myxozoan"
+    )
+  )  +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
   theme(
@@ -2745,11 +3307,19 @@ mono <- ggplot(combined_preds_mono,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
   scale_y_continuous(breaks = c(0, 6, 12)) +
-  scale_fill_manual(values = c(
-    "trematode_metacercaria" = "#AFDFEF", 
-    "monogenean" = "#A6E000", 
-    "trematode" = "#c9ad79", 
-    "myxozoan" = "#07c3c5")) +
+  scale_fill_manual(
+    values = c(
+      "trematode_metacercaria" = "#AFDFEF", 
+      "monogenean" = "#A6E000", 
+      "trematode" = "#c9ad79", 
+      "myxozoan" = "#07c3c5"
+    ),
+    labels = c(
+      "trematode_metacercaria" = "trematode metacercaria",
+      "monogenean" = "monogenean",
+      "trematode" = "trematode adult",
+      "myxozoan" = "myxozoan"
+    ))  +
   labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
   connor_theme +
   theme(
@@ -2776,11 +3346,69 @@ ggsave("mono_hurricane.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 full
 ggsave("full_hurricane.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
+# plot life cycle results
+lc6 <- ggpredict(final_h_life3, terms = c("event", "timing", "life_history"))
+lc6 <- lc6 %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    life_cycle = facet
+  )
+lc6$model <- "6 month"
+
+lc3 <- ggpredict(final_h_life3, terms = c("event", "timing", "life_history"))
+
+lc3 <- lc3 %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group,
+    life_cycle = facet
+  ) 
+lc3$model <- "3 month"
+
+combined_preds <- bind_rows(lc6, lc3)
+
+
+#all together
+ggplot(combined_preds,
+       aes(x = timing, y = estimate)) +
+  facet_grid(event ~ model, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = life_cycle),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) + 
+  geom_line(aes(group = life_cycle, linetype = life_cycle),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = life_cycle, group = life_cycle),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  scale_y_continuous(breaks = c(0, 5, 10)) +
+  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c"),
+                    labels = c(
+      "Complex" = "complex",
+      "Direct" = "direct"
+    )) +
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
+  connor_theme +
+  theme(
+    legend.title = element_blank()	
+  ) +
+  guides(linetype = "none")
+
+ggsave("life_cycles.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
 ```
 
 
 # plotting model prediction outputs for both 3 and 6 month 
-```{r}
+```{r, eval=FALSE}
 
 params1 <- parameters(final_h_abundance) %>%
   mutate(model = "6mo")
@@ -2971,6 +3599,7 @@ ggsave("seasonality.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 
 ```
+
 
 # Make timelines 
 Load dataframe
@@ -3405,262 +4034,6 @@ fish_done <- combined_hurricane_full_df %>%
 # Life cycle effects
 check to see if the type of life cycle a parasite has (direct or complex) has an effect on parasite abundance
 ```{r}
-# six month
-
-hurricane_df6 <- hurricane_df6 %>% 
-  filter(psite_count != "NA") %>%
-  filter(life_history != "NA") 
-
-# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
-ha.reps <- hurricane_df6 %>% 
-  group_by(event, timing, life_history) %>% 
-  summarize(observations = n(), .groups = "drop") %>%
-  filter(life_history != "NA") 
-
-# plot how many of each category we have
-ggplot(ha.reps,
-       aes(x = timing, y = observations, fill = life_history)) +
-  facet_wrap(~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
-  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# hurricane abundance with parasite type ---- this is not working and i am not sure why
-ha.bins1 <- hurricane_df6 %>% 
-  group_by(event, timing, life_history) %>% 
-  summarize(avg.bin = mean(psite_count))
-
-# use this as the raw plot of data
-ggplot(ha.bins1,
-       aes(x = timing, y = avg.bin, fill = life_history)) +
-  facet_wrap( ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# hurricane abundance with fish species and parasite type
-ha.bins2 <- hurricane_df6 %>% 
-  group_by(event, timing, life_history, fish_sp_x) %>% 
-  summarize(avg.bin = mean(psite_abundance))
-
-# use this as the raw plot of data
-ggplot(ha.bins2,
-       aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
-  facet_wrap(timing ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
-  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-
-# check seasonality
-
-# month and day against number of replicates
-ha.season.lc <- hurricane_df6 %>% 
-  group_by(event, timing, life_history, fish_sp_x, season, month_day, year_collected) %>% 
-  summarize(observations = n(), .groups = "drop")
-
-# insert a dummy year as an anchor
-ha.season.lc <- ha.season.lc %>%
-  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
-
-ha.season.lc$month_day_date <- as.Date(format(as.Date(ha.season.lc$month_day_date), "2025-%m-%d"))
-
-range(ha.season.lc$month_day_date)
-
-ggplot(ha.season.lc,
-       aes(x = month_day_date, y = event, fill = life_history)) +
-  geom_violin(scale = "count", trim = FALSE) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
-  scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
-    date_labels = "%b",
-    date_breaks = "1 month",
-    expand = c(0.01, 0)
-  ) +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
-  labs(x = "Month", y = "Event", fill = "Life History") +
-  connor_theme
-
-# run a model to see if season has an effect on occurrences
-season_model6.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc)
-simulateResiduals(fittedModel = season_model6.lc, plot = TRUE)
-summary(season_model6.lc)
-plot(parameters(season_model6.lc))
-
-# no effect of seasonality present
-
-# run model 
-final_h_life6 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = hurricane_df6)
-
-simulateResiduals(fittedModel = final_h_life6, plot = TRUE)
-summary(final_h_life6)
-plot(parameters(final_h_life6))
-
-emm <- emmeans(final_h_life6, ~ event * timing * life_history)
-joint_tests(final_h_life6)
-
-emm <- emmeans(final_h_life6, ~ event * timing * life_history, type = "response")
-
-emmip(final_h_life6, life_history ~ event | timing,
-      type = "response",
-      CIs = TRUE,
-      dodge = 0.3) +
-  theme_minimal() +
-  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
-       y = "Estimated abundance (count scale)",
-       x = "Event") +
-  theme(legend.position = "bottom")
-
-# Convert emmeans results to a data frame
-emm_df <- as.data.frame(emm)
-
-ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_history)) +
-  geom_point(position = position_dodge(width = 0.3), size = 3) +
-  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
-                position = position_dodge(width = 0.3), width = 0.2) +
-  facet_wrap(~ timing) +
-  theme_minimal() +
-  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
-       y = "Estimated abundance (count scale)",
-       x = "Event",
-       color = "Parasite Type") +
-  theme(legend.position = "bottom")
-
-# no significant effects at 6 months
-
-# three month
-
-hurricane_df3 <- hurricane_df3 %>% 
-  filter(psite_count != "NA") %>%
-  filter(life_history != "NA") 
-
-# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
-ha.reps <- hurricane_df3 %>% 
-  group_by(event, timing, life_history) %>% 
-  summarize(observations = n(), .groups = "drop") %>%
-  filter(life_history != "NA") 
-
-# plot how many of each category we have
-ggplot(ha.reps,
-       aes(x = timing, y = observations, fill = life_history)) +
-  facet_wrap(~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
-  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# hurricane abundance with parasite type ---- this is not working and i am not sure why
-ha.bins1 <- hurricane_df3 %>% 
-  group_by(event, timing, life_history) %>% 
-  summarize(avg.bin = mean(psite_count))
-
-# use this as the raw plot of data
-ggplot(ha.bins1,
-       aes(x = timing, y = avg.bin, fill = life_history)) +
-  facet_wrap( ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# hurricane abundance with fish species and parasite type
-ha.bins2 <- hurricane_df3 %>% 
-  group_by(event, timing, life_history, fish_sp_x) %>% 
-  summarize(avg.bin = mean(psite_abundance))
-
-# use this as the raw plot of data
-ggplot(ha.bins2,
-       aes(x = fish_sp_x, y = avg.bin, fill = life_history)) +
-  facet_wrap(timing ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) + 
-  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-
-# check seasonality
-
-# month and day against number of replicates
-ha.season.lc3 <- hurricane_df3 %>% 
-  group_by(event, timing, life_history, fish_sp_x, season, month_day, year_collected) %>% 
-  summarize(observations = n(), .groups = "drop")
-
-# insert a dummy year as an anchor
-ha.season.lc3 <- ha.season.lc3 %>%
-  mutate(month_day_date = as.Date(paste0("2025-", month_day), format = "%Y-%m-%d"))
-
-ha.season.lc3$month_day_date <- as.Date(format(as.Date(ha.season.lc3$month_day_date), "2025-%m-%d"))
-
-range(ha.season.lc3$month_day_date)
-
-ggplot(ha.season.lc3,
-       aes(x = month_day_date, y = event, fill = life_history)) +
-  geom_violin(scale = "count", trim = FALSE) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
-  scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
-    date_labels = "%b",
-    date_breaks = "1 month",
-    expand = c(0.01, 0)
-  ) +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
-  labs(x = "Month", y = "Event", fill = "Life History") +
-  connor_theme
-
-# run a model to see if season has an effect on occurrences
-season_model3.lc <- glmmTMB(observations ~ season*event, family = nbinom2, data = ha.season.lc3)
-simulateResiduals(fittedModel = season_model3.lc, plot = TRUE)
-summary(season_model3.lc)
-plot(parameters(season_model3.lc))
-
-# no effect of seasonality present
-
-# run model 
-final_h_life3 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
-                                family = nbinom2, data = hurricane_df3)
-
-simulateResiduals(fittedModel = final_h_life3, plot = TRUE)
-summary(final_h_life3)
-lplot(parameters(final_h_life3))
-
-emm <- emmeans(final_h_life3, ~ event * timing * life_history)
-joint_tests(final_h_life3)
-
-emm <- emmeans(final_h_life3, ~ event * timing * life_history, type = "response")
-
-emmip(final_h_life3, life_history ~ event | timing,
-      type = "response",
-      CIs = TRUE,
-      dodge = 0.3) +
-  theme_minimal() +
-  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
-       y = "Estimated abundance (count scale)",
-       x = "Event") +
-  theme(legend.position = "bottom")
-
-# Convert emmeans results to a data frame
-emm_df <- as.data.frame(emm)
-
-ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_history)) +
-  geom_point(position = position_dodge(width = 0.3), size = 3) +
-  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
-                position = position_dodge(width = 0.3), width = 0.2) +
-  facet_wrap(~ timing) +
-  theme_minimal() +
-  labs(title = "Estimated Parasite Abundance by Event, Timing, and Parasite Type",
-       y = "Estimated abundance (count scale)",
-       x = "Event",
-       color = "Parasite Type") +
-  theme(legend.position = "bottom")
-
-# post hurricane direct life cycle history are decreasing
-
 
 # make tables of model outputs
 # season life cycle
@@ -3846,62 +4219,6 @@ ggsave("seasonality_lc.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 ```
 
-Plot life cycle results
-```{r}
-lc6 <- ggpredict(final_h_life3, terms = c("event", "timing", "life_history"))
-lc6 <- lc6 %>%
-  rename(
-    event = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    timing = group,
-    life_cycle = facet
-  )
-lc6$model <- "6 month"
-
-lc3 <- ggpredict(final_h_life3, terms = c("event", "timing", "life_history"))
-
-lc3 <- lc3 %>%
-  rename(
-    event = x,
-    estimate = predicted,
-    se = std.error,
-    lower = conf.low,
-    upper = conf.high,
-    timing = group,
-    life_cycle = facet
-  ) 
-lc3$model <- "3 month"
-
-combined_preds <- bind_rows(lc6, lc3)
-
-
-#all together
-ggplot(combined_preds,
-       aes(x = timing, y = estimate)) +
-  facet_grid(event ~ model, scales = "free_y") +
-  geom_errorbar(aes(ymin = lower, ymax = upper, group = life_cycle),
-                width = 0.05,
-                position = position_dodge(width = 0.5)) + 
-  geom_line(aes(group = life_cycle, linetype = life_cycle),
-            position = position_dodge(width = 0.5)) +
-  geom_point(aes(fill = life_cycle, group = life_cycle),
-             pch = 21, size = 5,
-             position = position_dodge(width = 0.5)) +
-  scale_y_continuous(breaks = c(0, 5, 10)) +
-  scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c")) +
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
-  connor_theme +
-  theme(
-    legend.title = element_blank()	
-  ) +
-  guides(linetype = "none")
-
-ggsave("life_cycles.jpeg", width = 10, height = (9/16)*10, dpi = 300)
-
-```
 # Group things to see what is complex vs direct:
 ```{r}
 lc.bins <- hurricane_df6 %>% 
@@ -3920,9 +4237,6 @@ lc.bins2 <- hurricane_df3 %>%
   group_by(psite_type, life_history) %>% 
   summarize(avg.bin = n())
 ```
-
-
-
 
 
 # Adding ENSO data
