@@ -40,6 +40,7 @@ install.packages("fuzzyjoin")
 install.packages("broom.mixed")
 install.packages("gtsummary")
 install.packages('ghibli')
+install.packages("kableExtra")
 ```
 
 #### Load packages.
@@ -82,6 +83,9 @@ library(broom.mixed)
 library(gtsummary)
 library(gt)
 library(ghibli)
+library(glue)
+library(knitr)
+library(kableExtra)
 ```
 #### Set up aesthetic for plots
 ```{r}
