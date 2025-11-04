@@ -3076,7 +3076,7 @@ final_h_life3 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|c
 
 simulateResiduals(fittedModel = final_h_life3, plot = TRUE)
 summary(final_h_life3)
-lplot(parameters(final_h_life3))
+plot(parameters(final_h_life3))
 
 emm <- emmeans(final_h_life3, ~ event * timing * life_history)
 joint_tests(final_h_life3)
@@ -4028,7 +4028,6 @@ gtsave(abun_table_zm, filename = "abun_mono_zi_tbl.png", expand = 10, vwidth = 1
 
 ```
 
-
 Total fish dissected for this analysis:
 ```{r}
 fish_done <- combined_hurricane_full_df %>% 
@@ -4038,7 +4037,6 @@ fish_done <- combined_hurricane_full_df %>%
 # Life cycle effects
 check to see if the type of life cycle a parasite has (direct or complex) has an effect on parasite abundance
 ```{r}
-
 # make tables of model outputs
 # season life cycle
 lcs6t <- tbl_regression(season_model6.lc, exponentiate = TRUE)
@@ -4107,9 +4105,10 @@ zilc_table <- tbl_merge(
 
 zi_table_lc <- as_gt(zilc_table)
 gtsave(zi_table_lc, filename = "zi_lc_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+```
 
-
-
+# Life cycle plot for seasonality
+```{r}
 ## plot seasonality for the total samples taken and used in the life cycle analyses
 ha.season.lc3 <- ha.season.lc3 %>% 
   mutate(duration = "3 months")
@@ -4222,6 +4221,123 @@ final_plot
 ggsave("seasonality_lc.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 ```
+
+# Make prevalence seasonality plot
+```{r}
+## ALL THIS NEEDS TO BE CHANGED TO PREVALENCE 
+
+## plot seasonality for the total samples taken and used in the life cycle analyses
+ha.season.lc3 <- ha.season.lc3 %>% 
+  mutate(duration = "3 months")
+
+ha.season.lc <- ha.season.lc %>% 
+  mutate(duration = "6 months")
+
+timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
+  janitor::clean_names() %>%
+  mutate(start_date = as.Date(start_date)) %>%
+  mutate(end_date = as.Date(end_date)) %>% 
+  select(start_date, end_date, type, enso_event, enso_strength) %>% 
+  mutate(
+    start_month = month(start_date),
+    start_day = day(start_date),
+    end_month = month(end_date),
+    end_day = day(end_date),
+    rep_year = 2025,
+    start_date_rep = make_date(rep_year, start_month, start_day),
+    end_date_rep = make_date(rep_year, end_month, end_day)
+  ) %>% 
+  filter(!type %in% c("6 month", "3 month"))
+
+
+
+p1 <- ggplot(timeline_df, 
+       aes(x = start_date_rep, xend = end_date_rep, y = type, yend = type, color = type)) +
+  geom_segment(size = 3, alpha = 1) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) + 
+  scale_color_manual(values = c(
+    "hurricane" = "#CB87B4",
+    "tropical storm" = "#CB87B4",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "", y = "", fill = "")  +
+  connor_theme +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  theme(
+  panel.spacing = unit(0, "pt"),
+  strip.text = element_blank(), 
+  legend.spacing = unit(0, "pt"),
+  legend.title = element_blank()
+)
+
+p2 <- ggplot(ha.season.lc,
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = my_pal, name = '') +
+  labs(x = "", y = "", fill = "") +
+  connor_theme +
+  theme(
+  panel.spacing = unit(0, "pt"),
+  legend.spacing = unit(0, "pt"),
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank()
+)
+
+season6 <- (p1 / p2 + 
+  plot_layout(heights = c(1, 1.2), guides = "collect")) & 
+  theme(
+    axis.title.x = element_text(),
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "top"
+  )
+ 
+ # 3 month
+season3 <- ggplot(ha.season.lc3,
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+ scale_fill_manual(values = my_pal, name = '') +
+  labs(x = "", y = "", fill = "") +
+  connor_theme +
+  theme(
+    panel.spacing = unit(0, "pt"),
+    legend.spacing = unit(0, "pt"),
+    legend.position = "none", 
+    axis.title.x = element_text(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") + 
+  plot_layout(guides = "collect") 
+  
+
+final_plot
+
+
+ggsave("seasonality_lc.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+```
+
 
 # Group things to see what is complex vs direct:
 ```{r}
