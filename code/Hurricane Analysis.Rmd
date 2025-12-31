@@ -1871,6 +1871,23 @@ ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_h
   theme(legend.position = "bottom")
 
 # no significant effects at 6 months
+
+# reorder to see complex LC relationship
+
+hurricane_df6_complex <- hurricane_df6 %>%
+  mutate(life_history = forcats::fct_relevel(life_history, "Direct"))
+
+
+final_h_life6_complex <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df6_complex)
+
+simulateResiduals(fittedModel = final_h_life6_complex, plot = TRUE)
+summary(final_h_life6_complex)
+plot(parameters(final_h_life6_complex))
+
+emm <- emmeans(final_h_life6_complex, ~ event * timing * psite_type)
+joint_tests(final_h_life6_complex)
 ```
 
 
@@ -3110,6 +3127,23 @@ ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_h
   theme(legend.position = "bottom")
 
 # post hurricane direct life cycle history are decreasing
+
+# reorder to see complex LC relationship
+
+hurricane_df3_complex <- hurricane_df3 %>%
+  mutate(life_history = forcats::fct_relevel(life_history, "Direct"))
+
+
+final_h_life3_complex <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
+                                ziformula = ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo), 
+                                family = nbinom2, data = hurricane_df3_complex)
+
+simulateResiduals(fittedModel = final_h_life3_complex, plot = TRUE)
+summary(final_h_life3_complex)
+plot(parameters(final_h_life3_complex))
+
+emm <- emmeans(final_h_life3_complex, ~ event * timing * psite_type)
+joint_tests(final_h_life3_complex)
 ```
 
 
@@ -3408,6 +3442,84 @@ ggplot(combined_preds,
   guides(linetype = "none")
 
 ggsave("life_cycles.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
+```
+
+Plot myxozoan results:
+```{r}
+# plot by species of parasite
+
+six <- ggpredict(hurricane_prevalence_final, terms = c("event", "timing"))
+six <- six %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group
+  )
+six$model <- "6 month"
+
+
+three <- ggpredict(hurricane_prevalence3_final, terms = c("event", "timing"))
+
+three <- three %>%
+  rename(
+    event = x,
+    estimate = predicted,
+    se = std.error,
+    lower = conf.low,
+    upper = conf.high,
+    timing = group
+  ) 
+three$model <- "3 month"
+
+combined_preds <- bind_rows(six, three)
+
+combined_preds <- combined_preds %>%
+  mutate(psite_type = "myxozoan")
+
+#myxo
+
+myxo <- ggplot(combined_preds,
+       aes(x = timing, y = estimate)) +
+  facet_grid(event ~ model, scales = "free_y") +
+  geom_errorbar(aes(ymin = lower, ymax = upper, group = psite_type),
+                width = 0.05,
+                position = position_dodge(width = 0.5)) + 
+  geom_line(aes(group = psite_type, linetype = psite_type),
+            position = position_dodge(width = 0.5)) +
+  geom_point(aes(fill = psite_type, group = psite_type),
+             pch = 21, size = 5,
+             position = position_dodge(width = 0.5)) +
+  coord_cartesian(ylim = c(0, 15)) +
+  scale_y_continuous(breaks = c(0, 6, 12)) +
+ scale_fill_manual(
+    values = c(
+      "trematode_metacercaria" = "#AFDFEF", 
+      "monogenean" = "#A6E000", 
+      "trematode" = "#c9ad79", 
+      "myxozoan" = "#07c3c5"
+    ),
+    labels = c(
+      "trematode_metacercaria" = "trematode metacercaria",
+      "monogenean" = "monogenean",
+      "trematode" = "trematode adult",
+      "myxozoan" = "myxozoan"
+    )
+  )  +
+  labs(x = "Timing", y = "Estimate", fill = "Parasite Type") +
+  connor_theme +
+  theme(
+    legend.title = element_blank()
+  ) +
+  guides(linetype = "none")
+
+
+myxo
+ggsave("myxo_hurricane.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
 
 ```
 
