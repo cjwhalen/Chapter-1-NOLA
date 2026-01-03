@@ -3866,7 +3866,9 @@ ggmap(base_map) +
     axis.title.x = element_text(size = 20),
     axis.title.y = element_text(size = 20),
     axis.text.x = element_text(size = 10),
-    axis.text.y = element_text(size = 10)
+    axis.text.y = element_text(size = 10),
+    axis.line.x = element_line(color = "black"),
+    axis.ticks.x = element_line(color = "black")
   )
 
 ggsave("river_plot_full.jpeg", width = 3, height = (9/16)*10, dpi = 300)
@@ -3958,6 +3960,8 @@ fish <- ggplot(data = combined_hurricane_full_df, aes(x = date, y = fish_sp_x)) 
   theme(
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
+    axis.line.x = element_line(color = "black"),
+  axis.ticks.x = element_line(color = "black"),
     legend.position = "bottom",
     legend.text = element_text(size = 10)
   )
@@ -3971,9 +3975,9 @@ x_scale_shared <- scale_x_date(
   limits = as.Date(c("1965-01-01", "2006-01-01")),
   breaks = seq(as.Date("1965-01-01"), as.Date("2006-01-01"), by = "5 years"),
   date_labels = "%Y"
-)
+) 
 
-timeline_plot <- timeline_plot + x_scale_shared
+timeline_plot <- timeline_plot + x_scale_shared 
 fish <- fish + x_scale_shared
 
 final_timeline <- wrap_plots(timeline_plot, fish, ncol = 1)
@@ -4337,13 +4341,12 @@ ggsave("seasonality_lc.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 # Make prevalence seasonality plot
 ```{r}
-## ALL THIS NEEDS TO BE CHANGED TO PREVALENCE 
-
+## NOT WORKING
 ## plot seasonality for the total samples taken and used in the life cycle analyses
-ha.season.p3 <- hp3.season %>%  
+hp.season.3 <- hp3.season %>%  
   mutate(duration = "3 months")
 
-ha.season.p <- hp.season %>% 
+hp.season.p6 <- hp.season %>% 
   mutate(duration = "6 months")
 
 timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
@@ -4364,81 +4367,97 @@ timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis 
 
 
 
-p1 <- ggplot(timeline_df, 
-       aes(x = start_date_rep, xend = end_date_rep, y = type, yend = type, color = type)) +
+p1 <- ggplot(
+  timeline_df,
+  aes(
+    x = start_date_rep, xend = end_date_rep,
+    y = type, yend = type,
+    color = type
+  )
+) +
   geom_segment(size = 3, alpha = 1) +
   scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
     date_labels = "%b",
     date_breaks = "1 month",
     expand = c(0.01, 0)
-  ) + 
+  ) +
+  coord_cartesian(
+    xlim = as.Date(c("2025-01-03", "2025-12-26"))
+  ) +
   scale_color_manual(values = c(
     "hurricane" = "#CB87B4",
     "tropical storm" = "#CB87B4",
     "trematode" = "#c9ad79",
     "myxozoan" = "#07c3c5"
   )) +
-  labs(x = "", y = "", fill = "")  +
-  connor_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
-  theme(
-  panel.spacing = unit(0, "pt"),
-  strip.text = element_blank(), 
-  legend.spacing = unit(0, "pt"),
-  legend.title = element_blank()
-)
-
-p2 <- ggplot(ha.season.p,
-       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
-  facet_grid(duration ~ ., switch = "x") +
-  geom_violin(scale = "count", trim = FALSE) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
-  scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
-    date_labels = "%b",
-    date_breaks = "1 month",
-    expand = c(0.01, 0)
-  ) +
-  scale_fill_manual(values = my_pal, name = '') +
-  labs(x = "", y = "", fill = "") +
+  labs(x = "", y = "") +
   connor_theme +
   theme(
-  panel.spacing = unit(0, "pt"),
-  legend.spacing = unit(0, "pt"),
-  axis.text.x = element_blank(),
-  axis.ticks.x = element_blank()
-)
-
-season6 <- (p1 / p2 + 
-  plot_layout(heights = c(1, 1.2), guides = "collect")) & 
-  theme(
-    axis.title.x = element_text(),
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "top"
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line.x  = element_line(),
+    panel.spacing = unit(0, "pt"),
+    strip.text = element_blank(),
+    legend.spacing = unit(0, "pt"),
+    legend.title = element_blank()
   )
- 
- # 3 month
-season3 <- ggplot(ha.season.p3,
-       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+
+p2 <- ggplot(
+  hp.season.p6,
+  aes(x = month_day_date, y = event, fill = fish_sp_x)
+) +
   facet_grid(duration ~ ., switch = "x") +
   geom_violin(scale = "count", trim = FALSE) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  geom_point(
+    position = position_jitter(height = 0.2),
+    shape = 21, size = 3, stroke = 0.2
+  ) +
   scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
     date_labels = "%b",
     date_breaks = "1 month",
     expand = c(0.01, 0)
   ) +
- scale_fill_manual(values = my_pal, name = '') +
-  labs(x = "", y = "", fill = "") +
+  coord_cartesian(
+    xlim = as.Date(c("2025-01-03", "2025-12-26"))
+  ) +
+  scale_fill_manual(values = my_pal, name = "") +
+  labs(x = "", y = "") +
   connor_theme +
   theme(
     panel.spacing = unit(0, "pt"),
     legend.spacing = unit(0, "pt"),
-    legend.position = "none", 
-    axis.title.x = element_text(),
-    plot.title = element_text(hjust = 0.5)
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line.x  = element_line()
+  )
+ 
+ # 3 month
+season3 <- ggplot(
+  hp.season.3,
+  aes(x = month_day_date, y = event, fill = fish_sp_x)
+) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(
+    position = position_jitter(height = 0.2),
+    shape = 21, size = 3, stroke = 0.2
+  ) +
+  scale_x_date(
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  coord_cartesian(
+    xlim = as.Date(c("2025-01-03", "2025-12-26"))
+  ) +
+  scale_fill_manual(values = my_pal, name = "") +
+  labs(x = "", y = "") +
+  connor_theme +
+  theme(
+    panel.spacing = unit(0, "pt"),
+    legend.spacing = unit(0, "pt"),
+    legend.position = "none",
+    axis.line.x = element_line()
   )
 
 final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") + 
