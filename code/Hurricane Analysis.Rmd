@@ -333,7 +333,7 @@ assigned_controls <- data.frame(
 
 ```
 #### Control troubleshooting
-Correct controls by identifying overlaps and reducing the period of control to not overlap with a hurricane event anymore
+Correct controls by identifying overlaps
 ```{r, eval=FALSE, echo=FALSE}
 # Hilda (1964)	1964-03-28	1965-04-05	Hurricane -- OK
 # Betsy (1965)	1965-02-27	1966-03-13	Hurricane -- OK 
@@ -939,6 +939,11 @@ hurricane_df6 <- hurricane_df6 %>%
   mutate(timing = relevel(timing, ref = "pre")) %>% 
   mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
   mutate(event = relevel(event, ref = "control")) 
+
+# check how many are in each category
+ha.reps.a <- hurricane_df6 %>% 
+  group_by(event, timing, psite_type) %>% 
+  summarize(observations = n(), .groups = "drop")
 
 # ===== filtering for abundance analysis ===== #
 # drop low replicate categories
@@ -3238,7 +3243,8 @@ full <- ggplot(combined_preds,
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
-  scale_y_continuous(breaks = c(0, 6, 12)) +
+  scale_y_continuous(breaks = c(0, 6, 12)) + 
+  scale_x_discrete(labels = c(pre = "before", post = "after")) +
    scale_fill_manual(
     values = c(
       "trematode_metacercaria" = "#AFDFEF", 
@@ -3356,6 +3362,7 @@ mono <- ggplot(combined_preds_mono,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
   scale_y_continuous(breaks = c(0, 6, 12)) +
+  scale_x_discrete(labels = c(pre = "before", post = "after")) +
   scale_fill_manual(
     values = c(
       "trematode_metacercaria" = "#AFDFEF", 
@@ -3438,7 +3445,8 @@ ggplot(combined_preds,
   geom_point(aes(fill = life_cycle, group = life_cycle),
              pch = 21, size = 5,
              position = position_dodge(width = 0.5)) +
-  scale_y_continuous(breaks = c(0, 5, 10)) +
+  scale_y_continuous(breaks = c(0, 5, 10)) + 
+  scale_x_discrete(labels = c(pre = "before", post = "after")) +
   scale_fill_manual(values = c("Complex" = "#6161d8", "Direct" = 	"#7cb47c"),
                     labels = c(
       "Complex" = "complex",
@@ -3505,6 +3513,7 @@ myxo <- ggplot(combined_preds,
              position = position_dodge(width = 0.5)) +
   coord_cartesian(ylim = c(0, 15)) +
   scale_y_continuous(breaks = c(0, 6, 12)) +
+  scale_x_discrete(labels = c(pre = "before", post = "after")) +
  scale_fill_manual(
     values = c(
       "trematode_metacercaria" = "#AFDFEF", 
@@ -3890,8 +3899,8 @@ ggsave("river_plot_full.jpeg", width = 3, height = (9/16)*10, dpi = 300)
 
 #####
 
-species <- c("gamaff", "hybnuc", "ictpun", "notath", "pimvig")
-names(my_pal) <- species
+species_name <- c("gamaff", "hybnuc", "ictpun", "notath", "pimvig")
+names(my_pal) <- species_name
 
 make_species_map <- function(species_name) {
   ggmap(base_map) +
@@ -3955,6 +3964,112 @@ final_plot
 
 
 ggsave("river_plot.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
+```
+# Making Maps
+```{r}
+
+nola <- data.frame(
+  lon = -90.0715,
+  lat =  29.9511
+)
+
+# ~200 mile buffer (~3 degrees)
+zoom_bounds <- list(
+  xmin = nola$lon - 1,
+  xmax = nola$lon + 1,
+  ymin = nola$lat - 1.5,
+  ymax = nola$lat + 1.5
+)
+
+# -----------------------
+# Pearl River study bounds (transparent rectangle)
+# -----------------------
+pearl_bounds <- data.frame(
+  xmin = -89.855,
+  xmax = -89.81,
+  ymin = 30.69,
+  ymax = 30.81
+)
+
+states <- map_data("state")
+
+gulf_states <- subset(
+  states,
+  region %in% c("louisiana", "mississippi", "alabama")
+)
+
+nola_map <- ggplot() +
+  geom_polygon(
+    data = gulf_states,
+    aes(x = long, y = lat, group = group),
+    fill = "grey90",
+    color = "grey40",
+    linewidth = 0.3
+  ) +
+  geom_rect(
+    aes(
+      xmin = pearl_bounds$xmin,
+      xmax = pearl_bounds$xmax,
+      ymin = pearl_bounds$ymin,
+      ymax = pearl_bounds$ymax
+    ),
+    fill = "black",
+    color = "black",
+    linewidth = 0.5
+  ) +
+  geom_point(
+    data = nola,
+    aes(x = lon, y = lat),
+    shape = 21,
+    fill = "black",
+    color = "black",
+    size = 4
+  ) +
+  annotate(
+    "text",
+    x = (pearl_bounds$xmin + pearl_bounds$xmax) / 2,
+    y = pearl_bounds$ymax + 0.15,
+    label = "Study Site",
+    size = 4
+  ) +
+  annotate(
+    "text",
+    x = nola$lon,
+    y = nola$lat - 0.15,
+    label = "New Orleans",
+    size = 4
+  ) +
+  coord_fixed(
+    xlim = c(zoom_bounds$xmin, zoom_bounds$xmax),
+    ylim = c(zoom_bounds$ymin, zoom_bounds$ymax)
+  ) + 
+  connor_theme + 
+  theme(
+    axis.title = element_blank()
+  )
+
+nola_map
+
+ggsave("nola_plot.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
+
+final_maps <- (
+  wrap_elements(nola_map) |
+  wrap_elements(final_plot)
+) +
+  plot_layout(guides = "collect", widths = c(0.8, 1.6)) +
+  plot_annotation(
+    tag_levels = "A",
+    theme = theme(
+      plot.tag = element_text(size = 30, face = "bold")
+    )
+  ) &
+  theme(legend.position = "bottom")
+
+final_maps
+
+ggsave("final_maps.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 ```
 
@@ -4046,13 +4161,9 @@ models <- list(
 extract_model_terms <- function(x, model_name) {
 
   td <- broom::tidy(x$model)
-
-  # Always conditional
   cond <- td %>%
     filter(component == "cond", effect == "fixed") %>%
     mutate(component = "conditional")
-
-  # Zero-inflation ONLY if it exists
   zi <- td %>%
     filter(component == "zi", effect == "fixed") %>%
     mutate(component = "zero_inflated")
@@ -4430,101 +4541,9 @@ final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") +
 final_plot
 
 
-ggsave("seasonality_prev.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+f
 ```
-# Making Maps
-```{r}
 
-nola <- data.frame(
-  lon = -90.0715,
-  lat =  29.9511
-)
-
-# ~200 mile buffer (~3 degrees)
-zoom_bounds <- list(
-  xmin = nola$lon - 2,
-  xmax = nola$lon + 2,
-  ymin = nola$lat - 2,
-  ymax = nola$lat + 2
-)
-
-# -----------------------
-# Pearl River study bounds (transparent rectangle)
-# -----------------------
-pearl_bounds <- data.frame(
-  xmin = -89.855,
-  xmax = -89.81,
-  ymin = 30.69,
-  ymax = 30.81
-)
-
-states <- map_data("state")
-
-gulf_states <- subset(
-  states,
-  region %in% c("louisiana", "mississippi", "alabama")
-)
-
-nola_map <- ggplot() +
-  geom_polygon(
-    data = gulf_states,
-    aes(x = long, y = lat, group = group),
-    fill = "grey90",
-    color = "grey40",
-    linewidth = 0.3
-  ) +
-  # Pearl River study area (border only)
-  geom_rect(
-    aes(
-      xmin = pearl_bounds$xmin,
-      xmax = pearl_bounds$xmax,
-      ymin = pearl_bounds$ymin,
-      ymax = pearl_bounds$ymax
-    ),
-    fill = NA,
-    color = "black",
-    linewidth = 0.5
-  ) +
-  # New Orleans point
-  geom_point(
-    data = nola,
-    aes(x = lon, y = lat),
-    shape = 21,
-    fill = "black",
-    color = "black",
-    size = 2
-  ) +
-  # Pearl River study site label (centered on rectangle)
-  annotate(
-    "text",
-    x = (pearl_bounds$xmin + pearl_bounds$xmax) / 2,
-    y = pearl_bounds$ymax + 0.15,
-    label = "Study Site",
-    size = 4
-  ) +
-  # New Orleans label
-  annotate(
-    "text",
-    x = nola$lon,
-    y = nola$lat - 0.15,
-    label = "New Orleans",
-    size = 4
-  ) +
-  coord_fixed(
-    xlim = c(zoom_bounds$xmin, zoom_bounds$xmax),
-    ylim = c(zoom_bounds$ymin, zoom_bounds$ymax)
-  ) + 
-  connor_theme + 
-  theme(
-    axis.title = element_blank()
-  )
-
-nola_map
-
-ggsave("nola_plot.jpeg", width = 10, height = (9/16)*10, dpi = 300)
-
-
-```
 
 
 # Group things to see what is complex vs direct:
@@ -4545,6 +4564,23 @@ lc.bins2 <- hurricane_df3 %>%
   group_by(psite_type, life_history) %>% 
   summarize(avg.bin = n())
 ```
+
+
+# what parasites are we looking at - species level
+```{r}
+
+all_parasites <- tibble(
+  psite_spp = unique(c(
+    hurricane_df_abundance_only_full$psite_spp_x,
+    hurricane_df6$psite_spp_x,
+    hurricane_df3_abundance_only_full$psite_spp_x,
+    hurricane_df3$psite_spp_x
+  ))
+)
+
+
+```
+
 
 
 # Adding ENSO data
