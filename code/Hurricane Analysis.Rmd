@@ -1364,9 +1364,9 @@ emmip(final_h_abundance, psite_type ~ event | timing,
   theme(legend.position = "bottom")
 
 # Convert emmeans results to a data frame
-emm_df <- as.data.frame(emm)
+emm_df6a <- as.data.frame(emm)
 
-ggplot(emm_df, aes(x = event, y = response, color = psite_type, group = psite_type)) +
+ggplot(emm_df6a, aes(x = event, y = response, color = psite_type, group = psite_type)) +
   geom_point(position = position_dodge(width = 0.3), size = 3) +
   geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
                 position = position_dodge(width = 0.3), width = 0.2) +
@@ -1393,6 +1393,9 @@ plot(parameters(final_h_abundancemono))
 
 emm <- emmeans(final_h_abundancemono, ~ event * timing * psite_type)
 joint_tests(final_h_abundancemono)
+
+# Convert emmeans results to a data frame
+emm_df6am <- as.data.frame(emm)
 
 ```
 
@@ -1905,9 +1908,9 @@ emmip(final_h_life6, life_history ~ event | timing,
   theme(legend.position = "bottom")
 
 # Convert emmeans results to a data frame
-emm_df <- as.data.frame(emm)
+emm_df.lc <- as.data.frame(emm)
 
-ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_history)) +
+ggplot(emm_df.lc, aes(x = event, y = response, color = life_history, group = life_history)) +
   geom_point(position = position_dodge(width = 0.3), size = 3) +
   geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
                 position = position_dodge(width = 0.3), width = 0.2) +
@@ -1935,8 +1938,12 @@ simulateResiduals(fittedModel = final_h_life6_complex, plot = TRUE)
 summary(final_h_life6_complex)
 plot(parameters(final_h_life6_complex))
 
-emm <- emmeans(final_h_life6_complex, ~ event * timing * psite_type)
+emm <- emmeans(final_h_life6_complex, ~ event * timing * life_history)
 joint_tests(final_h_life6_complex)
+
+# Convert emmeans results to a data frame
+emm_df.lc.complex <- as.data.frame(emm)
+
 ```
 
 
@@ -2649,9 +2656,9 @@ emmip(final_h_abundance3, psite_type ~ event | timing,
   theme(legend.position = "bottom")
 
 # Convert emmeans results to a data frame
-emm_df <- as.data.frame(emm)
+emm_df3a <- as.data.frame(emm)
 
-ggplot(emm_df, aes(x = event, y = response, color = psite_type, group = psite_type)) +
+ggplot(emm_df3a, aes(x = event, y = response, color = psite_type, group = psite_type)) +
   geom_point(position = position_dodge(width = 0.3), size = 3) +
   geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
                 position = position_dodge(width = 0.3), width = 0.2) +
@@ -2680,6 +2687,9 @@ plot(parameters(final_h_abundance3mono))
 
 emm <- emmeans(final_h_abundance3mono, ~ event * timing * psite_type)
 joint_tests(final_h_abundance3mono)
+
+# Convert emmeans results to a data frame
+emm_df3a.mono <- as.data.frame(emm)
 ```
 
 
@@ -3200,9 +3210,9 @@ emmip(final_h_life3, life_history ~ event | timing,
   theme(legend.position = "bottom")
 
 # Convert emmeans results to a data frame
-emm_df <- as.data.frame(emm)
+emm_df3lc <- as.data.frame(emm)
 
-ggplot(emm_df, aes(x = event, y = response, color = life_history, group = life_history)) +
+ggplot(emm_df3lc, aes(x = event, y = response, color = life_history, group = life_history)) +
   geom_point(position = position_dodge(width = 0.3), size = 3) +
   geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL),
                 position = position_dodge(width = 0.3), width = 0.2) +
@@ -3232,6 +3242,9 @@ plot(parameters(final_h_life3_complex))
 
 emm <- emmeans(final_h_life3_complex, ~ event * timing * psite_type)
 joint_tests(final_h_life3_complex)
+
+# Convert emmeans results to a data frame
+emm_df3.complex <- as.data.frame(emm)
 ```
 
 
@@ -4196,7 +4209,7 @@ ggsave("timeline.jpeg", width = 12, height = (9/16)*11, dpi = 300)
 ```
 
 
-Make tables for all the model outputs
+Make tables for all the model outputs -- glmmTMB
 ```{r}
 # the models:  listed type gives the result for that target one -- i.e. a6meta will give us the meta result (mono in reference)
 
@@ -4290,6 +4303,56 @@ write_csv(
 )
 
 ```
+
+Make tables for all the model outputs -- emmeans joint tests
+```{r}
+# the models:  listed type gives the result for that target one -- i.e. a6meta will give us the meta result (mono in reference)
+a3meta_jt <- joint_tests(final_h_abundance3)
+a6meta_jt <- joint_tests(final_h_abundance) 
+a3mono_jt <- joint_tests(final_h_abundance3mono)
+a6mono_jt <- joint_tests(final_h_abundancemono)
+lc3direct_jt <- joint_tests(final_h_life3)
+lc6direct_jt <- joint_tests(final_h_life6)
+lc3complex_jt <- joint_tests(final_h_life3_complex)
+lc6complex_jt <- joint_tests(final_h_life6_complex)
+
+models <- list(
+  a3meta_jt       = list(model = a3meta_jt,       timeframe = "3_month", response = "abundance"),
+  a6meta_jt       = list(model = a6meta_jt,       timeframe = "6_month", response = "abundance"),
+  a3mono_jt       = list(model = a3mono_jt,       timeframe = "3_month", response = "abundance"),
+  a6mono_jt       = list(model = a6mono_jt,       timeframe = "6_month", response = "abundance"),
+  lc3direct_jt    = list(model = lc3direct_jt,    timeframe = "3_month", response = "life_cycle"),
+  lc6direct_jt    = list(model = lc6direct_jt,    timeframe = "6_month", response = "life_cycle"),
+  lc3complex_jt   = list(model = lc3complex_jt,   timeframe = "3_month", response = "life_cycle"),
+  lc6complex_jt   = list(model = lc6complex_jt,   timeframe = "6_month", response = "life_cycle"))
+
+
+extract_joint_tests <- function(x, model_name) {
+  jt <- as.data.frame(x$model)
+  names(jt)[1] <- "term"
+  jt %>%
+    mutate(
+      model     = model_name,
+      timeframe = x$timeframe,
+      response  = x$response
+    ) %>%
+    rename_with(~ "df_num",   .cols = any_of("df1")) %>%
+    rename_with(~ "df_denom", .cols = any_of("df2")) %>%
+    rename_with(~ "f_ratio",  .cols = any_of("F.ratio")) %>%
+    rename_with(~ "chi_sq",   .cols = any_of("Chisq")) %>%
+    rename_with(~ "p_value",  .cols = any_of("p.value"))
+}
+
+all_joint_tests <- imap_dfr(
+  models,
+  ~ extract_joint_tests(.x, .y)
+)
+
+write.csv(
+  all_joint_tests,
+  "all_models_joint_tests_results.csv")
+```
+
 
 Total fish dissected for this analysis:
 ```{r}
