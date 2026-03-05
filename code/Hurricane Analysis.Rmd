@@ -29,6 +29,8 @@ Authors:Whalen C.1, Boyd D.2, Commisso G.1, Christner S.3, Jones I.4, Leslie K.1
 7Tulane Univeristy, New Orleans, Louisiana, USA
 8Biological Sciences Department, DePaul University, Chicago, Illinois, USA
 
+AI Disclosure: Some aspects of this code was researched using AI assistance (ChatGPT Version 5.3), but all code assistance was computational, not theoretical, and no direct copy-paste code was used in this project. 
+
 # Setup
 #### Install packages.
 ```{r package install, eval=FALSE, echo=FALSE}
