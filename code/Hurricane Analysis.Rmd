@@ -1,5 +1,5 @@
 ---
-title: "Chapter 1 Hurricane NOLA CAREER"
+title: "How’s the weather in there? Hurricanes drive short-term declines in the abundance of direct life cycle parasites of riverine fish"
 author: "Connor Whalen"
 date: "2025-02-18"
 output:
@@ -18,7 +18,16 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 # Introduction
-This file contains all code pertaining to the CAREER project in NOLA's hurricane analysis. 
+This file contains all code pertaining to the publication titled How’s the weather in there? Hurricanes drive short-term declines in the abundance of direct life cycle parasites of riverine fish. Submitted for publication in the Journal of Freshwater Ecology special issue on parasites in freshwater ecosystems March 6, 2026.
+Authors:Whalen C.1, Boyd D.2, Commisso G.1, Christner S.3, Jones I.4, Leslie K.1, Thirtyacre J.1, Díaz-Morales D.M.1,8, Kuris A.M.5, Mann J.6, Bart H.7, and Wood C.L.1
+1School of Aquatic and Fishery Sciences, University of Washington, Seattle, Washington, USA
+2University of South Carolina, Columbia, South Carolina, USA
+3Valdosta State University, Valdosta, Georgia, USA
+4Tuskegee University, Tuskegee, Alabama, USA
+5University of California, Santa Barbara, Santa Barbara, California, USA
+6Tulane University Biodiversity Research Institute, Belle Chasse, Louisiana, USA
+7Tulane Univeristy, New Orleans, Louisiana, USA
+8Biological Sciences Department, DePaul University, Chicago, Illinois, USA
 
 # Setup
 #### Install packages.
@@ -58,13 +67,11 @@ library(ggh4x)
 library(ggmap)
 library(ggplot2)
 library(ggpubr)
-library(ghibli)
 library(glmmTMB)
 library(lme4)
 library(lmtest)
 library(lubridate)
 library(mapdata)
-library(maps)
 library(parameters)
 library(patchwork)
 library(pdftools)
@@ -87,7 +94,6 @@ library(ghibli)
 library(glue)
 library(knitr)
 library(kableExtra)
-library(ggplot2)
 library(maps)
 library(grid)
 library(ggpmisc)
@@ -248,7 +254,7 @@ no_event_years <- c(1963, 1966, 1967, 1968, 1970,
 
 # initial order of random storm placement for controls was determined by tethering a random number to a storm name (this assignment order was used for both 6 month and 3 month buffer periods)
 
-n_hurricanes <- 24
+n_hurricanes <- 24 # one 'double' storm
 
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
 
@@ -269,7 +275,6 @@ assigned_controls <- data.frame(
   control_year = sampled_years
 )
 # cannot use 2005, as the sampling will go into 2006 and we only have data up to july of 2005
-
 # 6/21/25 resampling for control years that overlap with other dates of storms: 5 overlaps 
 n_hurricanes <- 5
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -284,7 +289,6 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # 6/23/25 resampling for control years that overlap with other dates of storms: 4 overlaps
 n_hurricanes <- 4
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -292,7 +296,6 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # 6/23/25 resampling for control years that overlap with other dates of storms: 3 overlaps
 n_hurricanes <- 3
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -300,7 +303,6 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # 6/23/25 resampling for control years that overlap with other dates of storms: 2 overlaps
 n_hurricanes <- 2
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -308,7 +310,6 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # 6/23/25 resampling for control years that overlap with other dates of storms: 2 overlaps
 n_hurricanes <- 2
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -316,7 +317,6 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # 6/23/25 resampling for control years that overlap with other dates of storms: 1 overlap
 n_hurricanes <- 1
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -324,7 +324,6 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # 6/23/25 resampling for control years that overlap with other dates of storms: 1 overlap
 n_hurricanes <- 1
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
@@ -332,14 +331,13 @@ assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 ```
 #### Control troubleshooting
 Correct controls by identifying overlaps
 ```{r, eval=FALSE, echo=FALSE}
 # Hilda (1964)	1964-03-28	1965-04-05	Hurricane -- OK
 # Betsy (1965)	1965-02-27	1966-03-13	Hurricane -- OK 
-#  Debbie (1965)	1965-03-23	1966-04-01	Hurricane -- overlap with control 
+# Debbie (1965)	1965-03-23	1966-04-01	Hurricane -- overlap with control 
 # Control (1966) 1966-03-05 1967-03-15 Control -- overlap with debbie RESAMPLE
 # Control (1966) 1966-02-16 1967-03-19 Control -- overlap with debbie RESAMPLE
 # Juan (1967)	1967-04-26	1968-05-03	Hurricane -- OK
@@ -700,12 +698,9 @@ Correct controls by identifying overlaps
 # 1980-02-12 1981-02-20 -  ~ post_control, #danny -- external 1980	
 # 1973-03-21 1974-04-04 -  ~ post_control, #lili -- external 1973	
 # 1970-03-26 1971-04-01 -  ~ post_control, #hermine 1970	
-
-
 ```
 
-
-# Hurricane events and Controls Mapping -- 6 month
+## Hurricane events and Controls Mapping -- 6 month
 Add actual hurricane timeline parameters for 6 month (6 month meaning a buffer period of 6 months before a hurricane [denoted as pre] and 6 months after a hurricane [denoted post]). These dates for hurricane occurrence are taken from the [NOAA hurricane watch website](https://coast.noaa.gov/hurricanes/#map=3.51/28.21/-61.45&search=eyJzZWFyY2hTdHJpbmciOiJDdXN0b20gUG9seWdvbiIsInNlYXJjaFR5cGUiOiJzdG9ybWlkcyIsIm1hdGNoIjoiZXhhY3QiLCJnZW9qc29uIjp7ImNvb3JkaW5hdGVzIjpbW1stOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XSxbLTg5LjczNjQxMjIzNjkyMjIzLDMyLjY4MjYxNzc1MzAyNTk0XSxbLTg5LjgwMDMxMjgwNjE3MjkxLDMyLjM0MDI4MTk4MzQ0Ml0sWy05MC4xNTAwNDYyNzQ3OTAwOSwzMi4xMjY0MTg3MzIxMjk1NjVdLFstOTAuMTk0NjE1NjY2MTQ5MTIsMzEuOTk0Nzc1ODU5NjQ5MTY3XSxbLTkwLjEwMDU4OTYzNDE1NDEsMzEuODQ3OTM4MTYwODc0MzA3XSxbLTkwLjA3NDUxMjEwNDYyOTI2LDMxLjczMDE4Mjc4MjkwMTY1XSxbLTg5LjkzMjI1OTI0MjQ0NDA1LDMxLjQ0NDMwNDgzOTgzOTg0NV0sWy04OS42MDA1MzcyMzEwMTc4NywzMS4xOTc0MzE2MzgyMDY2OF0sWy04OS41NDc3OTkyNzQ4MTE3OCwzMC44MDg0MTE1ODI1MTE3NjZdLFstODkuNjIxNjEyODU0ODEwMjUsMzAuNTQxODk1NzUyOTE2NDE3XSxbLTg5LjQyNDIxMDQ5NjQ3NjA5LDMwLjM0NTk0NzA5MDY1NDczMl0sWy04OS40Nzg5MDc3MDY4NDM0NywyOS42Nzk3MzQxNjA2MzEyNF0sWy04OS45OTU0NzQ5OTM4NDQ1NCwyOS45Mzk2ODk1MTk2MDU3OF0sWy04OS45ODA4NzM0MTcwNTYwMywzMC42NzcwOTM2NzYwOTQzNl0sWy05MC4wNDQ3ODc0NTQwMzA0MywzMS4xOTc3OTA4OTU5OTE2MDJdLFstOTAuMzA0MzcwOTI0NTk1NCwzMS42MDE3OTE3MTUzMjUxOV0sWy05MC4zNDY1MTc2NjAzMjcyNywzMS45Nzc0ODI4MDMzNDQ3XSxbLTkwLjMzMDI0MzQ0ODM4NTIsMzIuMjUzMTI4MDg4MDQ4NDRdLFstOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XV1dLCJ0eXBlIjoiUG9seWdvbiJ9LCJjYXRlZ29yaWVzIjpbIkg1IiwiSDQiLCJIMyIsIkgyIiwiSDEiLCJUUyIsIlREIiwiRVQiXSwieWVhcnMiOltdLCJtb250aHMiOltdLCJlbnNvIjpbXSwicHJlc3N1cmUiOnsicmFuZ2UiOlswLDEwMzBdLCJpbmNsdWRlVW5rbm93blByZXNzdXJlIjp0cnVlfSwic3Rvcm1JRHMiOiIyMDAzMTc5TjIwMjcxLDIwMDIyNThOMTAzMDAsMjAwMjI1NU4yNjI3MywyMDAyMjE3TjI5MjcyLDIwMDExNTdOMjgyNjUsMTk5ODI2MU4yNzI3MCwxOTk4MjU5TjEwMzM1LDE5OTcxOThOMjcyNjcsMTk5NTIxMk4yMjI4NywxOTkyMjMwTjExMzI1LDE5ODgyNTFOMjMyNjgsMTk4ODIyMU4zMDI3MCwxOTg1Mjk5TjI1MjcwLDE5ODUyNDBOMjAyODYsMTk3OTE5MU4yMjI2NCwxOTcxMjQ5TjExMzAyLDE5NjkyMjZOMTgyODAsMTk2NTI2OE4xNzI3NSwxOTY1MjM5TjExMzEwLDE5NjQyNzNOMjEyODAiLCJ0YWJJbmRleCI6MSwiYnVmZmVyVW5pdCI6WyJNaWxlcyJdLCJzb3J0U2VsZWN0aW9uIjp7InZhbHVlIjoieWVhcnNfbmV3ZXN0IiwibGFiZWwiOiJZZWFyIChOZXdlc3QpIn0sImFwcGx5VG9BT0kiOmZhbHNlLCJpc1N0b3JtTGFiZWxzVmlzaWJsZSI6dHJ1ZX0=) and represent all hurricane events that crossed a 50 mile boundary of the Pearl River from source to sea. 
 
 ```{r hurricane event and control assignment to df}
@@ -935,7 +930,6 @@ hurricane_df6 <- hurricane_df6 %>%
   )) %>% 
   filter(timing != "NA")
 
-
 hurricane_df6 <- hurricane_df6 %>%
   mutate(timing = factor(timing, levels = c("pre", "post"))) %>%
   mutate(timing = relevel(timing, ref = "pre")) %>% 
@@ -947,7 +941,6 @@ ha.reps.a <- hurricane_df6 %>%
   group_by(event, timing, psite_type) %>% 
   summarize(observations = n(), .groups = "drop")
 
-# ===== filtering for abundance analysis ===== #
 # drop low replicate categories
 hurricane_df_abundance <- hurricane_df6 %>%
   filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
@@ -957,7 +950,6 @@ hurricane_df_abundance <- hurricane_df6 %>%
 hurricane_df_abundance <- hurricane_df_abundance %>%
   filter(!is.na(psite_abundance))
 
-# ===== filtering for prevalence analysis ===== #
 # drop low replicate categories
 hurricane_df_prevalence <- hurricane_df6 %>%
   filter(psite_type %in% c("myxozoan"))
@@ -966,13 +958,12 @@ hurricane_df_prevalence <- hurricane_df6 %>%
 hurricane_df_prevalence <- hurricane_df_prevalence %>%
   filter(!is.na(psite_prevalence))
 
-
 # what are total counts of each parasite type in each category?
 summary <- hurricane_df_abundance %>%
   group_by(event, timing, psite_type) %>%
   summarise(
     total_observations = n(),
-    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    total_parasite_count = sum(psite_count, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -988,7 +979,7 @@ summary <- hurricane_df_prevalence %>%
   group_by(event, timing, psite_type) %>%
   summarise(
     total_observations = n(),
-    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    total_parasite_count = sum(psite_count, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -1005,13 +996,12 @@ summary <- hurricane_df_abundance %>%
   group_by(event, timing, psite_type, month_collected) %>%
   summarise(
     total_observations = n(),
-    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    total_parasite_count = sum(psite_count, na.rm = TRUE),
     .groups = "drop"
   )
 ```
 
-
-# Abundance
+## Parasite Taxonomic Group
 ## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
 ```{r}
 # how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
@@ -1055,60 +1045,8 @@ ggplot(ha.bins2,
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
   labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
-
-```
-
-
-
-# Abundance
-## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
-```{r}
-# how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
-ha.reps <- hurricane_df_abundance %>% 
-  group_by(event, timing, psite_type, fish_sp_x) %>% 
-  summarize(observations = n(), .groups = "drop")
-
-# plot how many of each category we have
-ggplot(ha.reps,
-       aes(x = fish_sp_x, y = observations, fill = psite_type)) +
-  facet_wrap(timing ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# hurricane abundance with parasite type
-ha.bins1 <- hurricane_df_abundance %>% 
-  group_by(event, timing, psite_type) %>% 
-  summarize(avg.bin = mean(psite_abundance))
-
-# use this as the raw plot of data
-ggplot(ha.bins1,
-       aes(x = timing, y = avg.bin, fill = psite_type)) +
-  facet_wrap( ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Timing", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-# hurricane abundance with fish species and parasite type
-ha.bins2 <- hurricane_df_abundance %>% 
-  group_by(event, timing, psite_type, fish_sp_x) %>% 
-  summarize(avg.bin = mean(psite_abundance))
-
-# use this as the raw plot of data
-ggplot(ha.bins2,
-       aes(x = fish_sp_x, y = avg.bin, fill = psite_type)) +
-  facet_wrap(timing ~ event) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
-  labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
-  connor_theme
-
-```
 
 ## Drop carvel and pervig from analysis since they do not have monos and metas consistently
-```{r}
 hurricane_df_abundance_only_full <- hurricane_df_abundance %>% 
   filter(!fish_sp_x %in% c("pervig", "carvel"))
 
@@ -1156,10 +1094,10 @@ ggplot(ha.bins2,
   connor_theme
 
 ```
+
 ## Seasonality influencing distribution of abundance 
 The reason there are differences in sampling effort between hurricane and control even though they are coded with the same dates (just with year changed) is because on different years, the sampling dates (the days they phyically went into the field) were different. 
 ```{r}
-
 # month and day against number of replicates
 ha.season <- hurricane_df_abundance_only_full %>% 
   group_by(event, timing, psite_type, fish_sp_x, season, month_day, year_collected) %>% 
@@ -1303,22 +1241,18 @@ nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|c
                                   offset(sqrt(total_length_mm)), 
                                 family = nbinom12(link = "sqrt"), data = hurricane_df_abundance_only_full)
 
-
-# List of all model objects
 models <- list(
   nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
   nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
   nbinom12logoff, nbinom12sqrtoff
 )
 
-# Model names
 model_names <- c(
   "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
   "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
   "nbinom12logoff", "nbinom12sqrtoff"
 )
 
-# Simulate residuals and extract diagnostics
 residual_summaries <- map2_df(models, model_names, function(model, name) {
   sim <- simulateResiduals(fittedModel = model, plot = FALSE)
   data.frame(
@@ -1330,7 +1264,6 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
   )
 })
 
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
 residual_summaries %>%
   arrange(AIC) %>%
   print()
@@ -1401,7 +1334,7 @@ emm_df6am <- as.data.frame(emm)
 
 
 
-# Prevalence 
+## Myxozoans 
 Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
 ```{r}
 # how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
@@ -1470,7 +1403,7 @@ how.many <- hurricane_df_prevalence_gb %>%
 
 ```
 
-## Seasonality influencing distribution - prevalence
+## Seasonality influencing distribution - myxozoans
 ```{r}
 # Still running just this one season analysis for all myxos, because whether they are pseudocysts or presence/absence doesnt change when they were found or where they fall on a calendar year -- same will be true for 3 month
 # month and day against number of replicates
@@ -1507,7 +1440,7 @@ plot(parameters(season_model6p))
 ```
 
 
-## Prevalence Models
+## Myxozoan Models
 ```{r model validation prevalence, eval=FALSE, echo=FALSE}
 # for psuedo only 
 # no offset
@@ -1633,7 +1566,7 @@ residual_summaries %>%
 
 ```
 
-## Final Hurricane Prevalence Model
+## Final Hurricane Myxozoan Model
 ```{r}
 # prevalence for psuedocysts
 hurricane_prevalence_final_psuedo <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
@@ -1655,7 +1588,7 @@ simulateResiduals(fittedModel = hurricane_prevalence_final_gb, plot = TRUE)
 summary(hurricane_prevalence_final_gb)
 plot(parameters(hurricane_prevalence_final_gb))
 ```
-# Life cycle 3 6 month
+## Transmission Strategy 6 month
 ```{r}
 # six month
 
@@ -1678,7 +1611,7 @@ ggplot(ha.reps,
   labs(x = "Fish Species", y = "Number of Observations", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 
-# hurricane abundance with parasite type ---- this is not working and i am not sure why
+# hurricane abundance with parasite type 
 ha.bins1 <- hurricane_df6 %>% 
   group_by(event, timing, life_history) %>% 
   summarize(avg.bin = mean(psite_count))
@@ -1879,7 +1812,7 @@ residual_summaries %>%
 ```
 
 
-## 6 month model life cycle
+## 6 month model Transmission Strategy
 ```{r}
 # run model 
 final_h_life6 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + 
@@ -1948,40 +1881,6 @@ emm_df.lc.complex <- as.data.frame(emm)
 
 
 
-# Model the effects on specific parasite species within trem_meta
-```{r, eval=FALSE}
-# refine the data to only include the trem_metas:
-meta6 <- hurricane_df_abundance_only_full %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
-
-
-meta6_reps <- meta6 %>% 
-  group_by(psite_spp_x) %>% 
-  summarize(observations = n(), .groups = "drop")
-
-# remove unknown metas from the analysis and drop trem.meta.gg (less than 50 total observations)
-meta6 <- meta6 %>% 
-  filter(!psite_spp_x %in% c("TREM.META.GG", "TREM.META.UNK", "META.UNK"))
-
-# set most abundant meta species to be the reference level
-meta6  <- meta6 %>%
-  mutate(psite_spp_x = relevel(factor(psite_spp_x), ref = "TREM.META"))
-
-# create a model that looks at species of parasite only
-meta6_model <- glmmTMB(psite_abundance ~ psite_spp_x + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                family = nbinom2, data = meta6)
-
-simulateResiduals(fittedModel = meta6_model, plot = TRUE)
-summary(meta6_model)
-plot(parameters(meta6_model))
-
-# TREM.META.SP is significnatly increasing -- meaning this is the only meta that is definitily positively affected by hurricanes 
-
-
-```
-
-
-
 
 # 3 Month Buffer
 ## Control assignment and resampling 3 month 
@@ -1998,18 +1897,14 @@ no_event_years <- c(1963, 1966, 1967, 1968, 1970,
                     2000)
 
 # initial order of random storm placement for controls was determined by tethering a random number to a storm name (this assignment order was used for both 6 month and 3 month buffer periods)
-
 n_hurricanes <- 24
-
 sampled_years <- sample(no_event_years, n_hurricanes, replace = TRUE)
 
 assigned_controls <- data.frame(
   random_value = 1:n_hurricanes,
   control_year = sampled_years
 )
-
 # there are more control years than there are storms, so we sample randomly up to the # of hurricanes and apply NA to all remaining (unsampled) control years 
-
 
 ```
 #### Control troubleshooting
@@ -2019,7 +1914,7 @@ Correct controls by identifying overlaps and reducing the period of control to n
 ```
 
 
-# Hurricane events and Controls Mapping -- 3 month
+## Hurricane events and Controls Mapping -- 3 month
 Add actual hurricane timeline parameters for 3 month (3 month meaning a buffer period of 3 months before a hurricane [denoted as pre] and 3 months after a hurricane [denoted post]). These dates for hurricane occurrence are taken from the [NOAA hurricane watch website](https://coast.noaa.gov/hurricanes/#map=3.51/28.21/-61.45&search=eyJzZWFyY2hTdHJpbmciOiJDdXN0b20gUG9seWdvbiIsInNlYXJjaFR5cGUiOiJzdG9ybWlkcyIsIm1hdGNoIjoiZXhhY3QiLCJnZW9qc29uIjp7ImNvb3JkaW5hdGVzIjpbW1stOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XSxbLTg5LjczNjQxMjIzNjkyMjIzLDMyLjY4MjYxNzc1MzAyNTk0XSxbLTg5LjgwMDMxMjgwNjE3MjkxLDMyLjM0MDI4MTk4MzQ0Ml0sWy05MC4xNTAwNDYyNzQ3OTAwOSwzMi4xMjY0MTg3MzIxMjk1NjVdLFstOTAuMTk0NjE1NjY2MTQ5MTIsMzEuOTk0Nzc1ODU5NjQ5MTY3XSxbLTkwLjEwMDU4OTYzNDE1NDEsMzEuODQ3OTM4MTYwODc0MzA3XSxbLTkwLjA3NDUxMjEwNDYyOTI2LDMxLjczMDE4Mjc4MjkwMTY1XSxbLTg5LjkzMjI1OTI0MjQ0NDA1LDMxLjQ0NDMwNDgzOTgzOTg0NV0sWy04OS42MDA1MzcyMzEwMTc4NywzMS4xOTc0MzE2MzgyMDY2OF0sWy04OS41NDc3OTkyNzQ4MTE3OCwzMC44MDg0MTE1ODI1MTE3NjZdLFstODkuNjIxNjEyODU0ODEwMjUsMzAuNTQxODk1NzUyOTE2NDE3XSxbLTg5LjQyNDIxMDQ5NjQ3NjA5LDMwLjM0NTk0NzA5MDY1NDczMl0sWy04OS40Nzg5MDc3MDY4NDM0NywyOS42Nzk3MzQxNjA2MzEyNF0sWy04OS45OTU0NzQ5OTM4NDQ1NCwyOS45Mzk2ODk1MTk2MDU3OF0sWy04OS45ODA4NzM0MTcwNTYwMywzMC42NzcwOTM2NzYwOTQzNl0sWy05MC4wNDQ3ODc0NTQwMzA0MywzMS4xOTc3OTA4OTU5OTE2MDJdLFstOTAuMzA0MzcwOTI0NTk1NCwzMS42MDE3OTE3MTUzMjUxOV0sWy05MC4zNDY1MTc2NjAzMjcyNywzMS45Nzc0ODI4MDMzNDQ3XSxbLTkwLjMzMDI0MzQ0ODM4NTIsMzIuMjUzMTI4MDg4MDQ4NDRdLFstOTAuMTU0ODk4MzE3ODk0OTIsMzIuNjgxNTYzMTY4NTkxMjI1XV1dLCJ0eXBlIjoiUG9seWdvbiJ9LCJjYXRlZ29yaWVzIjpbIkg1IiwiSDQiLCJIMyIsIkgyIiwiSDEiLCJUUyIsIlREIiwiRVQiXSwieWVhcnMiOltdLCJtb250aHMiOltdLCJlbnNvIjpbXSwicHJlc3N1cmUiOnsicmFuZ2UiOlswLDEwMzBdLCJpbmNsdWRlVW5rbm93blByZXNzdXJlIjp0cnVlfSwic3Rvcm1JRHMiOiIyMDAzMTc5TjIwMjcxLDIwMDIyNThOMTAzMDAsMjAwMjI1NU4yNjI3MywyMDAyMjE3TjI5MjcyLDIwMDExNTdOMjgyNjUsMTk5ODI2MU4yNzI3MCwxOTk4MjU5TjEwMzM1LDE5OTcxOThOMjcyNjcsMTk5NTIxMk4yMjI4NywxOTkyMjMwTjExMzI1LDE5ODgyNTFOMjMyNjgsMTk4ODIyMU4zMDI3MCwxOTg1Mjk5TjI1MjcwLDE5ODUyNDBOMjAyODYsMTk3OTE5MU4yMjI2NCwxOTcxMjQ5TjExMzAyLDE5NjkyMjZOMTgyODAsMTk2NTI2OE4xNzI3NSwxOTY1MjM5TjExMzEwLDE5NjQyNzNOMjEyODAiLCJ0YWJJbmRleCI6MSwiYnVmZmVyVW5pdCI6WyJNaWxlcyJdLCJzb3J0U2VsZWN0aW9uIjp7InZhbHVlIjoieWVhcnNfbmV3ZXN0IiwibGFiZWwiOiJZZWFyIChOZXdlc3QpIn0sImFwcGx5VG9BT0kiOmZhbHNlLCJpc1N0b3JtTGFiZWxzVmlzaWJsZSI6dHJ1ZX0=) and represent all hurricane events that crossed a 50 mile boundary of the Pearl River from source to sea. 
 
 ```{r hurricane event and control assignment to df 3 mo}
@@ -2245,7 +2140,6 @@ hurricane_df3 <- hurricane_df3 %>%
   mutate(event = factor(event, levels = c("hurricane", "control"))) %>%
   mutate(event = relevel(event, ref = "control")) 
 
-# ===== filtering for abundance analysis ===== #
 # drop low replicate categories
 hurricane_df3_abundance <- hurricane_df3 %>%
   filter(psite_type %in% c("trematode", "trematode_metacercaria", "monogenean")) %>% 
@@ -2255,7 +2149,6 @@ hurricane_df3_abundance <- hurricane_df3 %>%
 hurricane_df3_abundance <- hurricane_df3_abundance %>%
   filter(!is.na(psite_abundance))
 
-# ===== filtering for prevalence analysis ===== #
 # drop low replicate categories
 hurricane_df3_prevalence <- hurricane_df3 %>%
   filter(psite_type %in% c("myxozoan"))
@@ -2264,13 +2157,12 @@ hurricane_df3_prevalence <- hurricane_df3 %>%
 hurricane_df3_prevalence <- hurricane_df3_prevalence %>%
   filter(!is.na(psite_prevalence))
 
-
 # what are total counts of each parasite type in each category?
 summary <- hurricane_df3_abundance %>%
   group_by(event, timing, psite_type) %>%
   summarise(
     total_observations = n(),
-    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    total_parasite_count = sum(psite_count, na.rm = TRUE), 
     .groups = "drop"
   )
 
@@ -2286,7 +2178,7 @@ summary <- hurricane_df3_prevalence %>%
   group_by(event, timing, psite_type) %>%
   summarise(
     total_observations = n(),
-    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    total_parasite_count = sum(psite_count, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -2303,13 +2195,13 @@ summary <- hurricane_df3_abundance %>%
   group_by(event, timing, psite_type, month_collected) %>%
   summarise(
     total_observations = n(),
-    total_parasite_count = sum(psite_count, na.rm = TRUE),  # sum of parasite counts
+    total_parasite_count = sum(psite_count, na.rm = TRUE), 
     .groups = "drop"
   )
 ```
 
 
-# Abundance
+## Parasite Taxonomic Group
 ## Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
 ```{r}
 # how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
@@ -2353,10 +2245,8 @@ ggplot(ha3.bins2,
   scale_fill_manual(values = c("trematode_metacercaria" = "#AFDFEF", "monogenean" = "#A6E000", "trematode" = "#c9ad79", "myxozoan" = "#07c3c5")) + 
   labs(x = "Fish Species", y = "Estimate", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
-```
 
 ## Drop carvel, pervig, ictpun, and gamaff from analysis since they do not have monos and metas consistently or they have super low replicate counts (<50 total parasites per category)
-```{r}
 hurricane_df3_abundance_only_full <- hurricane_df3_abundance %>% 
   filter(!fish_sp_x %in% c("pervig", "carvel"))
 
@@ -2425,6 +2315,7 @@ ggplot(ha3.bins2,
   labs(x = "Fish Species", y = "Average Parasite Abundance", fill = "Parasite Type", linetype = "Parasite Type") +
   connor_theme
 ```
+
 ## Seasonality influencing distribution of abundance
 ```{r}
 # month and day against number of replicates
@@ -2583,21 +2474,18 @@ nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*timing*psite_type + ci + (1|c
                                 family = nbinom12(link = "sqrt"), data = hurricane_df3_abundance_only_full)
 
 
-# List of all model objects
 models <- list(
   nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
   nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
   nbinom12logoff, nbinom12sqrtoff
 )
 
-# Model names
 model_names <- c(
   "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
   "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
   "nbinom12logoff", "nbinom12sqrtoff"
 )
 
-# Simulate residuals and extract diagnostics
 residual_summaries <- map2_df(models, model_names, function(model, name) {
   sim <- simulateResiduals(fittedModel = model, plot = FALSE)
   data.frame(
@@ -2609,12 +2497,9 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
   )
 })
 
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
 residual_summaries %>%
   arrange(AIC) %>%
   print()
-
-
 
 ```
 
@@ -2693,7 +2578,7 @@ emm_df3a.mono <- as.data.frame(emm)
 ```
 
 
-# Prevalence 
+## Myxozoan 
 Plot raw data (as averages not sums) to identify any trends in the data or inconsistencies.
 ```{r}
 # how many replicates are in each category --> this is just the number of occurrences, not abundance of parasites
@@ -2783,7 +2668,7 @@ hurricane_df3_prevalence_gb <- hurricane_df3_prevalence_gb %>%
   filter(fish_sp_x %in% c("hybnuc"))
 ```
 
-## Seasonality influencing distribution - prevalence
+## Seasonality influencing distribution - myxozoan
 ```{r}
 # month and day against number of replicates
 hp3.season <- hurricane_df3_prevalence_100 %>% 
@@ -2819,7 +2704,7 @@ plot(parameters(season_model3p))
 ```
 
 
-## Prevalence Models
+## Myxozoan Models
 ```{r model validation prevalence 3 mo, eval=FALSE, echo=FALSE}
 # no offset
 # nbinom1 log
@@ -2903,22 +2788,18 @@ nbinom12sqrtoff <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_num
                                 family = nbinom12(link = "sqrt"), data = hurricane_df3_prevalence_pseudo)
 
 
-
-# List of all model objects
 models <- list(
   nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
   nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
   nbinom12logoff, nbinom12sqrtoff
 )
 
-# Model names
 model_names <- c(
   "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
   "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
   "nbinom12logoff", "nbinom12sqrtoff"
 )
 
-# Simulate residuals and extract diagnostics
 residual_summaries <- map2_df(models, model_names, function(model, name) {
   sim <- simulateResiduals(fittedModel = model, plot = FALSE)
   data.frame(
@@ -2930,7 +2811,6 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
   )
 })
 
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
 residual_summaries %>%
   arrange(AIC) %>%
   print()
@@ -2938,7 +2818,7 @@ residual_summaries %>%
 
 ```
 
-## Final Hurricane Prevalence Model
+## Final Hurricane Myxozoan Model
 ```{r}
 # prevalence psuedo
 hurricane_prevalence3_final_psuedo <- glmmTMB(psite_prevalence ~ event*timing + ci + (1|catalog_number) + (1|year_collected/season) + 
@@ -2959,8 +2839,10 @@ simulateResiduals(fittedModel = hurricane_prevalence3_final_gb, plot = TRUE)
 summary(hurricane_prevalence3_final_gb)
 plot(parameters(hurricane_prevalence3_final_gb))
 
+# GB models do not converge, drop this analysis from the project.
+
 ```
-# Life cycle 3 month
+## Transmission Strategy 3 month
 ```{r}
 # three month
 
@@ -3150,22 +3032,18 @@ nbinom12sqrtoff <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1
                                   offset(sqrt(total_length_mm)), 
                                 family = nbinom12(link = "sqrt"), data = hurricane_df3)
 
-
-# List of all model objects
 models <- list(
   nbinom1log, nbinom1sqrt, nbinom2log, nbinom2sqrt, nbinom12log, nbinom12sqrt,
   nbinom1logoff, nbinom1sqrtoff, nbinom2logoff, nbinom2sqrtoff,
   nbinom12logoff, nbinom12sqrtoff
 )
 
-# Model names
 model_names <- c(
   "nbinom1log", "nbinom1sqrt", "nbinom2log", "nbinom2sqrt", "nbinom12log", "nbinom12sqrt",
   "nbinom1logoff", "nbinom1sqrtoff", "nbinom2logoff", "nbinom2sqrtoff",
   "nbinom12logoff", "nbinom12sqrtoff"
 )
 
-# Simulate residuals and extract diagnostics
 residual_summaries <- map2_df(models, model_names, function(model, name) {
   sim <- simulateResiduals(fittedModel = model, plot = FALSE)
   data.frame(
@@ -3177,13 +3055,12 @@ residual_summaries <- map2_df(models, model_names, function(model, name) {
   )
 })
 
-# View and sort by AIC (lower is better) and test stats (higher p-values indicate better fit)
 residual_summaries %>%
   arrange(AIC) %>%
   print()
 ```
 
-# run life cycle 3 month model
+## run Transmission Strategy 3 month model
 ```{r}
 # run model 
 final_h_life3 <- glmmTMB(psite_abundance ~ event*timing*life_history + ci + (1|catalog_number) + (1|year_collected/season) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
@@ -3240,48 +3117,15 @@ simulateResiduals(fittedModel = final_h_life3_complex, plot = TRUE)
 summary(final_h_life3_complex)
 plot(parameters(final_h_life3_complex))
 
-emm <- emmeans(final_h_life3_complex, ~ event * timing * psite_type)
+emm <- emmeans(final_h_life3_complex, ~ event * timing * life_history)
 joint_tests(final_h_life3_complex)
 
 # Convert emmeans results to a data frame
 emm_df3.complex <- as.data.frame(emm)
 ```
 
-
-
-# Model the effects on specific parasite species within trem_meta
-```{r}
-# refine the data to only include the trem_metas:
-meta3 <- hurricane_df3_abundance_only_full %>% 
-  filter(psite_type %in% c("trematode_metacercaria"))
-
-meta3_reps <- meta3 %>% 
-  group_by(psite_spp_x) %>% 
-  summarize(observations = n(), .groups = "drop")
-
-# remove unknown metas from the analysis (and drop meta.hs because it is being weird)
-meta3 <- meta3 %>% 
-  filter(!psite_spp_x %in% c("TREM.META.UNK", "META.UNK", "META.HS"))
-
-# set most abundant meta species to be the reference level
-meta3  <- meta3 %>%
-  mutate(psite_spp_x = relevel(factor(psite_spp_x), ref = "TREM.META"))
-
-# create a model that looks at species of parasite only
-meta3_model <- glmmTMB(psite_abundance ~ psite_spp_x + (1|catalog_number) + (1|year_collected) + (1|season) + (1|fish_psite_combo) + (1|fish_sp_x) + (total_length_mm|fish_psite_combo),
-                                family = nbinom2, data = meta3)
-
-simulateResiduals(fittedModel = meta3_model, plot = TRUE)
-summary(meta3_model)
-plot(parameters(meta3_model))
-# AIC is NA but maybe that doesn't really matter here?
-
-# TREM.META.SP is significnatly increasing -- meaning this is the only meta that is definitely positively affected by hurricanes 
-
-```
-
-# Plot the paper's main takeaway result: 
-In short, post hurricanes cause brief upward spikes in meta abundance, which taper off at 6 months, while normal post-condition abundances in metas are low consistently at 3 and 6 month intervals. Additionally, at 3 months and in hurricane conditions, metas are less abundant. 
+# Plots
+## main findings
 ```{r}
 # plot by species of parasite
 
@@ -3547,11 +3391,7 @@ ggplot(combined_preds,
 
 ggsave("life_cycles.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
-```
-
-Plot myxozoan results:
-```{r}
-# plot by species of parasite
+ # plot by species of parasite
 
 six <- ggpredict(hurricane_prevalence_final_psuedo, terms = c("event", "timing"))
 six <- six %>%
@@ -3628,202 +3468,7 @@ ggsave("myxo_hurricane.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 ```
 
-
-# plotting model prediction outputs for both 3 and 6 month 
-```{r, eval=FALSE}
-
-params1 <- parameters(final_h_abundance) %>%
-  mutate(model = "6mo")
-
-params2 <- parameters(final_h_abundance3) %>%
-  mutate(model = "3mo")
-
-params_combined <- bind_rows(params1, params2) %>% 
-  drop_na() %>%
-  mutate(sig = case_when(
-    CI_low > 0 ~ "Significant",
-    CI_high < 0 ~ "Significant",
-    TRUE ~ "n.s"
-  )) %>% 
-  mutate(Parameter = fct_reorder(Parameter, p, .desc = FALSE)) %>% 
-  filter(!Parameter %in% c("(Intercept)")) %>% 
-  group_by(model, Component) %>%
-  mutate(Parameter = fct_reorder(Parameter, Coefficient, .desc = TRUE)) %>%
-  ungroup()
-
-
-ggplot(params_combined, 
-       aes(x = Parameter, y = Coefficient, fill = model, color = model, alpha = sig)) + 
-  geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.3,
-                position = position_dodge(width = 0.6), size = 0.7) + 
-  geom_point(position = position_dodge(width = 0.6), shape = 21, size = 4, stroke = 0.6) +
-  geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
-  facet_wrap(~ Component) +
-  coord_flip() +
-  scale_fill_manual(values = c("6mo" = "#4DB6AC", "3mo" = "#FF8A65")) + 
-  scale_color_manual(values = c("6mo" = "#00695C", "3mo" = "#D84315")) +
-  scale_alpha_manual(values = c("Significant" = 1, "n.s" = 0.4), name = "Significance") +
-  labs(title = "Model Parameter Estimates",
-       y = "Coefficient Estimate ± 95% CI", x = "Parameter") +
-  connor_theme
-
-
-# now plot only the significant results
-params_sig <- bind_rows(params1, params2) %>% 
-  drop_na() %>%
-  mutate(sig = case_when(
-    CI_low > 0 ~ "Significant",
-    CI_high < 0 ~ "Significant",
-    TRUE ~ "n.s"
-  )) %>% 
-  mutate(Parameter = fct_reorder(Parameter, p, .desc = FALSE)) %>% 
-  filter(!Parameter %in% c("(Intercept)")) %>% 
-  group_by(model, Component) %>%
-  mutate(Parameter = fct_reorder(Parameter, Coefficient, .desc = TRUE)) %>%
-  ungroup() %>% 
-  filter(p<0.08)
-
-
-ggplot(params_sig, 
-       aes(x = Parameter, y = Coefficient, fill = model, color = model, alpha = sig)) + 
-  geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.3,
-                position = position_dodge(width = 0.6), size = 0.7) + 
-  geom_point(position = position_dodge(width = 0.6), shape = 21, size = 4, stroke = 0.6) +
-  geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
-  facet_wrap(~ Component) +
-  coord_flip() +
-  scale_fill_manual(values = c("6mo" = "#4DB6AC", "3mo" = "#FF8A65")) + 
-  scale_color_manual(values = c("6mo" = "#00695C", "3mo" = "#D84315")) +
-  scale_alpha_manual(values = c("Significant" = 1, "n.s" = 0.4), name = "Significance") +
-  labs(title = "p<0.08",
-       y = "Estimate", x = "") +
-  connor_theme
-
-```
-
-
-
-# Plot seasonality abundance
-```{r}
-# add facet label to seasons
-
-ha3.season <- ha3.season %>% 
-  mutate(duration = "3 months")
-
-ha.season <- ha.season %>% 
-  mutate(duration = "6 months")
-
-timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
-  janitor::clean_names() %>%
-  mutate(start_date = as.Date(start_date)) %>%
-  mutate(end_date = as.Date(end_date)) %>% 
-  select(start_date, end_date, type, enso_event, enso_strength) %>% 
-  mutate(
-    start_month = month(start_date),
-    start_day = day(start_date),
-    end_month = month(end_date),
-    end_day = day(end_date),
-    rep_year = 2025,
-    start_date_rep = make_date(rep_year, start_month, start_day),
-    end_date_rep = make_date(rep_year, end_month, end_day)
-  ) %>% 
-  filter(!type %in% c("6 month", "3 month"))
-
-
-
-p1 <- ggplot(timeline_df, 
-       aes(x = start_date_rep, xend = end_date_rep, y = type, yend = type, color = type)) +
-  geom_segment(size = 3, alpha = 1) +
-  scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
-    date_labels = "%b",
-    date_breaks = "1 month",
-    expand = c(0.01, 0)
-  ) + 
-  scale_color_manual(values = c(
-    "hurricane" = "#CB87E9",
-    "tropical storm" = "#CB87B4",
-    "trematode" = "#c9ad79",
-    "myxozoan" = "#07c3c5"
-  )) +
-  labs(x = "", y = "", fill = "")  +
-  connor_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
-  theme(
-  panel.spacing = unit(0, "pt"),
-  strip.text = element_blank(), 
-  legend.spacing = unit(0, "pt"),
-  legend.title = element_blank()
-)
-
-p2 <- ggplot(ha.season,
-       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
-  facet_grid(duration ~ ., switch = "x") +
-  geom_violin(scale = "count", trim = FALSE) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
-  scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
-    date_labels = "%b",
-    date_breaks = "1 month",
-    expand = c(0.01, 0)
-  ) +
-  scale_fill_manual(values = my_pal, name = '') +
-  labs(x = "", y = "", fill = "") +
-  connor_theme +
-  theme(
-  panel.spacing = unit(0, "pt"),
-  legend.spacing = unit(0, "pt"),
-  axis.text.x = element_blank(),
-  axis.ticks.x = element_blank()
-)
-
-season6 <- (p1 / p2 + 
-  plot_layout(heights = c(1, 1.2), guides = "collect")) & 
-  theme(
-    axis.title.x = element_text(),
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "top"
-  )
- 
- # 3 month
-season3 <- ggplot(ha3.season,
-       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
-  facet_grid(duration ~ ., switch = "x") +
-  geom_violin(scale = "count", trim = FALSE) +
-  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
-  scale_x_date(
-    limits = as.Date(c("2025-01-03", "2025-12-26")),
-    date_labels = "%b",
-    date_breaks = "1 month",
-    expand = c(0.01, 0)
-  ) +
- scale_fill_manual(values = my_pal, name = '') +
-  labs(x = "", y = "", fill = "") +
-  connor_theme +
-  theme(
-    panel.spacing = unit(0, "pt"),
-    legend.spacing = unit(0, "pt"),
-    legend.position = "none", 
-    axis.title.x = element_text(),
-    plot.title = element_text(hjust = 0.5)
-  )
-
-final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") + 
-  plot_layout(guides = "collect") 
-  
-
-final_plot
-
-
-ggsave("seasonality.jpeg", width = 10, height = (9/16)*10, dpi = 300)
-
-
-
-```
-
-
-# Make timelines 
-Load dataframe
+## Make timelines and plots
 ```{r}
 # actual values
 df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
@@ -3854,12 +3499,12 @@ df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timelin
     max_end = max(end_date, na.rm = TRUE)
   ) %>% 
   mutate(
-    name = factor(name, levels = unique(name)),  # keep name order
+    name = factor(name, levels = unique(name)), 
     type_offset = case_when(
       type == "6 month" ~ -0.2,
       type == "3 month" ~ 0.2,
       type == "hurricane" ~ 0,
-      type == "tropical storm" ~ 0  # you can adjust this if needed
+      type == "tropical storm" ~ 0 
     ),
     y_pos = as.numeric(name) + type_offset
   ) %>%
@@ -3874,11 +3519,7 @@ combined_hurricane_full_df <- bind_rows(
   hurricane_df3_abundance_only_full %>% mutate(model = "3-month")
 )
 
-
-```
-
-Make timeline.
-```{r}
+# Make timeline.
 
 timeline_plot <- ggplot(df, aes(x = min_start, y = 1, color = category)) +
   geom_segment(
@@ -3918,22 +3559,17 @@ timeline_plot <- ggplot(df, aes(x = min_start, y = 1, color = category)) +
 
 timeline_plot
 ggsave("ch_only.jpeg", width = 10, height = 3, dpi = 300)
-```
-
 
 # lots samples from TUBRI
-Load data about TUBRI lots
-```{r}
+# Load data about TUBRI lots
 psite_data<-read.csv("~/Desktop/UW/TUBRI/data/processed/Full_dataset_with_psite_life_history_info_2024.11.21.csv") %>%
   mutate(
     Date = make_date(year = YearCollected, 
                      month = MonthCollected, 
                      day = DayCollected)
   )
-```
 
-Make map of lots sampled
-```{r}
+# Make map of lots sampled
 options(ggmap.cache.dir = normalizePath("~/ggmap_cache", mustWork = FALSE))
 dir.create("~/ggmap_cache", showWarnings = FALSE, recursive = TRUE)
 
@@ -3958,7 +3594,7 @@ ggmap(base_map) +
    scale_x_continuous(
     limits = c(bounds["left"], bounds["right"]),
     breaks = mid_x,
-    labels = round(mid_x, 4)  # Format label if needed
+    labels = round(mid_x, 4) 
   ) +
  scale_y_continuous(
     limits = c(bottom_y, top_y),
@@ -3982,7 +3618,6 @@ ggmap(base_map) +
 ggsave("river_plot_full.jpeg", width = 3, height = (9/16)*10, dpi = 300)
 
 #####
-
 
 make_species_map <- function(species_name) {
   ggmap(base_map) +
@@ -4014,7 +3649,6 @@ make_species_map <- function(species_name) {
     )
 }
 
-# Create plots
 a <- make_species_map("pimvig")
 b <- make_species_map("hybnuc") + 
   theme(
@@ -4047,7 +3681,6 @@ g <- make_species_map("carvel") +
     axis.text.y = element_blank() 
   )
 
-# Combine with patchwork
 final_plot <- (a | b | c | d | e | f | g) +
   plot_layout(guides = "collect") &
   theme(legend.position = "bottom")
@@ -4057,16 +3690,13 @@ final_plot
 
 ggsave("river_plot.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
-```
 # Making Maps
-```{r}
 
 nola <- data.frame(
   lon = -90.0715,
   lat =  29.9511
 )
 
-# ~200 mile buffer (~3 degrees)
 zoom_bounds <- list(
   xmin = nola$lon - 1,
   xmax = nola$lon + 1,
@@ -4074,9 +3704,6 @@ zoom_bounds <- list(
   ymax = nola$lat + 1.5
 )
 
-# -----------------------
-# Pearl River study bounds (transparent rectangle)
-# -----------------------
 pearl_bounds <- data.frame(
   xmin = -89.855,
   xmax = -89.81,
@@ -4162,10 +3789,7 @@ final_maps
 ggsave("final_maps.jpeg", width = 12.5, height = (9/16)*10, dpi = 300)
 
 
-```
-
-Make fish replication plot
-```{r}
+# Make fish replication plot
 
 fish <- ggplot(data = hurricane_df6, aes(x = date, y = fish_sp_x)) +
   geom_point(data = hurricane_df6, aes(x = date, fill = fish_sp_x),
@@ -4187,11 +3811,7 @@ fish <- ggplot(data = hurricane_df6, aes(x = date, y = fish_sp_x)) +
     legend.text = element_text(size = 10)
   )
 
-
-```
-Make final plot
-```{r}
-
+# Make final plot
 x_scale_shared <- scale_x_date(
   limits = as.Date(c("1965-01-01", "2006-01-01")),
   breaks = seq(as.Date("1965-01-01"), as.Date("2006-01-01"), by = "5 years"),
@@ -4209,7 +3829,7 @@ ggsave("timeline.jpeg", width = 12, height = (9/16)*11, dpi = 300)
 ```
 
 
-Make tables for all the model outputs -- glmmTMB
+## Make tables for all the model outputs -- glmmTMB
 ```{r}
 # the models:  listed type gives the result for that target one -- i.e. a6meta will give us the meta result (mono in reference)
 
@@ -4360,80 +3980,124 @@ fish_done <- combined_hurricane_full_df %>%
   summarise(unique_catalogs = n_distinct(individual_fish_id))
 ```
 
-# Life cycle effects
-check to see if the type of life cycle a parasite has (direct or complex) has an effect on parasite abundance
+## Plot seasonality abundance
 ```{r}
-# make tables of model outputs
-# season life cycle
-lcs6t <- tbl_regression(season_model6.lc, exponentiate = TRUE)
-lcs3t <- tbl_regression(season_model3.lc, exponentiate = TRUE) 
+# add facet label to seasons
 
-lcs_table <- tbl_merge(
-    tbls = list(lcs3t, lcs6t),
-    tab_spanner = c("**3 month**", "**6 month**")
+ha3.season <- ha3.season %>% 
+  mutate(duration = "3 months")
+
+ha.season <- ha.season %>% 
+  mutate(duration = "6 months")
+
+timeline_df <- read.csv("~/Desktop/UW/Chapter1 NOLA/datasets/nola misc analysis - timeline dates.csv") %>% 
+  janitor::clean_names() %>%
+  mutate(start_date = as.Date(start_date)) %>%
+  mutate(end_date = as.Date(end_date)) %>% 
+  select(start_date, end_date, type, enso_event, enso_strength) %>% 
+  mutate(
+    start_month = month(start_date),
+    start_day = day(start_date),
+    end_month = month(end_date),
+    end_day = day(end_date),
+    rep_year = 2025,
+    start_date_rep = make_date(rep_year, start_month, start_day),
+    end_date_rep = make_date(rep_year, end_month, end_day)
   ) %>% 
-   modify_caption("**Seasonality on Life Cycle**")
+  filter(!type %in% c("6 month", "3 month"))
 
-lcs_table <- as_gt(lcs_table)
-gtsave(lcs_table, filename = "life_cycle_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
 
-# models life cycle conditional
-lc6t <- tbl_regression(final_h_life6, exponentiate = TRUE)
-lc3t <- tbl_regression(final_h_life3, exponentiate = TRUE) 
 
-lc_table <- tbl_merge(
-    tbls = list(lc3t, lc6t),
-    tab_spanner = c("**3 month**", "**6 month**")
-  ) %>% 
-   modify_caption("**Hurricane Effects on Life Cycle**")
-
-lc_table <- as_gt(lc_table)
-gtsave(lc_table, filename = "life_cycle_model_table.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
-
-# life cycle conditional
-h6alc <- tbl_regression(
-  final_h_life6,
-  exponentiate = TRUE,
-  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
-)
-h3alc <- tbl_regression(
-  final_h_life3,
-  exponentiate = TRUE,
-  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "cond", effects = "fixed", ...)
-)
-
-alc_table <- tbl_merge(
-    tbls = list(h3alc, h6alc),
-    tab_spanner = c("**3 month**", "**6 month**")
-  ) %>% 
-   modify_caption("**Parasite Life Cycle (conditional)**")
-
-abun_table_lc <- as_gt(alc_table)
-gtsave(abun_table_lc, filename = "abun_lc_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
-
-# abundance zi
-h6zilc <- tbl_regression(
-  final_h_life6,
-  exponentiate = TRUE,
-  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
-)
-h3zilc <- tbl_regression(
-  final_h_life3,
-  exponentiate = TRUE,
-  tidy_fun = function(x, ...) broom.mixed::tidy(x, component = "zi", effects = "fixed", ...)
+p1 <- ggplot(timeline_df, 
+       aes(x = start_date_rep, xend = end_date_rep, y = type, yend = type, color = type)) +
+  geom_segment(size = 3, alpha = 1) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) + 
+  scale_color_manual(values = c(
+    "hurricane" = "#CB87E9",
+    "tropical storm" = "#CB87B4",
+    "trematode" = "#c9ad79",
+    "myxozoan" = "#07c3c5"
+  )) +
+  labs(x = "", y = "", fill = "")  +
+  connor_theme +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  theme(
+  panel.spacing = unit(0, "pt"),
+  strip.text = element_blank(), 
+  legend.spacing = unit(0, "pt"),
+  legend.title = element_blank()
 )
 
-zilc_table <- tbl_merge(
-    tbls = list(h3zilc, h6zilc),
-    tab_spanner = c("**3 month**", "**6 month**")
-  ) %>% 
-   modify_caption("**Parasite Life Cycle (zero-inflated)**")
+p2 <- ggplot(ha.season,
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+  scale_fill_manual(values = my_pal, name = '') +
+  labs(x = "", y = "", fill = "") +
+  connor_theme +
+  theme(
+  panel.spacing = unit(0, "pt"),
+  legend.spacing = unit(0, "pt"),
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank()
+)
 
-zi_table_lc <- as_gt(zilc_table)
-gtsave(zi_table_lc, filename = "zi_lc_cond_tbl.png", expand = 10, vwidth = 1000, vheight = (9/16)*1000, zoom = 2)
+season6 <- (p1 / p2 + 
+  plot_layout(heights = c(1, 1.2), guides = "collect")) & 
+  theme(
+    axis.title.x = element_text(),
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "top"
+  )
+ 
+ # 3 month
+season3 <- ggplot(ha3.season,
+       aes(x = month_day_date, y = event, fill = fish_sp_x)) +
+  facet_grid(duration ~ ., switch = "x") +
+  geom_violin(scale = "count", trim = FALSE) +
+  geom_point(position = position_jitter(height = 0.2), shape = 21, size = 3, stroke = 0.2) +
+  scale_x_date(
+    limits = as.Date(c("2025-01-03", "2025-12-26")),
+    date_labels = "%b",
+    date_breaks = "1 month",
+    expand = c(0.01, 0)
+  ) +
+ scale_fill_manual(values = my_pal, name = '') +
+  labs(x = "", y = "", fill = "") +
+  connor_theme +
+  theme(
+    panel.spacing = unit(0, "pt"),
+    legend.spacing = unit(0, "pt"),
+    legend.position = "none", 
+    axis.title.x = element_text(),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+final_plot <- wrap_plots(season6, season3, ncol = 1, guides = "collect") + 
+  plot_layout(guides = "collect") 
+  
+
+final_plot
+
+
+ggsave("seasonality.jpeg", width = 10, height = (9/16)*10, dpi = 300)
+
 ```
 
-# Life cycle plot for seasonality
+
+## transmission strategy plot for seasonality
 ```{r}
 ## plot seasonality for the total samples taken and used in the life cycle analyses
 ha.season.lc3 <- ha.season.lc3 %>% 
@@ -4548,7 +4212,7 @@ ggsave("seasonality_lc.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 
 ```
 
-# Make prevalence seasonality plot
+## Make myxozoan seasonality plot
 ```{r}
 ## plot seasonality for the total samples taken and used in the life cycle analyses
 hp.season.3 <- hp3.season %>%  
@@ -4684,44 +4348,7 @@ final_plot
 ggsave("seaonality_prevalence.jpeg", width = 10, height = (9/16)*10, dpi = 300)
 ```
 
-
-
-# Group things to see what is complex vs direct:
-```{r}
-lc.bins <- hurricane_df6 %>% 
-  group_by(psite_type, life_history, fish_sp_x) %>% 
-  summarize(avg.bin = n())
-
-lc.bins2 <- hurricane_df3 %>% 
-  group_by(psite_type, life_history, fish_sp_x) %>% 
-  summarize(avg.bin = n())
-
-testing <- hurricane_df3_prevalence %>% 
-  group_by(fish_sp_x) %>% 
-  summarize(avg.bin = n())
-
-lc.bins2 <- hurricane_df3 %>% 
-  group_by(psite_type, life_history) %>% 
-  summarize(avg.bin = n())
-```
-
-
-# what parasites are we looking at - species level
-```{r}
-
-all_parasites <- tibble(
-  psite_spp = unique(c(
-    hurricane_df_abundance_only_full$psite_spp_x,
-    hurricane_df6$psite_spp_x,
-    hurricane_df3_abundance_only_full$psite_spp_x,
-    hurricane_df3$psite_spp_x
-  ))
-)
-
-
-```
-
-# add plot of fish body size through time
+## add plot of fish body size through time
 ```{r}
 y_scales <- list(
   fish_sp_x == "carvel" ~ scale_y_continuous(
